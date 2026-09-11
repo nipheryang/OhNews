@@ -36,14 +36,38 @@ actor SummaryService {
 
     /// 配置是否足以发起调用：开关打开、地址可用、模型名非空、需要密钥时密钥存在。
     func isConfigured() -> Bool {
-        guard config.isEnabled,
-              config.chatCompletionsURL() != nil,
-              config.summaryModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-        else {
-            return false
+        configurationStatus().canRequest
+    }
+
+    /// 细分出具体卡在哪一步。界面据此给出准确提示，而不是只要有障碍
+    /// 就一律说「请设置 API Key」。
+    func configurationStatus() -> AIConfigurationStatus {
+        AIConfigurationStatus.evaluate(
+            isEnabled: config.isEnabled,
+            hasEndpoint: config.chatCompletionsURL() != nil,
+            hasSummaryModel: config.summaryModel
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty == false,
+            requiresKey: config.preset.requiresAPIKey,
+            keyState: storedKeyState()
+        )
+    }
+
+    private func storedKeyState() -> AIKeyState {
+        switch keychain.readOutcome(account: config.preset.keychainAccount) {
+        case .found(let value):
+            return value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? .missing
+                : .present
+        case .missing:
+            return .missing
+        case .denied:
+            return .unreadable(
+                "钥匙串拒绝读取已保存的密钥。重新构建后的应用签名变化会让授权失效，请在设置里重新保存一次 API Key。"
+            )
+        case .failed(let status):
+            return .unreadable("读取钥匙串失败（错误码 \(status)）。")
         }
-        guard config.preset.requiresAPIKey else { return true }
-        return (storedKey()?.isEmpty == false)
     }
 
     /// 生成一条摘要。命中缓存直接返回；任何失败都返回 nil，由界面决定提示方式。

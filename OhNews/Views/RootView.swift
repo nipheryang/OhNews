@@ -18,11 +18,21 @@ struct RootView: View {
             StoryDetailView()
         }
         .background(Palette.windowBackground)
+        .preferredColorScheme(preferredScheme)
         // 先载入源与上次选中的频道；频道确定后由下面这个 task 负责加载内容。
         .task { await state.prepare() }
         .task(id: state.selectedChannelID) {
             guard let channelID = state.selectedChannelID else { return }
             await state.loadChannel(channelID)
+        }
+    }
+
+    /// `nil` 表示跟随系统。
+    private var preferredScheme: ColorScheme? {
+        switch state.appearance {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
         }
     }
 }

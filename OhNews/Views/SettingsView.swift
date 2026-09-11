@@ -11,9 +11,10 @@ struct SettingsView: View {
 
     @State private var config = AIProviderConfig.default
     @State private var apiKey = ""
-    @State private var hasStoredKey = false
+    @State private var keyState: AIKeyState = .missing
     @State private var listLimit = ListPreferences.defaultLimit
     @State private var summaryScope = SummaryGenerationScope.leadingItems
+    @State private var appearance = AppAppearance.system
     @State private var isConfirmingClearCache = false
     @State private var status: StatusMessage?
     @State private var isTesting = false
@@ -84,13 +85,7 @@ struct SettingsView: View {
 
                 if config.preset.requiresAPIKey {
                     SecureField("API Key", text: $apiKey)
-                    Text(
-                        hasStoredKey
-                            ? "已保存在系统钥匙串；留空并保存会删除已存的密钥。"
-                            : "密钥只写入系统钥匙串，不会进入配置文件或日志。"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    keyHint
                 } else {
                     Label("本地服务不需要 API Key。", systemImage: "checkmark.seal")
                         .font(.caption)
@@ -123,6 +118,22 @@ struct SettingsView: View {
                 }
 
                 Text(summaryScopeHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("外观") {
+                Picker("主题", selection: $appearance) {
+                    ForEach(AppAppearance.allCases, id: \.self) { option in
+                        Text(option.displayName).tag(option)
+                    }
+                }
+                .onChange(of: appearance) { _, newValue in
+                    state.setAppearance(newValue)
+                }
+
+                Text("主窗口工具栏上也有一个按钮，可以一键在深色与浅色之间切换。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -220,6 +231,7 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 540)
         .frame(minHeight: 520)
+        .preferredColorScheme(preferredScheme)
         .task {
             load()
             await state.refreshCacheSize()
@@ -252,6 +264,29 @@ struct SettingsView: View {
         config.preset.hint
     }
 
+    /// 密钥状态说明。
+    ///
+    /// 关键是区分「没存过」与「存了但读不到」：后者常见于重新构建后应用签名变化、
+    /// 钥匙串授权失效。以前两种都显示「还没有保存密钥」，用户会以为自己的密钥丢了。
+    @ViewBuilder
+    private var keyHint: some View {
+        switch keyState {
+        case .present:
+            Text("已保存在系统钥匙串；留空并保存会删除已存的密钥。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .missing:
+            Text("密钥只写入系统钥匙串，不会进入配置文件或日志。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .unreadable(let reason):
+            Label(reason, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     /// 版本号来自 app bundle，避免与工程里的 `MARKETING_VERSION` 漂移。
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
@@ -262,14 +297,39 @@ struct SettingsView: View {
         config = state.config
         listLimit = ListPreferences().listLimit
         summaryScope = SummaryPreferences().scope
+        appearance = state.appearance
         loadStoredKey()
         isLoaded = true
     }
 
+    /// 让设置窗口跟主窗口保持同一种外观，`nil` 表示跟随系统。
+    private var preferredScheme: ColorScheme? {
+        switch state.appearance {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
     private func loadStoredKey() {
-        let stored = KeychainStore().read(account: config.preset.keychainAccount) ?? ""
-        apiKey = stored
-        hasStoredKey = stored.isEmpty == false
+        switch KeychainStore().readOutcome(account: config.preset.keychainAccount) {
+        case .found(let value):
+            apiKey = value
+            keyState = value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? .missing
+                : .present
+        case .missing:
+            apiKey = ""
+            keyState = .missing
+        case .denied:
+            apiKey = ""
+            keyState = .unreadable(
+                "钥匙串拒绝读取已保存的密钥。重新构建后的应用签名变化会让授权失效，重新保存一次即可恢复。"
+            )
+        case .failed(let status):
+            apiKey = ""
+            keyState = .unreadable("读取钥匙串失败（错误码 \(status)）。")
+        }
     }
 
     private func save() async {
@@ -279,10 +339,10 @@ struct SettingsView: View {
                 let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty {
                     try keychain.delete(account: config.preset.keychainAccount)
-                    hasStoredKey = false
+                    keyState = .missing
                 } else {
                     try keychain.save(trimmed, account: config.preset.keychainAccount)
-                    hasStoredKey = true
+                    keyState = .present
                 }
             }
         } catch {

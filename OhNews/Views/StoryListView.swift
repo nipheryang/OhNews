@@ -5,6 +5,7 @@ import SwiftUI
 struct StoryListView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,20 +25,35 @@ struct StoryListView: View {
         .toolbar { toolbarContent }
     }
 
+    /// 顶部提示。两种性质分开处理：
+    ///
+    /// - 配置类问题（缺密钥、配置不完整、密钥读不到）持续存在，给出原因并可跳设置
+    /// - 请求失败是一次性的，带关闭按钮，否则一条内容的偶发失败会永久挂在顶部
     @ViewBuilder
     private var banner: some View {
-        switch state.aiStatus {
-        case .notConfigured:
-            if state.config.isEnabled {
-                AIUnavailableBanner(
-                    title: "AI 摘要未启用",
-                    message: "填入 API Key 后即可生成中文摘要；不配置也能正常阅读。"
-                )
-            }
-        case .failed(let message):
-            AIUnavailableBanner(title: "AI 请求失败", message: message)
-        case .ready:
-            EmptyView()
+        if let failure = state.aiFailureMessage {
+            AIUnavailableBanner(
+                title: "AI 请求失败",
+                message: failure,
+                onDismiss: { state.dismissAIFailure() }
+            )
+        } else if let explanation = state.aiConfiguration.explanation {
+            AIUnavailableBanner(
+                title: bannerTitle,
+                message: explanation,
+                onDismiss: nil
+            )
+        }
+    }
+
+    private var bannerTitle: String {
+        switch state.aiConfiguration {
+        case .keyUnreadable:
+            "无法读取 API Key"
+        case .keyMissing:
+            "尚未设置 API Key"
+        default:
+            "AI 摘要未启用"
         }
     }
 
@@ -162,10 +178,33 @@ struct StoryListView: View {
         }
 
         ToolbarItem(placement: .primaryAction) {
+            Button {
+                state.setAppearance(isCurrentlyDark ? .light : .dark)
+            } label: {
+                Label(appearanceActionLabel, systemImage: isCurrentlyDark ? "sun.max" : "moon")
+            }
+            .help(appearanceActionLabel)
+        }
+
+        ToolbarItem(placement: .primaryAction) {
             SettingsLink {
                 Label("设置", systemImage: "gearshape")
             }
             .help("配置 AI 摘要")
         }
+    }
+
+    /// 当前实际是不是深色。用户显式选过就按用户的选择，不再依赖环境值；
+    /// 只有在「跟随系统」时才读环境外观。
+    private var isCurrentlyDark: Bool {
+        switch state.appearance {
+        case .dark: true
+        case .light: false
+        case .system: colorScheme == .dark
+        }
+    }
+
+    private var appearanceActionLabel: String {
+        isCurrentlyDark ? "切换到浅色外观" : "切换到深色外观"
     }
 }

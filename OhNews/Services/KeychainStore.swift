@@ -10,6 +10,15 @@ struct KeychainStore: Sendable {
         case unexpectedStatus(OSStatus)
     }
 
+    /// 钥匙串读取的细分结果。
+    enum KeychainReadOutcome: Equatable {
+        case found(String)
+        case missing
+        /// 条目存在，但当前签名无权读取（用户拒绝了授权，或授权记录已失效）。
+        case denied(OSStatus)
+        case failed(OSStatus)
+    }
+
     private let service: String
 
     init(service: String = "com.nipher.OhNews") {
@@ -44,6 +53,16 @@ struct KeychainStore: Sendable {
     }
 
     func read(account: String) -> String? {
+        guard case .found(let value) = readOutcome(account: account) else { return nil }
+        return value
+    }
+
+    /// 读取结果。
+    ///
+    /// 把「条目不存在」与「无权读取」分开：应用重新签名（例如 `DEVELOPMENT_TEAM`
+    /// 为空时的 ad-hoc 构建）会让已有条目的授权失效，这时把「读不到」当成
+    /// 「没存过」会让用户反复重存密钥而找不到真正的原因。
+    func readOutcome(account: String) -> KeychainReadOutcome {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -54,13 +73,22 @@ struct KeychainStore: Sendable {
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess,
-              let data = item as? Data,
-              let value = String(data: data, encoding: .utf8)
-        else {
-            return nil
+
+        switch status {
+        case errSecSuccess:
+            guard let data = item as? Data,
+                  let value = String(data: data, encoding: .utf8)
+            else {
+                return .missing
+            }
+            return .found(value)
+        case errSecItemNotFound:
+            return .missing
+        case errSecAuthFailed, errSecInteractionNotAllowed, errSecUserCanceled:
+            return .denied(status)
+        default:
+            return .failed(status)
         }
-        return value
     }
 
     func delete(account: String) throws {

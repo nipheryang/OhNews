@@ -11,7 +11,7 @@ struct SummaryBlockView: View {
     var body: some View {
         HStack(alignment: .top, spacing: Metrics.summaryIndent) {
             Capsule()
-                .fill(Palette.aiAccent.opacity(0.7))
+                .fill(Palette.aiAccent.opacity(0.3))
                 .frame(width: Metrics.summaryRuleWidth)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -76,7 +76,7 @@ struct SummarySkeletonView: View {
     var body: some View {
         HStack(alignment: .top, spacing: Metrics.summaryIndent) {
             Capsule()
-                .fill(Palette.aiAccent.opacity(0.45))
+                .fill(Palette.aiAccent.opacity(0.2))
                 .frame(width: Metrics.summaryRuleWidth)
 
             VStack(alignment: .leading, spacing: 7) {
@@ -109,11 +109,13 @@ struct SummarySkeletonView: View {
 struct AIUnavailableBanner: View {
     let title: String
     let message: String
+    /// 一次性问题（比如某次请求失败）可以关掉；配置类问题传 nil。
+    var onDismiss: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "sparkles")
-                .foregroundStyle(Palette.aiAccent)
+                .foregroundStyle(Palette.aiAccent.opacity(0.8))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -126,6 +128,16 @@ struct AIUnavailableBanner: View {
             }
 
             Spacer(minLength: 8)
+
+            if let onDismiss {
+                Button(action: onDismiss) {
+                    Label("关闭", systemImage: "xmark")
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .foregroundStyle(Palette.textSecondary)
+                .help("关闭提示")
+            }
 
             SettingsLink {
                 Text("去设置")

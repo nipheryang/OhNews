@@ -2,14 +2,6 @@ import Foundation
 import OhNewsKit
 import Observation
 
-/// AI 功能当前是否可用。
-enum AIStatus: Equatable {
-    /// 没有配置密钥或未启用。
-    case notConfigured
-    case ready
-    case failed(String)
-}
-
 /// 阅读器当前的正文状态。
 enum ReaderState: Equatable {
     case idle
@@ -76,7 +68,16 @@ final class AppState {
     var isLoading = false
     var lastErrorMessage: String?
     var lastUpdatedAt: Date?
-    var aiStatus: AIStatus = .notConfigured
+
+    /// AI 配置能不能用，细分到具体原因。
+    private(set) var aiConfiguration: AIConfigurationStatus = .incomplete
+    /// 最近一次请求失败的原因。与配置问题分开：配置问题持续存在，
+    /// 请求失败是一次性的，用户可以关掉。
+    private(set) var aiFailureMessage: String?
+
+    /// 当前外观。
+    private(set) var appearance: AppAppearance = .system
+
     var readerState: ReaderState = .idle
     var config: AIProviderConfig
 
@@ -88,6 +89,9 @@ final class AppState {
     @ObservationIgnored private var rssProviders: [String: RSSSourceProvider] = [:]
     private var generatingIDs: Set<String> = []
     private var articleTask: Task<Void, Never>?
+    /// 阅读器当前对应的条目。**不能**用 `selectedStoryID` 代替：
+    /// 列表的选择绑定会在 `select(_:)` 之前就写好它，那样就分不清「新选择」了。
+    private var articleStoryID: String?
     private let selectionPersistence = SelectionPersistence()
     private let listPreferences = ListPreferences()
     private let summaryPreferences = SummaryPreferences()
@@ -132,7 +136,11 @@ final class AppState {
         await reloadSources()
         listLimit = listPreferences.listLimit
         summaryScope = summaryPreferences.scope
+        appearance = AppearancePreferences().appearance
         await refreshCacheSize()
+        // 启动时就要算出真实的 AI 状态。之前这里是空的，`aiConfiguration`
+        // 停在初始值，于是密钥配置正确也会先报一条「未启用」。
+        await refreshAIStatus()
 
         if let restored = selectionPersistence.load() {
             selectedChannelID = restored
@@ -175,6 +183,7 @@ final class AppState {
         selectedStoryID = nil
         lastErrorMessage = nil
         articleTask?.cancel()
+        articleStoryID = nil
         readerState = .idle
 
         let cachedStories = await cache.cachedStories(forChannel: channelID, limit: listLimit)
@@ -374,24 +383,22 @@ final class AppState {
     // MARK: - AI 摘要
 
     func refreshAIStatus() async {
-        guard config.isEnabled else {
-            aiStatus = .notConfigured
-            return
-        }
-        let ready = await summaryService.isConfigured()
-        aiStatus = ready ? .ready : .notConfigured
+        aiConfiguration = await summaryService.configurationStatus()
+    }
+
+    /// 关掉一次性的请求失败提示。
+    func dismissAIFailure() {
+        aiFailureMessage = nil
     }
 
     /// 按用户选择的范围生成摘要。已有缓存的条目直接跳过。
+    ///
+    /// 状态刷新必须放在范围判断之前：手动模式下也要知道 AI 能不能用，
+    /// 否则界面会一直显示「未启用」，而用户其实只是选择了手动生成。
     func prefetchSummaries() async {
-        guard config.isEnabled, summaryScope != .manual else { return }
-
-        let ready = await summaryService.isConfigured()
-        guard ready else {
-            aiStatus = .notConfigured
-            return
-        }
-        aiStatus = .ready
+        await refreshAIStatus()
+        guard aiConfiguration.canRequest else { return }
+        guard summaryScope != .manual else { return }
 
         let candidates: [Story]
         switch summaryScope {
@@ -435,14 +442,8 @@ final class AppState {
     func generateSummaryNow(for story: Story, force: Bool = false) async {
         guard Task.isCancelled == false else { return }
 
-        guard config.isEnabled else {
-            aiStatus = .notConfigured
-            return
-        }
-        guard await summaryService.isConfigured() else {
-            aiStatus = .notConfigured
-            return
-        }
+        await refreshAIStatus()
+        guard aiConfiguration.canRequest else { return }
 
         generatingIDs.insert(story.id)
         defer { generatingIDs.remove(story.id) }
@@ -461,15 +462,13 @@ final class AppState {
             ignoringCache: force
         ) else {
             if let message = await summaryService.lastErrorDescription {
-                aiStatus = .failed(message)
+                aiFailureMessage = message
             }
             return
         }
 
         summaries[story.id] = summary
-        if case .failed = aiStatus {
-            aiStatus = .ready
-        }
+        aiFailureMessage = nil
     }
 
     private func generateSummary(for story: Story) async {
@@ -511,10 +510,20 @@ final class AppState {
         config = newConfig
         ConfigPersistence.save(newConfig)
         await summaryService.updateConfig(newConfig)
+        // 换了配置，旧的一次性失败提示不再有参考价值。
+        aiFailureMessage = nil
         await refreshAIStatus()
-        if case .ready = aiStatus {
+        if aiConfiguration.canRequest {
             await prefetchSummaries()
         }
+    }
+
+    // MARK: - 外观
+
+    func setAppearance(_ newValue: AppAppearance) {
+        var preferences = AppearancePreferences()
+        preferences.appearance = newValue
+        appearance = newValue
     }
 
     func testAIConnection(
@@ -527,18 +536,22 @@ final class AppState {
     // MARK: - 阅读器
 
     /// 选中一条内容：标记已读，并把正文投到阅读器。
+    ///
+    /// 「要不要抓正文」不能用 `selectedStoryID` 判断：列表的选择绑定会在本方法
+    /// 之前就把它写成目标条目，于是判断永远为 false，正文永远不会开始加载。
+    /// 因此单独用 `articleStoryID` 记录阅读器当前对应哪一条。
     func select(_ story: Story) async {
-        let isNewSelection = selectedStoryID != story.id
+        let needsArticle = articleStoryID != story.id
         selectedStoryID = story.id
 
         guard readIDs.contains(story.id) == false else {
-            if isNewSelection { startArticleLoad(for: story) }
+            if needsArticle { startArticleLoad(for: story) }
             return
         }
         readIDs.insert(story.id)
         await cache.markRead(story.id)
 
-        if isNewSelection { startArticleLoad(for: story) }
+        if needsArticle { startArticleLoad(for: story) }
     }
 
     func reloadArticle(for story: Story) async {
@@ -551,6 +564,7 @@ final class AppState {
 
     private func startArticleLoad(for story: Story) {
         articleTask?.cancel()
+        articleStoryID = story.id
         articleTask = Task { await self.loadArticle(for: story) }
     }
 
