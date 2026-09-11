@@ -1,20 +1,30 @@
 import HeyNewsKit
 import SwiftUI
 
-/// 应用根视图。M0 阶段只做骨架占位，M2 会替换为三栏 `NavigationSplitView`。
+/// 三栏结构：左侧榜单，中间列表，右侧阅读器。
+///
+/// 阅读器在 M4 接入；M3 会在列表行里补上 AI 摘要。
 struct RootView: View {
+    @Environment(AppState.self) private var state
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
     var body: some View {
-        VStack(spacing: 10) {
-            Text("HeyNews")
-                .font(.system(size: 34, weight: .semibold))
-            Text("Hacker News 阅读器 · v\(HeyNewsKit.version)")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            SidebarView()
+        } content: {
+            StoryListView()
+        } detail: {
+            StoryDetailView()
         }
-        .frame(minWidth: 900, minHeight: 600)
+        .task(id: state.selectedList) {
+            guard let list = state.selectedList else { return }
+            await state.loadList(list)
+        }
     }
 }
 
 #Preview {
     RootView()
+        .environment(AppState())
+        .frame(width: 1240, height: 780)
 }

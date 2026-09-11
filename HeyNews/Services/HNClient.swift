@@ -40,26 +40,6 @@ actor HNClient {
         return try HNJSONParser.parseStory(from: data)
     }
 
-    /// 按榜单顺序取前 `limit` 条有效内容。
-    ///
-    /// item 接口只支持单条查询，所以这里串行请求；由于榜单里会混有已删除条目，
-    /// 实际请求数允许超过 `limit`，但不超过两倍。
-    func fetchStories(ids: [Int], limit: Int) async throws -> [Story] {
-        var result: [Story] = []
-        for id in ids.prefix(limit * 2) {
-            if result.count >= limit { break }
-            do {
-                if let story = try await fetchStory(id: id) {
-                    result.append(story)
-                }
-            } catch {
-                // 单条失败不阻断整体：HN 上偶发 5xx 是常态。
-                continue
-            }
-        }
-        return result
-    }
-
     /// 完整评论树（Algolia，一次请求返回整棵树）。
     func fetchStoryComments(id: Int) async throws -> StoryComments? {
         let url = Self.algoliaBase.appendingPathComponent("\(id)")

@@ -8,17 +8,31 @@
 
 /* Begin PBXBuildFile section */
 		04335F66DE55A75587BD1B93 /* HeyNewsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 868F10259397DE5664EE9299 /* HeyNewsApp.swift */; };
+		1D5C12828AF0E02CAE39C83E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3481B9D3D4E68AB64C5C9ED /* AppState.swift */; };
 		459C628220997972C9108566 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FA114B5A065946875EBD41 /* RootView.swift */; };
+		59DADCAB23BE8867792CCCE2 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 584ECAFB8166D6854CC334C9 /* SidebarView.swift */; };
+		73B1E2285DEF538E5349A57C /* StoryList+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5D31938EC6000320C0A0A0 /* StoryList+Display.swift */; };
+		80EFC2166F614929BE7D6352 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93C566DC8249F6D9739BC4D9 /* EmptyStateView.swift */; };
 		A046074AD2857A8484DD82E9 /* HeyNewsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6C7CAFAFCE59B93C9911085A /* HeyNewsKit */; };
+		B61C225066B64491073E9315 /* StoryRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B8F2A33E0520E1F8F3CC359 /* StoryRowView.swift */; };
+		D5649596DF15CD08B712CF36 /* StoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8992E4325F22E3CB1010CB07 /* StoryListView.swift */; };
+		ECF192DBC631F60A018815EC /* HNClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCB277046B3C4955B97BD50 /* HNClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0B8F2A33E0520E1F8F3CC359 /* StoryRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryRowView.swift; sourceTree = "<group>"; };
 		1AB85782C9F507AE3D04E60C /* HeyNewsKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HeyNewsKit; path = Packages/HeyNewsKit; sourceTree = SOURCE_ROOT; };
 		24FA114B5A065946875EBD41 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		584ECAFB8166D6854CC334C9 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		7B8C13B0318706538E2B64B1 /* HeyNews.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HeyNews.entitlements; sourceTree = "<group>"; };
 		868F10259397DE5664EE9299 /* HeyNewsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeyNewsApp.swift; sourceTree = "<group>"; };
+		8992E4325F22E3CB1010CB07 /* StoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryListView.swift; sourceTree = "<group>"; };
 		92571541F2678CE36EE0DA84 /* HeyNews.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HeyNews.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		93C566DC8249F6D9739BC4D9 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		A55143F01F603BE5347988E7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		CFCB277046B3C4955B97BD50 /* HNClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNClient.swift; sourceTree = "<group>"; };
+		DA5D31938EC6000320C0A0A0 /* StoryList+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StoryList+Display.swift"; sourceTree = "<group>"; };
+		F3481B9D3D4E68AB64C5C9ED /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -33,10 +47,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0639F31A3C044E2097F541AD /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				CFCB277046B3C4955B97BD50 /* HNClient.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		25DC382E7409112ACD8684A0 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				DA5D31938EC6000320C0A0A0 /* StoryList+Display.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		3760B15943BE78538C3A97CE /* HeyNews */ = {
 			isa = PBXGroup;
 			children = (
 				80D9330C4315A5615CA7EF56 /* App */,
+				25DC382E7409112ACD8684A0 /* Models */,
+				0639F31A3C044E2097F541AD /* Services */,
 				5FADA20D1B61415010F7AD4B /* Support */,
 				4AF7190A3D34228C2EF89D5B /* Views */,
 			);
@@ -46,7 +78,11 @@
 		4AF7190A3D34228C2EF89D5B /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				93C566DC8249F6D9739BC4D9 /* EmptyStateView.swift */,
 				24FA114B5A065946875EBD41 /* RootView.swift */,
+				584ECAFB8166D6854CC334C9 /* SidebarView.swift */,
+				8992E4325F22E3CB1010CB07 /* StoryListView.swift */,
+				0B8F2A33E0520E1F8F3CC359 /* StoryRowView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -80,6 +116,7 @@
 		80D9330C4315A5615CA7EF56 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				F3481B9D3D4E68AB64C5C9ED /* AppState.swift */,
 				868F10259397DE5664EE9299 /* HeyNewsApp.swift */,
 			);
 			path = App;
@@ -157,8 +194,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1D5C12828AF0E02CAE39C83E /* AppState.swift in Sources */,
+				80EFC2166F614929BE7D6352 /* EmptyStateView.swift in Sources */,
+				ECF192DBC631F60A018815EC /* HNClient.swift in Sources */,
 				04335F66DE55A75587BD1B93 /* HeyNewsApp.swift in Sources */,
 				459C628220997972C9108566 /* RootView.swift in Sources */,
+				59DADCAB23BE8867792CCCE2 /* SidebarView.swift in Sources */,
+				73B1E2285DEF538E5349A57C /* StoryList+Display.swift in Sources */,
+				D5649596DF15CD08B712CF36 /* StoryListView.swift in Sources */,
+				B61C225066B64491073E9315 /* StoryRowView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
