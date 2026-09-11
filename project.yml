@@ -51,6 +51,8 @@ targets:
         NSAppTransportSecurity:
           # 仅放开 WKWebView 内容里的 http 外链，不全局放开 ATS
           NSAllowsArbitraryLoadsInWebContent: true
+          # 允许本地 Ollama 等局域网 http 服务（不放开公网明文 http）
+          NSAllowsLocalNetworking: true
     entitlements:
       path: HeyNews/Support/HeyNews.entitlements
       properties:

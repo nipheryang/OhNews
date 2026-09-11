@@ -14,5 +14,10 @@ struct HeyNewsApp: App {
         .commands {
             SidebarCommands()
         }
+
+        Settings {
+            SettingsView()
+                .environment(state)
+        }
     }
 }

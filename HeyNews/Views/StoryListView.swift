@@ -5,7 +5,9 @@ struct StoryListView: View {
     @Environment(AppState.self) private var state
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            banner
+
             if state.stories.isEmpty {
                 EmptyStateView(
                     isLoading: state.isLoading,
@@ -18,6 +20,23 @@ struct StoryListView: View {
         }
         .navigationTitle(state.activeList.displayName)
         .toolbar { toolbarContent }
+    }
+
+    @ViewBuilder
+    private var banner: some View {
+        switch state.aiStatus {
+        case .notConfigured:
+            if state.config.isEnabled {
+                AIUnavailableBanner(
+                    title: "AI 摘要未启用",
+                    message: "填入 API Key 后，会为列表前 \(AppState.summaryPrefetchLimit) 条自动生成中文摘要；不配置也能正常阅读。"
+                )
+            }
+        case .failed(let message):
+            AIUnavailableBanner(title: "AI 请求失败", message: message)
+        case .ready:
+            EmptyView()
+        }
     }
 
     private var listContent: some View {
@@ -33,7 +52,9 @@ struct StoryListView: View {
                 StoryRowView(
                     story: story,
                     isRead: state.isRead(story),
-                    isSelected: state.selectedStoryID == story.id
+                    isSelected: state.selectedStoryID == story.id,
+                    summary: state.summaries[story.id],
+                    isGeneratingSummary: state.isGeneratingSummary(for: story)
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -62,6 +83,13 @@ struct StoryListView: View {
             }
             .disabled(state.isLoading)
             .help("重新获取榜单")
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            SettingsLink {
+                Label("设置", systemImage: "gearshape")
+            }
+            .help("配置 AI 摘要")
         }
     }
 }

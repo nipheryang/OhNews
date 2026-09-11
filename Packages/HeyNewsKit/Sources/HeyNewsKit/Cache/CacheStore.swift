@@ -5,11 +5,31 @@ import Foundation
 /// V0 的数据量很小（数百条内容），因此用单个 JSON 文件落盘，而不是引入数据库。
 /// 好处是可以用临时目录直接跑单元测试，也不需要处理数据模型迁移。
 public actor CacheStore {
+    /// 落盘结构。
+    ///
+    /// 自定义 `init(from:)` 而不是依赖合成实现：合成实现会要求所有字段存在，
+    /// 以后新增字段会让旧缓存文件直接解不开。
     private struct Snapshot: Codable {
         var stories: [String: Story] = [:]
         var listOrder: [String: [Int]] = [:]
         var readIDs: [Int] = []
+        var summaries: [String: StorySummary] = [:]
         var updatedAt: Date = .distantPast
+
+        init() {}
+
+        private enum CodingKeys: String, CodingKey {
+            case stories, listOrder, readIDs, summaries, updatedAt
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            stories = try container.decodeIfPresent([String: Story].self, forKey: .stories) ?? [:]
+            listOrder = try container.decodeIfPresent([String: [Int]].self, forKey: .listOrder) ?? [:]
+            readIDs = try container.decodeIfPresent([Int].self, forKey: .readIDs) ?? []
+            summaries = try container.decodeIfPresent([String: StorySummary].self, forKey: .summaries) ?? [:]
+            updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+        }
     }
 
     private let fileURL: URL
@@ -102,6 +122,35 @@ public actor CacheStore {
 
     public func readIDs() -> Set<Int> {
         Set(snapshot.readIDs)
+    }
+
+    // MARK: - AI 摘要
+
+    /// 读取摘要。`promptVersion` 或 `modelName` 与存入时不符则视为过期。
+    public func summary(
+        storyID: Int,
+        promptVersion: String,
+        modelName: String
+    ) -> StorySummary? {
+        guard let summary = snapshot.summaries[String(storyID)] else { return nil }
+        return summary.matches(promptVersion: promptVersion, modelName: modelName) ? summary : nil
+    }
+
+    public func storeSummary(_ summary: StorySummary) {
+        snapshot.summaries[String(summary.storyID)] = summary
+        snapshot.updatedAt = Date()
+        save()
+    }
+
+    /// 批量取出这批条目已有的摘要（不校验版本与模型，仅用于展示）。
+    public func summaries(forStoryIDs ids: [Int]) -> [Int: StorySummary] {
+        var result: [Int: StorySummary] = [:]
+        for id in ids {
+            if let summary = snapshot.summaries[String(id)] {
+                result[id] = summary
+            }
+        }
+        return result
     }
 
     // MARK: - 维护
