@@ -160,9 +160,42 @@ struct PromptBuilderTests {
         let story = makeStory(url: nil, text: "<p>这是自述帖正文。</p>")
         let pair = PromptBuilder.build(story: story, comments: nil)
 
-        #expect(pair.user.contains("HN 正文"))
+        #expect(pair.user.contains("正文："))
         #expect(pair.user.contains("这是自述帖正文。"))
-        #expect(pair.user.contains("链接：无（HN 自述帖）"))
+        #expect(pair.user.contains("链接：无"))
+    }
+
+    /// 带外链的来源（例如 RSS 条目）自带的正文也要进 prompt：
+    /// 这类来源通常没有评论，正文是唯一的内容依据。
+    @Test func includesBodyEvenWhenItemHasExternalLink() {
+        let story = makeStory(text: "<p>RSS 条目自带的正文。</p>")
+        let pair = PromptBuilder.build(story: story, comments: nil)
+
+        #expect(pair.user.contains("正文："))
+        #expect(pair.user.contains("RSS 条目自带的正文。"))
+    }
+
+    @Test func usesSourceSpecificLeadingSentence() {
+        let hackerNews = PromptBuilder.build(story: makeStory(), comments: nil)
+        #expect(hackerNews.system.contains("Hacker News"))
+
+        let rssStory = Story(
+            id: "rss:9a1f2b3c:abc",
+            sourceID: "rss:9a1f2b3c",
+            title: "RSS 标题",
+            url: URL(string: "https://example.com/post"),
+            score: nil,
+            author: "",
+            postedAt: Date(timeIntervalSince1970: 1_160_418_111),
+            commentCount: nil,
+            type: .story,
+            text: nil
+        )
+        let rss = PromptBuilder.build(story: rssStory, comments: nil)
+        #expect(rss.system.contains("Hacker News") == false)
+        // 输出格式要求对所有来源一致。
+        #expect(rss.system.contains("title_zh"))
+        #expect(rss.user.contains("分数") == false)
     }
 
     @Test func truncatesSelfPostBody() {

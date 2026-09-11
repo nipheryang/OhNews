@@ -53,6 +53,8 @@ targets:
           NSAllowsArbitraryLoadsInWebContent: true
           # 允许本地 Ollama 等局域网 http 服务（不放开公网明文 http）
           NSAllowsLocalNetworking: true
+          # RSS 世界里 http 站点仍有不少，用户添加订阅时需要直接抓取（2026-09-12 确认）
+          NSAllowsArbitraryLoads: true
     entitlements:
       path: OhNews/Support/OhNews.entitlements
       properties:

@@ -13,6 +13,8 @@ public actor NetworkThrottle {
         case item
         /// Algolia 评论树。
         case comments
+        /// RSS / Atom 订阅抓取。
+        case rss
         /// 第三方站点正文抓取。
         case article
 
@@ -21,6 +23,7 @@ public actor NetworkThrottle {
             case .listIDs: 1
             case .item: 1
             case .comments: 2
+            case .rss: 2
             case .article: 2
             }
         }
@@ -30,6 +33,7 @@ public actor NetworkThrottle {
             case .listIDs: .zero
             case .item: .milliseconds(200)
             case .comments: .milliseconds(500)
+            case .rss: .seconds(1)
             case .article: .seconds(1)
             }
         }

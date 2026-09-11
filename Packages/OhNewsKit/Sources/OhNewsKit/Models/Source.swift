@@ -3,7 +3,7 @@ import Foundation
 /// 信息源的种类。
 ///
 /// 新增来源时在这里扩展，并在 app 层提供对应的 `NewsSourceProvider` 实现。
-public enum SourceKind: String, Codable, Hashable, Sendable {
+public enum SourceKind: String, CaseIterable, Codable, Hashable, Sendable {
     /// Hacker News 官方接口。
     case hackerNews
     /// RSS 2.0 或 Atom 1.0 订阅源。
@@ -15,6 +15,26 @@ public enum SourceKind: String, Codable, Hashable, Sendable {
         case .hackerNews: "Hacker News"
         case .rss: "RSS 订阅"
         }
+    }
+
+    /// 该种类在源 ID 中使用的前缀。
+    ///
+    /// 源 ID 的约定是「前缀 + 冒号 + 键」（`hn:top`、`rss:8f3a…`），
+    /// 前缀就是这里的取值。
+    public var identifierPrefix: String {
+        switch self {
+        case .hackerNews: "hn"
+        case .rss: "rss"
+        }
+    }
+
+    /// 由源 ID 推断种类。认不出来的按 RSS 处理（它是默认的外部来源类型）。
+    public static func inferred(fromSourceID sourceID: String) -> SourceKind {
+        let prefix = sourceID
+            .split(separator: Character(SourceIdentifier.separator))
+            .first
+            .map(String.init) ?? sourceID
+        return SourceKind.allCases.first { $0.identifierPrefix == prefix } ?? .rss
     }
 }
 

@@ -5,8 +5,8 @@ import Foundation
 /// 这里只放标识与映射这类纯逻辑。频道的中文展示名属于界面层，由 app 负责映射；
 /// 抓到数据的实现由 app 层的 provider 负责。
 public enum HackerNewsSource {
-    /// 内置源的固定 ID。
-    public static let sourceID = "hn"
+    /// 内置源的固定 ID，与 `SourceKind.hackerNews.identifierPrefix` 保持一致。
+    public static let sourceID = SourceKind.hackerNews.identifierPrefix
 
     public static let source = NewsSource(
         id: sourceID,

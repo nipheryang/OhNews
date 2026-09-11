@@ -21,6 +21,7 @@
 		4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */; };
 		54D199DC4A783A0BC631B283 /* OhNewsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 42FE398B922B1B7937CC4E33 /* OhNewsKit */; };
 		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
+		912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */; };
 		91DB2C913378D4E8133D7635 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */; };
 		AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */; };
 		BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E13AC35833EEA13732D6CB1 /* HNClient.swift */; };
@@ -55,6 +56,7 @@
 		A206012A0B5B7A9EFEDF2260 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigPersistence.swift; sourceTree = "<group>"; };
+		B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSSourceProvider.swift; sourceTree = "<group>"; };
 		C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		C4B03317112A6733873F1C3D /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		C770821155A5A9BA690913C0 /* HNSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNSourceProvider.swift; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 				3E13AC35833EEA13732D6CB1 /* HNClient.swift */,
 				C770821155A5A9BA690913C0 /* HNSourceProvider.swift */,
 				F3B44890862C4EAD57FCE612 /* KeychainStore.swift */,
+				B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */,
 				87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */,
 			);
 			path = Services;
@@ -269,6 +272,7 @@
 				2A90B992D01843A7C573A9EF /* HNSourceProvider.swift in Sources */,
 				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
+				912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */,
 				F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */,
 				D3AC142A2FBC0D1625DA299B /* RootView.swift in Sources */,
 				1F8BECA3EA328BA13962A659 /* SettingsView.swift in Sources */,
