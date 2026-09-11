@@ -23,6 +23,7 @@
 		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
 		912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */; };
 		91DB2C913378D4E8133D7635 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */; };
+		A15286E403FD3CF62438DDC0 /* AddSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */; };
 		AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */; };
 		BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E13AC35833EEA13732D6CB1 /* HNClient.swift */; };
 		C0FF923A4CDEDD44FEC00160 /* EULA.md in Resources */ = {isa = PBXBuildFile; fileRef = 4F19B9F2494086329178A9B1 /* EULA.md */; };
@@ -42,6 +43,7 @@
 		37C886291A0E1E5B6794617C /* SummaryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardView.swift; sourceTree = "<group>"; };
 		3E13AC35833EEA13732D6CB1 /* HNClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNClient.swift; sourceTree = "<group>"; };
 		4F19B9F2494086329178A9B1 /* EULA.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = EULA.md; sourceTree = "<group>"; };
+		525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSourceView.swift; sourceTree = "<group>"; };
 		53259EE86760DCF2553BAED2 /* StoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryListView.swift; sourceTree = "<group>"; };
 		5EE8418AB4705672131EE240 /* OhNewsKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = OhNewsKit; path = Packages/OhNewsKit; sourceTree = SOURCE_ROOT; };
 		641552FA43F6EFCDF3A225D5 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -162,6 +164,7 @@
 		E9ECD13007640EBEBF1D874E /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */,
 				106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */,
 				68CA6670660742AAC2DAD3E9 /* ReaderView.swift */,
 				A206012A0B5B7A9EFEDF2260 /* RootView.swift */,
@@ -264,6 +267,7 @@
 			files = (
 				91DB2C913378D4E8133D7635 /* AIProvider.swift in Sources */,
 				9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */,
+				A15286E403FD3CF62438DDC0 /* AddSourceView.swift in Sources */,
 				21E28EE509BED350BFD4956A /* AppState.swift in Sources */,
 				4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */,
 				C1008DF3D541E92E27B471B2 /* ConfigPersistence.swift in Sources */,

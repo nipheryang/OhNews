@@ -20,23 +20,24 @@ struct SelectionPersistenceTests {
         #expect(persistence.load() == nil)
     }
 
-    @Test("保存后能读回同一个榜单")
-    func roundTripsSelection() throws {
+    @Test("保存后能读回同一个频道")
+    func roundTripsChannel() throws {
         let (defaults, _) = try makeDefaults()
         let persistence = SelectionPersistence(defaults: defaults)
 
-        persistence.save(.best)
+        persistence.save("hn:best")
 
-        #expect(persistence.load() == .best)
+        #expect(persistence.load() == "hn:best")
     }
 
-    @Test("存的是未知值时返回 nil，而不是崩溃")
-    func returnsNilForUnknownValue() throws {
+    @Test("能保存带源前缀的订阅频道")
+    func roundTripsFeedChannel() throws {
         let (defaults, _) = try makeDefaults()
         let persistence = SelectionPersistence(defaults: defaults)
-        defaults.set("legacy-list", forKey: "ui.selectedList")
 
-        #expect(persistence.load() == nil)
+        persistence.save("rss:9a1f2b3c")
+
+        #expect(persistence.load() == "rss:9a1f2b3c")
     }
 
     @Test("保存 nil 会清除已存的值")
@@ -44,8 +45,18 @@ struct SelectionPersistenceTests {
         let (defaults, _) = try makeDefaults()
         let persistence = SelectionPersistence(defaults: defaults)
 
-        persistence.save(.show)
+        persistence.save("hn:show")
         persistence.save(nil)
+
+        #expect(persistence.load() == nil)
+    }
+
+    @Test("空字符串视为没有选择")
+    func treatsEmptyStringAsNoSelection() throws {
+        let (defaults, _) = try makeDefaults()
+        let persistence = SelectionPersistence(defaults: defaults)
+
+        persistence.save("")
 
         #expect(persistence.load() == nil)
     }

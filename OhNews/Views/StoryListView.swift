@@ -18,7 +18,7 @@ struct StoryListView: View {
                 listContent
             }
         }
-        .navigationTitle(state.activeList.displayName)
+        .navigationTitle(state.selectedChannel?.name ?? "OhNews")
         .toolbar { toolbarContent }
     }
 

@@ -1,11 +1,11 @@
 import Foundation
 
-/// 侧栏榜单选择的持久化。
+/// 侧栏频道选择的持久化。
 ///
-/// 只存一个 `rawValue`，用于重启后回到上次浏览的榜单。
-/// `defaults` 可注入，便于在测试里用独立的 suite 验证往返行为。
+/// 只存一个频道 ID（例如 `hn:top`、`rss:9a1f…`），用于重启后回到上次浏览的频道。
+/// 读到 `nil` 表示没存过；读到已不存在的频道（例如源被删除）由调用方回落到默认频道。
 public struct SelectionPersistence {
-    private static let key = "ui.selectedList"
+    private static let key = "ui.selectedChannel"
 
     private let defaults: UserDefaults
 
@@ -13,17 +13,17 @@ public struct SelectionPersistence {
         self.defaults = defaults
     }
 
-    /// 读取上次选中的榜单。没有存过、或存的是未知值（例如榜单被移除）时返回 `nil`。
-    public func load() -> StoryList? {
-        guard let raw = defaults.string(forKey: Self.key) else { return nil }
-        return StoryList(rawValue: raw)
+    public func load() -> String? {
+        let value = defaults.string(forKey: Self.key)
+        guard let value, value.isEmpty == false else { return nil }
+        return value
     }
 
-    public func save(_ list: StoryList?) {
-        guard let list else {
+    public func save(_ channelID: String?) {
+        guard let channelID, channelID.isEmpty == false else {
             defaults.removeObject(forKey: Self.key)
             return
         }
-        defaults.set(list.rawValue, forKey: Self.key)
+        defaults.set(channelID, forKey: Self.key)
     }
 }
