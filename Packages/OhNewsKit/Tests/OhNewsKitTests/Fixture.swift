@@ -6,11 +6,12 @@ enum Fixture {
         case missingBundleResource(String)
     }
 
-    static func data(_ name: String) throws -> Data {
+    /// 读取 fixture。默认 `.json`，feed 样本用 ``extension: "xml"``。
+    static func data(_ name: String, `extension` fileExtension: String = "json") throws -> Data {
         guard let base = Bundle.module.resourceURL else {
             throw FixtureError.missingBundleResource(name)
         }
-        let url = base.appendingPathComponent("Fixtures/\(name).json")
+        let url = base.appendingPathComponent("Fixtures/\(name).\(fileExtension)")
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw FixtureError.missingBundleResource(name)
         }
