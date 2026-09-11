@@ -408,15 +408,39 @@ final class AppState {
         generatingIDs.contains(story.id)
     }
 
-    private func generateSummary(for story: Story) async {
+    /// 为单条内容生成摘要。
+    ///
+    /// 列表只自动处理前若干条（控制 AI 调用成本），其余条目由用户在右键菜单里按需生成。
+    ///
+    /// - Parameter force: 为 true 时忽略已有摘要重新生成。
+    func generateSummaryNow(for story: Story, force: Bool = false) async {
         guard Task.isCancelled == false else { return }
+
+        guard config.isEnabled else {
+            aiStatus = .notConfigured
+            return
+        }
+        guard await summaryService.isConfigured() else {
+            aiStatus = .notConfigured
+            return
+        }
+
         generatingIDs.insert(story.id)
         defer { generatingIDs.remove(story.id) }
+
+        // 重新生成时先把旧摘要撤下，让界面立刻进入“生成中”状态。
+        if force {
+            summaries[story.id] = nil
+        }
 
         let comments = await fetchComments(for: story)
         if Task.isCancelled { return }
 
-        guard let summary = await summaryService.summarize(story: story, comments: comments) else {
+        guard let summary = await summaryService.summarize(
+            story: story,
+            comments: comments,
+            ignoringCache: force
+        ) else {
             if let message = await summaryService.lastErrorDescription {
                 aiStatus = .failed(message)
             }
@@ -427,6 +451,10 @@ final class AppState {
         if case .failed = aiStatus {
             aiStatus = .ready
         }
+    }
+
+    private func generateSummary(for story: Story) async {
+        await generateSummaryNow(for: story)
     }
 
     func saveConfig(_ newConfig: AIProviderConfig) async {

@@ -1,3 +1,4 @@
+import AppKit
 import OhNewsKit
 import SwiftUI
 
@@ -59,6 +60,9 @@ struct StoryListView: View {
                 .onTapGesture {
                     Task { await state.select(story) }
                 }
+                .contextMenu {
+                    rowMenu(for: story)
+                }
                 .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
                 .listRowSeparator(.hidden)
             }
@@ -68,6 +72,38 @@ struct StoryListView: View {
         // 新条目插入时用弹性动画把已有行往下推，而不是生硬地重排。
         // 只在顺序变化时触发，所以普通刷新（已有条目原地更新）不会有动画。
         .animation(.bouncy(duration: 0.45), value: state.stories.map(\.id))
+    }
+
+    /// 行的右键菜单。
+    ///
+    /// 列表只自动生成前若干条摘要，剩下的由用户在这里按需生成；
+    /// 已有摘要时提供重新生成，避免过期或不满意的结果无从替换。
+    @ViewBuilder
+    private func rowMenu(for story: Story) -> some View {
+        if state.config.isEnabled == false {
+            Button("生成 AI 摘要") {}
+                .disabled(true)
+            Text("需要先在设置里启用 AI")
+        } else if state.summaries[story.id] != nil {
+            Button("重新生成 AI 摘要") {
+                Task { await state.generateSummaryNow(for: story, force: true) }
+            }
+            .disabled(state.isGeneratingSummary(for: story))
+        } else {
+            Button("生成 AI 摘要") {
+                Task { await state.generateSummaryNow(for: story) }
+            }
+            .disabled(state.isGeneratingSummary(for: story))
+        }
+
+        Divider()
+
+        Button("在浏览器中打开") {
+            if let url = story.url {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        .disabled(story.url == nil)
     }
 
     @ToolbarContentBuilder

@@ -47,15 +47,22 @@ actor SummaryService {
     }
 
     /// 生成一条摘要。命中缓存直接返回；任何失败都返回 nil，由界面决定提示方式。
-    func summarize(story: Story, comments: StoryComments?) async -> StorySummary? {
+    ///
+    /// - Parameter ignoringCache: 为 true 时跳过缓存读取，用于用户主动要求重新生成。
+    func summarize(
+        story: Story,
+        comments: StoryComments?,
+        ignoringCache: Bool = false
+    ) async -> StorySummary? {
         guard isConfigured() else { return nil }
 
         let model = config.summaryModel
-        if let cached = await cache.summary(
-            itemID: story.id,
-            promptVersion: PromptVersion.current,
-            modelName: model
-        ) {
+        if ignoringCache == false,
+           let cached = await cache.summary(
+               itemID: story.id,
+               promptVersion: PromptVersion.current,
+               modelName: model
+           ) {
             return cached
         }
 
