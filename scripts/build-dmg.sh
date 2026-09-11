@@ -2,6 +2,9 @@
 #
 # 分别构建 arm64 与 x86_64 的 OhNews 安装包（DMG）。
 #
+# 产物输出到 dist/OhNews-<版本>/，按版本号分目录：
+# 不同版本的包不会混在一起，也不会因为文件名相同而互相覆盖。
+#
 # 用法：
 #   scripts/build-dmg.sh              # 两个架构都打
 #   scripts/build-dmg.sh arm64        # 只打 Apple Silicon
@@ -25,7 +28,7 @@ CONFIGURATION="Release"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-DIST_DIR="$PROJECT_ROOT/dist"
+DIST_ROOT="$PROJECT_ROOT/dist"
 BUILD_ROOT="$PROJECT_ROOT/build"
 
 SIGN_IDENTITY="${SIGN_IDENTITY:-}"
@@ -75,6 +78,8 @@ MARKETING_VERSION="$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configura
 [ -n "$MARKETING_VERSION" ] || fail "无法从工程读取 MARKETING_VERSION。"
 info "版本号：$MARKETING_VERSION"
 
+# 按版本号分目录：不同版本的包不会混在一起，也不会互相覆盖。
+DIST_DIR="$DIST_ROOT/$APP_NAME-$MARKETING_VERSION"
 mkdir -p "$DIST_DIR"
 
 # ---------- 逐个架构构建与打包 ----------
@@ -176,7 +181,7 @@ done
 
 # ---------- 汇总 ----------
 
-info "完成，产物位于 dist/"
+info "完成，产物位于 dist/$APP_NAME-$MARKETING_VERSION/"
 for ENTRY in "${BUILT_DMGS[@]}"; do
   printf '    %s\n' "$ENTRY"
 done
