@@ -1,0 +1,486 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		109C37CDEE6FAF8C02303FA1 /* Readability.js in Resources */ = {isa = PBXBuildFile; fileRef = C4B03317112A6733873F1C3D /* Readability.js */; };
+		16F9A2DF76F3A9ACC9394945 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */; };
+		17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3B44890862C4EAD57FCE612 /* KeychainStore.swift */; };
+		1C26B7C582981293F69AC37C /* SummaryCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C886291A0E1E5B6794617C /* SummaryCardView.swift */; };
+		1F8BECA3EA328BA13962A659 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EBFE2C04F2F39882026718E /* SettingsView.swift */; };
+		21E28EE509BED350BFD4956A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 641552FA43F6EFCDF3A225D5 /* AppState.swift */; };
+		234018F44394AAE24869D306 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */; };
+		2F01C2D9691AB7A629ED975D /* StoryList+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7472CA1FF53BEB6E2BD2F243 /* StoryList+Display.swift */; };
+		3A3C02E4C54FAE7EA3B5935A /* StoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53259EE86760DCF2553BAED2 /* StoryListView.swift */; };
+		3EA0C2E057AB15AAE4595DBC /* reader.css in Resources */ = {isa = PBXBuildFile; fileRef = DAFD5E2ED4564934AB0DD66D /* reader.css */; };
+		4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */; };
+		54D199DC4A783A0BC631B283 /* OhNewsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 42FE398B922B1B7937CC4E33 /* OhNewsKit */; };
+		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
+		91DB2C913378D4E8133D7635 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */; };
+		AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */; };
+		BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E13AC35833EEA13732D6CB1 /* HNClient.swift */; };
+		C0FF923A4CDEDD44FEC00160 /* EULA.md in Resources */ = {isa = PBXBuildFile; fileRef = 4F19B9F2494086329178A9B1 /* EULA.md */; };
+		C1008DF3D541E92E27B471B2 /* ConfigPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */; };
+		C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A534019F6349291DE9DB5B /* SidebarView.swift */; };
+		D3AC142A2FBC0D1625DA299B /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A206012A0B5B7A9EFEDF2260 /* RootView.swift */; };
+		F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68CA6670660742AAC2DAD3E9 /* ReaderView.swift */; };
+		F9C4813577FE396A334AEEB1 /* StoryRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8F18C00B024979631A7D55 /* StoryRowView.swift */; };
+		FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B1FAEBCC9A70143AA84890 /* OhNewsApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		06B1FAEBCC9A70143AA84890 /* OhNewsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OhNewsApp.swift; sourceTree = "<group>"; };
+		07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIProviderPreset+Display.swift"; sourceTree = "<group>"; };
+		106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		2EBFE2C04F2F39882026718E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		37C886291A0E1E5B6794617C /* SummaryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardView.swift; sourceTree = "<group>"; };
+		3E13AC35833EEA13732D6CB1 /* HNClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNClient.swift; sourceTree = "<group>"; };
+		4F19B9F2494086329178A9B1 /* EULA.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = EULA.md; sourceTree = "<group>"; };
+		53259EE86760DCF2553BAED2 /* StoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryListView.swift; sourceTree = "<group>"; };
+		5EE8418AB4705672131EE240 /* OhNewsKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = OhNewsKit; path = Packages/OhNewsKit; sourceTree = SOURCE_ROOT; };
+		641552FA43F6EFCDF3A225D5 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		68CA6670660742AAC2DAD3E9 /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
+		69CDCCFFB99532C96D2C77F7 /* OhNews.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OhNews.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7472CA1FF53BEB6E2BD2F243 /* StoryList+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StoryList+Display.swift"; sourceTree = "<group>"; };
+		76E2D3C2A11A71A11AB5C9F0 /* OhNews.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OhNews.entitlements; sourceTree = "<group>"; };
+		78756EC08D238F27332945B7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		78A534019F6349291DE9DB5B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryService.swift; sourceTree = "<group>"; };
+		9E8F18C00B024979631A7D55 /* StoryRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryRowView.swift; sourceTree = "<group>"; };
+		A206012A0B5B7A9EFEDF2260 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
+		B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigPersistence.swift; sourceTree = "<group>"; };
+		C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
+		C4B03317112A6733873F1C3D /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
+		DAFD5E2ED4564934AB0DD66D /* reader.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = reader.css; sourceTree = "<group>"; };
+		E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleExtractor.swift; sourceTree = "<group>"; };
+		F3B44890862C4EAD57FCE612 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9A0AE2B97BF3EF93B55AEA60 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				54D199DC4A783A0BC631B283 /* OhNewsKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0B35F8AF02901C973F9399EA /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				5EE8418AB4705672131EE240 /* OhNewsKit */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		2BD8129784B7DAAC0375B69F /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */,
+				7472CA1FF53BEB6E2BD2F243 /* StoryList+Display.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		2FAC19518C9D5CC13A3D5D1D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				69CDCCFFB99532C96D2C77F7 /* OhNews.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		85748C4970DB0570E33CF7A5 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				641552FA43F6EFCDF3A225D5 /* AppState.swift */,
+				B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */,
+				06B1FAEBCC9A70143AA84890 /* OhNewsApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		8597610673BF36D0F4D9AA82 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */,
+				E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */,
+				3E13AC35833EEA13732D6CB1 /* HNClient.swift */,
+				F3B44890862C4EAD57FCE612 /* KeychainStore.swift */,
+				87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A27F9BD8ACFC470DA7288EAD = {
+			isa = PBXGroup;
+			children = (
+				D0147930D04CD3DA5205CA77 /* OhNews */,
+				0B35F8AF02901C973F9399EA /* Packages */,
+				2FAC19518C9D5CC13A3D5D1D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BD77DAB200BF036174569FAD /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4F19B9F2494086329178A9B1 /* EULA.md */,
+				C4B03317112A6733873F1C3D /* Readability.js */,
+				DAFD5E2ED4564934AB0DD66D /* reader.css */,
+				C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		D0147930D04CD3DA5205CA77 /* OhNews */ = {
+			isa = PBXGroup;
+			children = (
+				85748C4970DB0570E33CF7A5 /* App */,
+				2BD8129784B7DAAC0375B69F /* Models */,
+				BD77DAB200BF036174569FAD /* Resources */,
+				8597610673BF36D0F4D9AA82 /* Services */,
+				FCB56D2AD973C345BD5C4E3E /* Support */,
+				E9ECD13007640EBEBF1D874E /* Views */,
+			);
+			path = OhNews;
+			sourceTree = "<group>";
+		};
+		E9ECD13007640EBEBF1D874E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */,
+				68CA6670660742AAC2DAD3E9 /* ReaderView.swift */,
+				A206012A0B5B7A9EFEDF2260 /* RootView.swift */,
+				2EBFE2C04F2F39882026718E /* SettingsView.swift */,
+				78A534019F6349291DE9DB5B /* SidebarView.swift */,
+				53259EE86760DCF2553BAED2 /* StoryListView.swift */,
+				9E8F18C00B024979631A7D55 /* StoryRowView.swift */,
+				37C886291A0E1E5B6794617C /* SummaryCardView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		FCB56D2AD973C345BD5C4E3E /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				78756EC08D238F27332945B7 /* Info.plist */,
+				76E2D3C2A11A71A11AB5C9F0 /* OhNews.entitlements */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		62AC1947E12E7CEA93E292DB /* OhNews */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0B589A9984CD6876D0B5F0E7 /* Build configuration list for PBXNativeTarget "OhNews" */;
+			buildPhases = (
+				47B114D818EDCC2112212F81 /* Sources */,
+				8A4A7AE3518CA22301DD3EAC /* Resources */,
+				9A0AE2B97BF3EF93B55AEA60 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OhNews;
+			packageProductDependencies = (
+				42FE398B922B1B7937CC4E33 /* OhNewsKit */,
+			);
+			productName = OhNews;
+			productReference = 69CDCCFFB99532C96D2C77F7 /* OhNews.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9B8C96522BCFC67ED1779978 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					62AC1947E12E7CEA93E292DB = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 6DE38FECF41503CAC123B426 /* Build configuration list for PBXProject "OhNews" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = A27F9BD8ACFC470DA7288EAD;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				04E2550EDB97E3264561A8CB /* XCLocalSwiftPackageReference "Packages/OhNewsKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2FAC19518C9D5CC13A3D5D1D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				62AC1947E12E7CEA93E292DB /* OhNews */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8A4A7AE3518CA22301DD3EAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0FF923A4CDEDD44FEC00160 /* EULA.md in Resources */,
+				109C37CDEE6FAF8C02303FA1 /* Readability.js in Resources */,
+				16F9A2DF76F3A9ACC9394945 /* THIRD_PARTY_NOTICES.md in Resources */,
+				3EA0C2E057AB15AAE4595DBC /* reader.css in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		47B114D818EDCC2112212F81 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				91DB2C913378D4E8133D7635 /* AIProvider.swift in Sources */,
+				9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */,
+				21E28EE509BED350BFD4956A /* AppState.swift in Sources */,
+				4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */,
+				C1008DF3D541E92E27B471B2 /* ConfigPersistence.swift in Sources */,
+				234018F44394AAE24869D306 /* EmptyStateView.swift in Sources */,
+				BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */,
+				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
+				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
+				F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */,
+				D3AC142A2FBC0D1625DA299B /* RootView.swift in Sources */,
+				1F8BECA3EA328BA13962A659 /* SettingsView.swift in Sources */,
+				C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */,
+				2F01C2D9691AB7A629ED975D /* StoryList+Display.swift in Sources */,
+				3A3C02E4C54FAE7EA3B5935A /* StoryListView.swift in Sources */,
+				F9C4813577FE396A334AEEB1 /* StoryRowView.swift in Sources */,
+				1C26B7C582981293F69AC37C /* SummaryCardView.swift in Sources */,
+				AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4ADA5688C80F0ECB2069C355 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		8A6575D48792B3BAF40F9FCF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OhNews/Support/OhNews.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = OhNews/Support/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.nipher.OhNews;
+				PRODUCT_NAME = OhNews;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Release;
+		};
+		AC2FF3D5BF17227BD2FA60CB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C39B29698D24D2CF3A1837A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OhNews/Support/OhNews.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = OhNews/Support/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.nipher.OhNews;
+				PRODUCT_NAME = OhNews;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0B589A9984CD6876D0B5F0E7 /* Build configuration list for PBXNativeTarget "OhNews" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C39B29698D24D2CF3A1837A0 /* Debug */,
+				8A6575D48792B3BAF40F9FCF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6DE38FECF41503CAC123B426 /* Build configuration list for PBXProject "OhNews" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC2FF3D5BF17227BD2FA60CB /* Debug */,
+				4ADA5688C80F0ECB2069C355 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		04E2550EDB97E3264561A8CB /* XCLocalSwiftPackageReference "Packages/OhNewsKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/OhNewsKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		42FE398B922B1B7937CC4E33 /* OhNewsKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OhNewsKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 9B8C96522BCFC67ED1779978 /* Project object */;
+}

@@ -1,20 +1,20 @@
-# HeyNews
+# OhNews
 
 English | [简体中文](README.zh-CN.md)
 
-HeyNews is a native macOS app for reading Hacker News, with optional Chinese AI summaries and an in-app reading view. Hacker News is the first source it supports.
+OhNews is a native macOS app for reading Hacker News, with optional Chinese AI summaries and an in-app reading view. Hacker News is the first source it supports.
 
 It is designed for people who want to scan Hacker News, understand the discussion around a story, and open the original article without switching between several browser tabs.
 
-HeyNews is a proprietary, source-available product. The terms in [`LICENSE`](LICENSE) and [`EULA.md`](EULA.md) govern its use and distribution.
+OhNews is a proprietary, source-available product. The terms in [`LICENSE`](LICENSE) and [`EULA.md`](EULA.md) govern its use and distribution.
 
 ## Install
 
-HeyNews is distributed as a macOS disk image (DMG). macOS 15.0 or later is required.
+OhNews is distributed as a macOS disk image (DMG). macOS 15.0 or later is required.
 
 1. Open the downloaded `.dmg` file.
-2. Drag `HeyNews.app` onto the `Applications` folder.
-3. Launch HeyNews from `Applications` or Spotlight.
+2. Drag `OhNews.app` onto the `Applications` folder.
+3. Launch OhNews from `Applications` or Spotlight.
 
 Release builds are signed with a Developer ID certificate and notarized by Apple. Until a notarized build is available, macOS Gatekeeper may warn about an unidentified developer; in that case, Control-click the app in Finder and choose **Open** once.
 
@@ -47,7 +47,7 @@ Plans may change as development progresses and do not represent committed delive
 
 ## AI Setup
 
-AI is optional. Without a configured provider, HeyNews remains a usable Hacker News reader.
+AI is optional. Without a configured provider, OhNews remains a usable Hacker News reader.
 
 Open Settings from the toolbar or with `Command-,`:
 
@@ -64,7 +64,7 @@ The default preset is DeepSeek:
 
 Ollama can be used with a local endpoint such as `http://localhost:11434/v1`. The model name must match a model installed on the local machine.
 
-Keys are stored in the macOS Keychain. They are not written to UserDefaults, the repository, or application logs. When AI is disabled or not configured, HeyNews does not send article text or comments to an AI provider.
+Keys are stored in the macOS Keychain. They are not written to UserDefaults, the repository, or application logs. When AI is disabled or not configured, OhNews does not send article text or comments to an AI provider.
 
 ## Data And Privacy
 
@@ -72,13 +72,13 @@ Hacker News data is fetched from the public Firebase API and Algolia HN Search A
 
 When AI summaries are enabled, the story title, metadata, and a bounded selection of HN comments are sent to the provider configured by the user. Provider retention and data handling are governed by that provider's own terms and privacy policy.
 
-Article pages are loaded directly in a local WKWebView for reading-mode extraction. HeyNews does not operate a server-side article proxy.
+Article pages are loaded directly in a local WKWebView for reading-mode extraction. OhNews does not operate a server-side article proxy.
 
 ## Reader Limitations
 
-Third-party sites can require a subscription, login, JavaScript challenge, or a browser-specific rendering path. In those cases the app may not be able to extract the article body. HeyNews falls back to the story title, the availability of the HN discussion, and a button that opens the original URL in the system browser.
+Third-party sites can require a subscription, login, JavaScript challenge, or a browser-specific rendering path. In those cases the app may not be able to extract the article body. OhNews falls back to the story title, the availability of the HN discussion, and a button that opens the original URL in the system browser.
 
-A paywall means that the external publisher restricts the article behind a subscription or login. It is a limitation of the source website, not a HeyNews payment feature.
+A paywall means that the external publisher restricts the article behind a subscription or login. It is a limitation of the source website, not a OhNews payment feature.
 
 The app uses request throttling and bounded comment and article processing. It is intended for personal reading, not automated bulk crawling or redistribution of third-party content.
 
@@ -89,27 +89,27 @@ The Xcode project is generated from `project.yml` with XcodeGen. XcodeGen is a b
 ```bash
 brew install xcodegen
 xcodegen generate
-xcodebuild -project HeyNews.xcodeproj \
-  -scheme HeyNews \
+xcodebuild -project OhNews.xcodeproj \
+  -scheme OhNews \
   -configuration Debug \
   -destination 'platform=macOS' build
 ```
 
-Open `HeyNews.xcodeproj` in Xcode and run the `HeyNews` scheme.
+Open `OhNews.xcodeproj` in Xcode and run the `OhNews` scheme.
 
 Development requires Xcode 26.3 or later and the Swift 6 language mode.
 
 The pure logic layer has its own test target and can be tested without launching the app:
 
 ```bash
-swift test --package-path Packages/HeyNewsKit
+swift test --package-path Packages/OhNewsKit
 ```
 
-When adding or removing source files under `HeyNews/`, run `xcodegen generate` before building so the generated Xcode project stays in sync.
+When adding or removing source files under `OhNews/`, run `xcodegen generate` before building so the generated Xcode project stays in sync.
 
 ## License And Legal Documents
 
-HeyNews is proprietary software. See [`LICENSE`](LICENSE) and [`EULA.md`](EULA.md) before using or distributing the application.
+OhNews is proprietary software. See [`LICENSE`](LICENSE) and [`EULA.md`](EULA.md) before using or distributing the application.
 
 The app includes Mozilla Readability.js 0.6.0 under the Apache License 2.0. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt) for attribution and the complete third-party license text.
 
