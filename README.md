@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-HeyNews is a native macOS Hacker News reader with optional Chinese AI summaries and an in-app reading view.
+HeyNews is a native macOS app for reading Hacker News, with optional Chinese AI summaries and an in-app reading view. Hacker News is the first source it supports.
 
 It is designed for people who want to scan Hacker News, understand the discussion around a story, and open the original article without switching between several browser tabs.
 
@@ -22,7 +22,7 @@ The app works as a complete Hacker News reader without any configuration. AI sum
 
 ## Current Version
 
-V0 focuses on the reading loop:
+Version 0.1.0 focuses on the reading loop:
 
 - Hacker News Top, Best, New, Ask HN, and Show HN lists
 - Local cache for fast startup and offline viewing of previously loaded stories
@@ -34,7 +34,16 @@ V0 focuses on the reading loop:
 - In-app article reading with Mozilla Readability.js
 - Graceful fallback for paywalls, PDFs, JavaScript-heavy pages, and blocked sites
 
-V0 does not include paid-feature gating, activation, account sync, or cloud storage.
+Version 0.1.0 does not include paid-feature gating, activation, account sync, or cloud storage.
+
+## Roadmap
+
+- Additional news sources beyond Hacker News
+- Detail-level deep analysis and a daily digest
+- A Windows client
+- Search, favorites, and read-later
+
+Plans may change as development progresses and do not represent committed delivery dates.
 
 ## AI Setup
 
