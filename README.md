@@ -1,10 +1,24 @@
 # HeyNews
 
+English | [简体中文](README.zh-CN.md)
+
 HeyNews is a native macOS Hacker News reader with optional Chinese AI summaries and an in-app reading view.
 
 It is designed for people who want to scan Hacker News, understand the discussion around a story, and open the original article without switching between several browser tabs.
 
-> HeyNews is currently a proprietary, source-available product. The repository is private. The terms in `LICENSE` and `EULA.md` apply to use and distribution.
+HeyNews is a proprietary, source-available product. The terms in [`LICENSE`](LICENSE) and [`EULA.md`](EULA.md) govern its use and distribution.
+
+## Install
+
+HeyNews is distributed as a macOS disk image (DMG). macOS 15.0 or later is required.
+
+1. Open the downloaded `.dmg` file.
+2. Drag `HeyNews.app` onto the `Applications` folder.
+3. Launch HeyNews from `Applications` or Spotlight.
+
+Release builds are signed with a Developer ID certificate and notarized by Apple. Until a notarized build is available, macOS Gatekeeper may warn about an unidentified developer; in that case, Control-click the app in Finder and choose **Open** once.
+
+The app works as a complete Hacker News reader without any configuration. AI summaries require your own provider credentials and are optional.
 
 ## Current Version
 
@@ -21,37 +35,6 @@ V0 focuses on the reading loop:
 - Graceful fallback for paywalls, PDFs, JavaScript-heavy pages, and blocked sites
 
 V0 does not include paid-feature gating, activation, account sync, or cloud storage.
-
-## Requirements
-
-- macOS 15.0 or later
-- Xcode 26.3 or later for development
-- Swift 6 language mode
-- Apple Silicon or Intel Mac supported by the selected Xcode toolchain
-
-## Build
-
-The Xcode project is generated from `project.yml` with XcodeGen. XcodeGen is a build-time tool; the generated project is also checked in.
-
-```bash
-brew install xcodegen
-cd HeyNews
-xcodegen generate
-xcodebuild -project HeyNews.xcodeproj \
-  -scheme HeyNews \
-  -configuration Debug \
-  -destination 'platform=macOS' build
-```
-
-Open `HeyNews.xcodeproj` in Xcode and run the `HeyNews` scheme to use the app locally.
-
-The pure logic layer has its own test target and can be tested without launching the app:
-
-```bash
-swift test --package-path Packages/HeyNewsKit
-```
-
-When adding or removing source files under `HeyNews/`, run `xcodegen generate` before building so the generated Xcode project stays in sync.
 
 ## AI Setup
 
@@ -84,11 +67,36 @@ Article pages are loaded directly in a local WKWebView for reading-mode extracti
 
 ## Reader Limitations
 
-Third-party sites can require a subscription, login, JavaScript challenge, or a browser-specific rendering path. In those cases the app may not be able to extract the article body. HeyNews falls back to the story title, HN discussion availability, and a button to open the original URL in the system browser.
+Third-party sites can require a subscription, login, JavaScript challenge, or a browser-specific rendering path. In those cases the app may not be able to extract the article body. HeyNews falls back to the story title, the availability of the HN discussion, and a button that opens the original URL in the system browser.
 
 A paywall means that the external publisher restricts the article behind a subscription or login. It is a limitation of the source website, not a HeyNews payment feature.
 
-The app uses request throttling and bounded comment/article processing. It is intended for personal reading, not automated bulk crawling or redistribution of third-party content.
+The app uses request throttling and bounded comment and article processing. It is intended for personal reading, not automated bulk crawling or redistribution of third-party content.
+
+## Build From Source
+
+The Xcode project is generated from `project.yml` with XcodeGen. XcodeGen is a build-time tool; the generated project is also checked in.
+
+```bash
+brew install xcodegen
+xcodegen generate
+xcodebuild -project HeyNews.xcodeproj \
+  -scheme HeyNews \
+  -configuration Debug \
+  -destination 'platform=macOS' build
+```
+
+Open `HeyNews.xcodeproj` in Xcode and run the `HeyNews` scheme.
+
+Development requires Xcode 26.3 or later and the Swift 6 language mode.
+
+The pure logic layer has its own test target and can be tested without launching the app:
+
+```bash
+swift test --package-path Packages/HeyNewsKit
+```
+
+When adding or removing source files under `HeyNews/`, run `xcodegen generate` before building so the generated Xcode project stays in sync.
 
 ## License And Legal Documents
 
