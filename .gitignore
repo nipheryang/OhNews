@@ -16,3 +16,6 @@ xcuserdata/
 # 本地环境
 .env
 *.local
+
+# 打包产物
+dist/
