@@ -111,7 +111,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("HeyNews")
                         .font(.headline)
-                    Text("Hacker News 阅读器 · 版本 0.1.0")
+                    Text("Hacker News 阅读器 · 版本 \(appVersion)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("专有软件 © 2026 Nipher")
@@ -167,6 +167,11 @@ struct SettingsView: View {
 
     private var presetHint: String {
         config.preset.hint
+    }
+
+    /// 版本号来自 app bundle，避免与工程里的 `MARKETING_VERSION` 漂移。
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
     }
 
     private func load() {
