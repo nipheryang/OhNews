@@ -10,6 +10,19 @@ enum AIStatus: Equatable {
     case failed(String)
 }
 
+/// 阅读器当前的正文状态。
+enum ReaderState: Equatable {
+    case idle
+    case loading
+    /// 外链正文抽取成功。
+    case article(Article)
+    /// HN 自述帖：正文就是 HN 上的文本。
+    case selfPost(html: String)
+    /// 没有正文，按降级级别呈现。
+    case degraded(ReadingLevel)
+    case failed(String)
+}
+
 /// 应用级状态。
 ///
 /// 只有这里持有 UI 状态；网络、缓存、AI 分别由 `HNClient`、`CacheStore`、`SummaryService`
@@ -33,12 +46,16 @@ final class AppState {
     var lastErrorMessage: String?
     var lastUpdatedAt: Date?
     var aiStatus: AIStatus = .notConfigured
+    var readerState: ReaderState = .idle
     var config: AIProviderConfig
 
     private let client: HNClient
     private let cache: CacheStore
     private let summaryService: SummaryService
     private var generatingIDs: Set<Int> = []
+    private var articleTask: Task<Void, Never>?
+    /// 正文抽取器要在首次使用时才创建 WKWebView，且不需要参与观察。
+    @ObservationIgnored private lazy var extractor = ArticleExtractor()
 
     init(
         client: HNClient = HNClient(),
@@ -64,6 +81,8 @@ final class AppState {
     func loadList(_ list: StoryList) async {
         selectedStoryID = nil
         lastErrorMessage = nil
+        articleTask?.cancel()
+        readerState = .idle
 
         let cachedStories = await cache.cachedStories(for: list, limit: Self.displayLimit)
         readIDs = await cache.readIDs()
@@ -195,18 +214,74 @@ final class AppState {
         await summaryService.testConnection(config: draft, apiKey: apiKey)
     }
 
-    // MARK: - 交互
+    // MARK: - 阅读器
 
-    /// 选中一条新闻：标记已读并落到详情区。
+    /// 选中一条新闻：标记已读，并把正文投到阅读器。
     func select(_ story: Story) async {
+        let isNewSelection = selectedStoryID != story.id
         selectedStoryID = story.id
-        guard readIDs.contains(story.id) == false else { return }
+
+        guard readIDs.contains(story.id) == false else {
+            if isNewSelection { startArticleLoad(for: story) }
+            return
+        }
         readIDs.insert(story.id)
         await cache.markRead(story.id)
+
+        if isNewSelection { startArticleLoad(for: story) }
+    }
+
+    func reloadArticle(for story: Story) async {
+        startArticleLoad(for: story)
     }
 
     func isRead(_ story: Story) -> Bool {
         readIDs.contains(story.id)
+    }
+
+    private func startArticleLoad(for story: Story) {
+        articleTask?.cancel()
+        articleTask = Task { await self.loadArticle(for: story) }
+    }
+
+    private func loadArticle(for story: Story) async {
+        // HN 自述帖的正文就在条目里，不需要抓取。
+        if story.isSelfPost, let html = story.text, html.isEmpty == false {
+            readerState = .selfPost(html: html)
+            return
+        }
+
+        guard let url = story.url else {
+            readerState = .degraded(.titleOnly)
+            return
+        }
+
+        readerState = .loading
+        let article = await extractor.extract(from: url)
+
+        // 用户已经切到别的条目，丢弃这次结果。
+        guard selectedStoryID == story.id, Task.isCancelled == false else { return }
+
+        let level = ExtractionFallback.decide(
+            ExtractionOutcome(
+                articleHTML: article?.html,
+                commentCount: story.commentCount,
+                externalURL: url
+            )
+        )
+
+        switch level {
+        case .article:
+            if let article {
+                readerState = .article(article)
+            } else {
+                readerState = .degraded(.titleAndComments)
+            }
+        case .titleAndComments:
+            readerState = .degraded(.titleAndComments)
+        case .titleOnly:
+            readerState = .degraded(.titleOnly)
+        }
     }
 
     private static func message(for error: Error) -> String {
