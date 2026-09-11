@@ -1,3 +1,4 @@
+import AppKit
 import HeyNewsKit
 import SwiftUI
 
@@ -106,6 +107,27 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("关于") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("HeyNews")
+                        .font(.headline)
+                    Text("Hacker News 阅读器 · 版本 0.1.0")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("专有软件 © 2026 Nipher")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("查看最终用户许可协议") {
+                    openBundledDocument(named: "EULA")
+                }
+
+                Button("查看第三方组件声明") {
+                    openBundledDocument(named: "THIRD_PARTY_NOTICES")
+                }
+            }
+
             Section {
                 HStack(spacing: 10) {
                     Button("测试连接") {
@@ -180,6 +202,14 @@ struct SettingsView: View {
 
         await state.saveConfig(config)
         status = .success("已保存。")
+    }
+
+    private func openBundledDocument(named name: String) {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "md") else {
+            status = .failure("找不到随应用附带的文档。")
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 
     private func runConnectionTest() async {

@@ -47,7 +47,7 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.news
         NSPrincipalClass: NSApplication
-        NSHumanReadableCopyright: MIT License
+        NSHumanReadableCopyright: Proprietary software © 2026 Nipher
         NSAppTransportSecurity:
           # 仅放开 WKWebView 内容里的 http 外链，不全局放开 ATS
           NSAllowsArbitraryLoadsInWebContent: true
