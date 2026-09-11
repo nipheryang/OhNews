@@ -35,6 +35,8 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(Palette.sidebarSurface)
         .navigationSplitViewColumnWidth(min: 188, ideal: 208, max: 260)
         .toolbar {
             ToolbarItem {

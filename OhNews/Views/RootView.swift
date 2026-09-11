@@ -11,9 +11,13 @@ struct RootView: View {
             SidebarView()
         } content: {
             StoryListView()
+                // 中栏是扫描区，需要足够宽度放下标题与摘要；太窄会把标题挤成
+                // 一片三行短词，太宽又会让右侧阅读区失去沉浸感。
+                .navigationSplitViewColumnWidth(min: 340, ideal: 400, max: 480)
         } detail: {
             StoryDetailView()
         }
+        .background(Palette.windowBackground)
         // 先载入源与上次选中的频道；频道确定后由下面这个 task 负责加载内容。
         .task { await state.prepare() }
         .task(id: state.selectedChannelID) {

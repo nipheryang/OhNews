@@ -1,5 +1,9 @@
 /* OhNews 阅读器排版样式。
-   只作用于 loadHTMLString 载入的正文文档，不影响应用其他界面。 */
+   只作用于 loadHTMLString 载入的正文文档，不影响应用其他界面。
+
+   颜色与应用界面共用同一套语义令牌（见 OhNews/Support/Theme.swift）：
+   正文 textPrimary、链接 accent、抬起表面 raisedSurface、分割线 separator。
+   数值改动时请同步这两处，否则会出现界面与正文的色温断层。 */
 
 :root {
   color-scheme: light dark;
@@ -11,20 +15,21 @@ html {
 
 body {
   margin: 0 auto;
-  padding: 24px 32px 72px;
-  max-width: 46rem;
+  padding: 28px 40px 88px;
+  max-width: 42rem;
   font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
-  font-size: 16px;
-  line-height: 1.75;
-  color: #1c1c1e;
+  font-size: 17px;
+  line-height: 1.7;
+  color: #16181c;
   background: transparent;
   -webkit-text-size-adjust: 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-  body { color: #e3e3e5; }
-  a { color: #6cb2ff; }
+a {
+  color: #0a63ce;
+  text-decoration: none;
 }
+a:hover { text-decoration: underline; }
 
 h1, h2, h3, h4 {
   line-height: 1.3;
@@ -32,8 +37,8 @@ h1, h2, h3, h4 {
   font-weight: 600;
 }
 
-h1 { font-size: 1.55em; }
-h2 { font-size: 1.3em; }
+h1 { font-size: 1.5em; }
+h2 { font-size: 1.28em; }
 h3 { font-size: 1.12em; }
 
 p, ul, ol, blockquote, figure, pre, table {
@@ -42,16 +47,10 @@ p, ul, ol, blockquote, figure, pre, table {
 
 ul, ol { padding-left: 1.5em; }
 
-a {
-  color: #0a63ce;
-  text-decoration: none;
-}
-a:hover { text-decoration: underline; }
-
 img, video, svg {
   max-width: 100%;
   height: auto;
-  border-radius: 6px;
+  border-radius: 8px;
   display: block;
   margin: 1.2em auto;
 }
@@ -74,7 +73,7 @@ pre {
   padding: 12px 14px;
   overflow-x: auto;
   border-radius: 8px;
-  background: rgba(127, 127, 127, 0.13);
+  background: #f7f8fa;
   font-size: 0.88em;
   line-height: 1.5;
 }
@@ -87,12 +86,12 @@ code {
 :not(pre) > code {
   padding: 0.12em 0.36em;
   border-radius: 4px;
-  background: rgba(127, 127, 127, 0.16);
+  background: #f0f1f4;
 }
 
 hr {
   border: none;
-  border-top: 1px solid rgba(127, 127, 127, 0.28);
+  border-top: 1px solid #e0e3e8;
   margin: 2em 0;
 }
 
@@ -103,9 +102,31 @@ table {
 }
 
 th, td {
-  border: 1px solid rgba(127, 127, 127, 0.3);
+  border: 1px solid #e0e3e8;
   padding: 6px 10px;
   text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  body { color: #f0f2f5; }
+  a { color: #6fa8ff; }
+  pre { background: #20252c; }
+  :not(pre) > code { background: #1f242b; }
+  hr { border-top-color: #262b33; }
+  th, td { border-color: #262b33; }
+  blockquote { border-left-color: rgba(160, 168, 180, 0.35); }
+}
+
+/* 系统开启「增强对比度」时收紧层级差，保证正文与链接可达。 */
+@media (prefers-contrast: more) {
+  body { color: #000000; }
+  a { color: #00429b; text-decoration: underline; }
+  hr { border-top-color: #9aa0a8; }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  body { color: #ffffff; }
+  a { color: #a8c8ff; }
 }
 
 /* Readability 有时会保留原始页面的排版外壳，这里统一压平 */

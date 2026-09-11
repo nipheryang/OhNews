@@ -18,57 +18,92 @@ enum ReaderStyle {
 /// 详情区：把 `AppState.readerState` 映射成具体的呈现方式。
 struct StoryDetailView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        if let story = state.selectedStory {
-            VStack(spacing: 0) {
-                header(for: story)
-                Divider()
-                content(for: story)
+        Group {
+            if let story = state.selectedStory {
+                VStack(spacing: 0) {
+                    header(for: story)
+                    Rectangle()
+                        .fill(Palette.separator)
+                        .frame(height: 1)
+                    content(for: story)
+                }
+            } else {
+                ContentUnavailableView {
+                    Label("选择一条新闻", systemImage: "newspaper")
+                } description: {
+                    Text(emptyHint)
+                }
             }
-        } else {
-            ContentUnavailableView(
-                "选择一条新闻",
-                systemImage: "newspaper",
-                description: Text("左侧切换榜单，中间选择条目。")
-            )
         }
+        .background(Palette.windowBackground)
+        // 正文状态切换用短交叉淡化，不位移：阅读时内容位置跳动比“没有动画”更难受。
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            value: state.readerState
+        )
+    }
+
+    /// 空状态不只是“什么都没选”，得告诉用户当前在哪个频道、下一步做什么。
+    private var emptyHint: String {
+        guard let name = state.selectedChannel?.name else {
+            return "在中间列表选中条目，正文会显示在这里。"
+        }
+        return "当前频道「\(name)」。选中条目后，正文会显示在这里。"
     }
 
     // MARK: - 头部
 
     private func header(for story: Story) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(headerTitle(for: story))
-                    .font(.headline)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Palette.textPrimary)
+                    .lineSpacing(2)
                     .lineLimit(2)
-                Text(headerSubtitle(for: story))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Spacer(minLength: 8)
-
-            if let url = story.url {
-                Button {
-                    NSWorkspace.shared.open(url)
-                } label: {
-                    Label("浏览器打开", systemImage: "safari")
+                HStack(spacing: 6) {
+                    SourceBadge(host: story.sourceHost)
+                    Text(headerSubtitle(for: story))
+                        .font(Typography.metadata)
+                        .foregroundStyle(Palette.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-                .controlSize(.small)
             }
 
-            Button {
-                Task { await state.reloadArticle(for: story) }
-            } label: {
-                Label("重新抓取", systemImage: "arrow.clockwise")
+            Spacer(minLength: 0)
+
+            // 操作只留图标：阅读区的主路径是“读”，按钮越多越吵。
+            HStack(spacing: 2) {
+                if let url = story.url {
+                    Button {
+                        NSWorkspace.shared.open(url)
+                    } label: {
+                        Label("在浏览器中打开", systemImage: "safari")
+                    }
+                    .help("在浏览器中打开")
+                }
+
+                Button {
+                    Task { await state.reloadArticle(for: story) }
+                } label: {
+                    Label("重新抓取", systemImage: "arrow.clockwise")
+                }
+                .disabled(state.readerState == .loading)
+                .help("重新抓取正文")
             }
-            .controlSize(.small)
-            .disabled(state.readerState == .loading)
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .foregroundStyle(Palette.textSecondary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 14)
     }
 
     private func headerTitle(for story: Story) -> String {
@@ -109,6 +144,7 @@ struct StoryDetailView: View {
 
         case .loading:
             ProgressView("正在抓取正文…")
+                .controlSize(.small)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .article(let article):
