@@ -75,7 +75,14 @@ public enum PromptBuilder {
         } else {
             lines.append("链接：无（HN 自述帖）")
         }
-        lines.append("分数：\(story.score)　评论数：\(story.commentCount)")
+        // 分数与评论数并非每个来源都有：缺哪一项就不输出哪一项，而不是输出 0，
+        // 否则模型会把「没有这个数据」当成「这个数据是零」。
+        var metrics: [String] = []
+        if let score = story.score { metrics.append("分数：\(score)") }
+        if let commentCount = story.commentCount { metrics.append("评论数：\(commentCount)") }
+        if metrics.isEmpty == false {
+            lines.append(metrics.joined(separator: "　"))
+        }
 
         if story.isSelfPost, let body = story.text {
             let plainBody = truncate(HTMLText.plain(from: body), to: limits.maxCharactersPerBody)

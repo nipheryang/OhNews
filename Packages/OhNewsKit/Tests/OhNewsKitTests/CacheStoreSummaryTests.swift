@@ -8,13 +8,17 @@ struct CacheStoreSummaryTests {
             .appendingPathComponent("ohnews-summary-\(UUID().uuidString)", isDirectory: true)
     }
 
+    private func itemID(_ number: Int) -> String {
+        SourceIdentifier.itemID(sourceID: HackerNewsSource.sourceID, rawID: String(number))
+    }
+
     private func makeSummary(
-        storyID: Int,
+        itemNumber: Int,
         modelName: String = "deepseek-v4-flash",
         promptVersion: String = PromptVersion.current
     ) -> StorySummary {
         StorySummary(
-            storyID: storyID,
+            storyID: itemID(itemNumber),
             chineseTitle: "中文标题",
             summary: "摘要内容。",
             tags: ["AI"],
@@ -28,11 +32,11 @@ struct CacheStoreSummaryTests {
     @Test func persistsSummaries() async throws {
         let directory = makeTempDirectory()
         let store = CacheStore(directory: directory)
-        await store.storeSummary(makeSummary(storyID: 7))
+        await store.storeSummary(makeSummary(itemNumber: 7))
 
         let reopened = CacheStore(directory: directory)
         let summary = await reopened.summary(
-            storyID: 7,
+            itemID: itemID(7),
             promptVersion: PromptVersion.current,
             modelName: "deepseek-v4-flash"
         )
@@ -44,10 +48,10 @@ struct CacheStoreSummaryTests {
     @Test func invalidatesSummaryOnModelChange() async throws {
         let directory = makeTempDirectory()
         let store = CacheStore(directory: directory)
-        await store.storeSummary(makeSummary(storyID: 7))
+        await store.storeSummary(makeSummary(itemNumber: 7))
 
         let stale = await store.summary(
-            storyID: 7,
+            itemID: itemID(7),
             promptVersion: PromptVersion.current,
             modelName: "gpt-5-mini"
         )
@@ -57,43 +61,45 @@ struct CacheStoreSummaryTests {
     @Test func invalidatesSummaryOnPromptVersionChange() async throws {
         let directory = makeTempDirectory()
         let store = CacheStore(directory: directory)
-        await store.storeSummary(makeSummary(storyID: 7, promptVersion: "v0"))
+        await store.storeSummary(makeSummary(itemNumber: 7, promptVersion: "v0"))
 
         let stale = await store.summary(
-            storyID: 7,
+            itemID: itemID(7),
             promptVersion: PromptVersion.current,
             modelName: "deepseek-v4-flash"
         )
         #expect(stale == nil)
     }
 
-    @Test func returnsSummariesForRequestedStoriesOnly() async throws {
+    @Test func returnsSummariesForRequestedItemsOnly() async throws {
         let directory = makeTempDirectory()
         let store = CacheStore(directory: directory)
-        await store.storeSummary(makeSummary(storyID: 1))
-        await store.storeSummary(makeSummary(storyID: 2))
+        await store.storeSummary(makeSummary(itemNumber: 1))
+        await store.storeSummary(makeSummary(itemNumber: 2))
 
-        let found = await store.summaries(forStoryIDs: [2, 3])
+        let found = await store.summaries(forItemIDs: [itemID(2), itemID(3)])
 
-        #expect(found.keys.sorted() == [2])
-        #expect(found[2]?.storyID == 2)
+        #expect(found.keys.sorted() == [itemID(2)])
+        #expect(found[itemID(2)]?.storyID == itemID(2))
     }
 
-    @Test func decodesSnapshotWrittenBeforeSummariesExisted() async throws {
+    /// 当前版本的快照缺少可选字段时，应当能正常解码，而不是丢掉整份缓存。
+    @Test func decodesCurrentSnapshotMissingOptionalFields() async throws {
         let directory = makeTempDirectory()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        // 模拟旧版本写出的缓存文件：没有 summaries 字段。
-        let legacy = """
-        {"stories":{},"listOrder":{"top":[1]},"readIDs":[1],"updatedAt":"2026-09-11T14:28:23Z"}
+        let snapshot = """
+        {"schemaVersion":\(CacheStore.currentSchemaVersion),"stories":{},\
+        "channelOrder":{"hn:top":["hn:1"]},"readIDs":["hn:1"],\
+        "updatedAt":"2026-09-11T14:28:23Z"}
         """
-        try Data(legacy.utf8).write(to: directory.appendingPathComponent("cache.json"))
+        try Data(snapshot.utf8).write(to: directory.appendingPathComponent("cache.json"))
 
         let store = CacheStore(directory: directory)
-        let ids = await store.cachedIDs(for: .top)
+        let ids = await store.cachedItemIDs(forChannel: HackerNewsSource.channelID(for: .top))
         let readIDs = await store.readIDs()
 
-        #expect(ids == [1])
-        #expect(readIDs == [1])
+        #expect(ids == [itemID(1)])
+        #expect(readIDs == [itemID(1)])
     }
 }

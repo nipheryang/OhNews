@@ -7,13 +7,15 @@ struct PromptBuilderTests {
         title: String = "Show HN: My project",
         url: String? = "https://example.com/post",
         text: String? = nil,
-        commentCount: Int = 12
+        score: Int? = 42,
+        commentCount: Int? = 12
     ) -> Story {
         Story(
-            id: 1,
+            id: SourceIdentifier.itemID(sourceID: HackerNewsSource.sourceID, rawID: "1"),
+            sourceID: HackerNewsSource.sourceID,
             title: title,
             url: url.flatMap { URL(string: $0) },
-            score: 42,
+            score: score,
             author: "nipher",
             postedAt: Date(timeIntervalSince1970: 1_160_418_111),
             commentCount: commentCount,
@@ -33,7 +35,7 @@ struct PromptBuilderTests {
                 children: []
             )
         }
-        return StoryComments(storyID: 1, title: "t", author: "a", points: 1, topLevel: nodes)
+        return StoryComments(storyID: "hn:1", title: "t", author: "a", points: 1, topLevel: nodes)
     }
 
     private func commentLines(in prompt: String) -> [String] {
@@ -80,7 +82,7 @@ struct PromptBuilderTests {
         let pair = PromptBuilder.build(story: makeStory(), comments: nil)
         #expect(pair.user.contains("评论区") == false)
 
-        let empty = StoryComments(storyID: 1, title: nil, author: nil, points: nil, topLevel: [])
+        let empty = StoryComments(storyID: "hn:1", title: nil, author: nil, points: nil, topLevel: [])
         let emptyPair = PromptBuilder.build(story: makeStory(), comments: empty)
         #expect(emptyPair.user.contains("评论区") == false)
     }
@@ -144,7 +146,7 @@ struct PromptBuilderTests {
             createdAt: nil,
             children: [child]
         )
-        let comments = StoryComments(storyID: 1, title: nil, author: nil, points: nil, topLevel: [root])
+        let comments = StoryComments(storyID: "hn:1", title: nil, author: nil, points: nil, topLevel: [root])
 
         let pair = PromptBuilder.build(story: makeStory(), comments: comments)
         let lines = commentLines(in: pair.user)
@@ -170,6 +172,35 @@ struct PromptBuilderTests {
 
         #expect(pair.user.contains(String(repeating: "正", count: 1500) + "…"))
         #expect(pair.user.contains(String(repeating: "正", count: 1501)) == false)
+    }
+
+    /// HN 的分数与评论数始终有值，输出格式必须与 0.2.0 之前完全一致，
+    /// 否则已有摘要会因为 prompt 变化而被判定为过期。
+    @Test func formatsBothMetricsOnOneLine() {
+        let pair = PromptBuilder.build(story: makeStory(), comments: nil)
+        #expect(pair.user.contains("分数：42　评论数：12"))
+    }
+
+    /// 没有分数或评论数的来源（例如 RSS）不应输出这两行，
+    /// 否则模型会把「没有这个数据」当成「这个数据是零」。
+    @Test func omitsMetricsWhenSourceHasNoScoreOrComments() {
+        let pair = PromptBuilder.build(
+            story: makeStory(score: nil, commentCount: nil),
+            comments: nil
+        )
+
+        #expect(pair.user.contains("分数") == false)
+        #expect(pair.user.contains("评论数") == false)
+    }
+
+    @Test func keepsOnlyAvailableMetric() {
+        let pair = PromptBuilder.build(
+            story: makeStory(score: nil, commentCount: 3),
+            comments: nil
+        )
+
+        #expect(pair.user.contains("分数") == false)
+        #expect(pair.user.contains("评论数：3"))
     }
 }
 

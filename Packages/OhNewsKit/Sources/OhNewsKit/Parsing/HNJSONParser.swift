@@ -63,7 +63,11 @@ public enum HNJSONParser {
         if dto.deleted == true || dto.dead == true { return nil }
 
         return Story(
-            id: id,
+            id: SourceIdentifier.itemID(
+                sourceID: HackerNewsSource.sourceID,
+                rawID: String(id)
+            ),
+            sourceID: HackerNewsSource.sourceID,
             title: title,
             url: dto.url.flatMap { URL(string: $0) },
             score: dto.score ?? 0,
@@ -87,7 +91,10 @@ public enum HNJSONParser {
         guard let id = dto.id else { return nil }
 
         return StoryComments(
-            storyID: id,
+            storyID: SourceIdentifier.itemID(
+                sourceID: HackerNewsSource.sourceID,
+                rawID: String(id)
+            ),
             title: dto.title,
             author: dto.author,
             points: dto.points,

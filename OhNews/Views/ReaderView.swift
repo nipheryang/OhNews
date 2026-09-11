@@ -83,10 +83,14 @@ struct StoryDetailView: View {
         if let host = story.sourceHost {
             parts.append(host)
         } else {
-            parts.append("HN 自述帖")
+            parts.append("自述帖")
         }
-        parts.append("\(story.score) 分")
-        parts.append("\(story.commentCount) 条评论")
+        if let score = story.score {
+            parts.append("\(score) 分")
+        }
+        if let commentCount = story.commentCount {
+            parts.append("\(commentCount) 条评论")
+        }
         parts.append(story.author)
         return parts.joined(separator: " · ")
     }
@@ -158,10 +162,16 @@ struct StoryDetailView: View {
         case .article:
             "正文已经显示在下方。"
         case .titleAndComments:
-            """
-            这个站点没有返回可解析的正文，常见原因是付费墙或反爬限制。
-            这条内容还有 \(story.commentCount) 条 HN 评论，评论阅读界面会在 V1 提供。
-            """
+            if let count = story.commentCount, count > 0 {
+                """
+                这个站点没有返回可解析的正文，常见原因是付费墙或反爬限制。
+                这条内容还有 \(count) 条评论，评论阅读界面会在后续版本提供。
+                """
+            } else {
+                """
+                这个站点没有返回可解析的正文，常见原因是付费墙或反爬限制。
+                """
+            }
         case .titleOnly:
             """
             既没有可解析的正文，也没有评论可以看。

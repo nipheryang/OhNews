@@ -52,7 +52,7 @@ actor SummaryService {
 
         let model = config.summaryModel
         if let cached = await cache.summary(
-            storyID: story.id,
+            itemID: story.id,
             promptVersion: PromptVersion.current,
             modelName: model
         ) {
@@ -112,7 +112,8 @@ actor SummaryService {
         }
 
         let story = Story(
-            id: 0,
+            id: SourceIdentifier.itemID(sourceID: HackerNewsSource.sourceID, rawID: "0"),
+            sourceID: HackerNewsSource.sourceID,
             title: "Show HN: A tiny connectivity test",
             url: URL(string: "https://example.com"),
             score: 1,

@@ -42,9 +42,9 @@ final class AppState {
         didSet { selectionPersistence.save(selectedList) }
     }
     var stories: [Story] = []
-    var readIDs: Set<Int> = []
-    var summaries: [Int: StorySummary] = [:]
-    var selectedStoryID: Int?
+    var readIDs: Set<String> = []
+    var summaries: [String: StorySummary] = [:]
+    var selectedStoryID: String?
     var isLoading = false
     var lastErrorMessage: String?
     var lastUpdatedAt: Date?
@@ -55,7 +55,7 @@ final class AppState {
     private let client: HNClient
     private let cache: CacheStore
     private let summaryService: SummaryService
-    private var generatingIDs: Set<Int> = []
+    private var generatingIDs: Set<String> = []
     private var articleTask: Task<Void, Never>?
     private let selectionPersistence = SelectionPersistence()
     /// 正文抽取器要在首次使用时才创建 WKWebView，且不需要参与观察。
@@ -93,11 +93,15 @@ final class AppState {
         articleTask?.cancel()
         readerState = .idle
 
-        let cachedStories = await cache.cachedStories(for: list, limit: Self.displayLimit)
+        let channelID = HackerNewsSource.channelID(for: list)
+        let cachedStories = await cache.cachedStories(
+            forChannel: channelID,
+            limit: Self.displayLimit
+        )
         readIDs = await cache.readIDs()
         stories = cachedStories
         lastUpdatedAt = await cache.lastUpdatedAt()
-        summaries = await cache.summaries(forStoryIDs: cachedStories.map(\.id))
+        summaries = await cache.summaries(forItemIDs: cachedStories.map(\.id))
 
         await fetch(list)
         await prefetchSummaries()
@@ -116,7 +120,10 @@ final class AppState {
 
         do {
             let ids = try await client.fetchStoryIDs(for: list)
-            await cache.storeListIDs(ids, for: list)
+            await cache.storeItemIDs(
+                ids.map { HackerNewsSource.itemID(for: $0) },
+                forChannel: HackerNewsSource.channelID(for: list)
+            )
 
             var collected: [Story] = []
             for id in ids.prefix(Self.displayLimit * 2) {
@@ -130,7 +137,7 @@ final class AppState {
             }
 
             readIDs = await cache.readIDs()
-            summaries = await cache.summaries(forStoryIDs: collected.map(\.id))
+            summaries = await cache.summaries(forItemIDs: collected.map(\.id))
             lastUpdatedAt = await cache.lastUpdatedAt()
             lastErrorMessage = nil
         } catch {
@@ -190,7 +197,7 @@ final class AppState {
         generatingIDs.insert(story.id)
         defer { generatingIDs.remove(story.id) }
 
-        let comments = try? await client.fetchStoryComments(id: story.id)
+        let comments = await fetchComments(for: story)
         if Task.isCancelled { return }
 
         guard let summary = await summaryService.summarize(story: story, comments: comments) else {
@@ -274,7 +281,7 @@ final class AppState {
         let level = ExtractionFallback.decide(
             ExtractionOutcome(
                 articleHTML: article?.html,
-                commentCount: story.commentCount,
+                commentCount: story.commentCount ?? 0,
                 externalURL: url
             )
         )
@@ -291,6 +298,15 @@ final class AppState {
         case .titleOnly:
             readerState = .degraded(.titleOnly)
         }
+    }
+
+    /// 取评论树。
+    ///
+    /// 0.2.0 的 M0 阶段还没引入 provider 抽象，这里先按源前缀还原 HN 的数字 ID；
+    /// M1 接入 `NewsSourceProvider` 后，这一步由 provider 自己负责。
+    private func fetchComments(for story: Story) async -> StoryComments? {
+        guard let number = HackerNewsSource.numericID(fromItemID: story.id) else { return nil }
+        return try? await client.fetchStoryComments(id: number)
     }
 
     private static func message(for error: Error) -> String {

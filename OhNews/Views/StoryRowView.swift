@@ -22,8 +22,12 @@ struct StoryRowView: View {
                     } else {
                         Label("自述帖", systemImage: "text.bubble")
                     }
-                    Label("\(story.score)", systemImage: "arrow.up")
-                    Label("\(story.commentCount)", systemImage: "bubble.right")
+                    if let score = story.score {
+                        Label("\(score)", systemImage: "arrow.up")
+                    }
+                    if let commentCount = story.commentCount {
+                        Label("\(commentCount)", systemImage: "bubble.right")
+                    }
                     Text(story.author)
                     Text(story.postedAt, format: .relative(presentation: .named))
                 }

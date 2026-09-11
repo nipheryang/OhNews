@@ -41,7 +41,7 @@ public struct CommentNode: Codable, Identifiable, Hashable, Sendable {
 
 /// 一个 story 的评论树。
 public struct StoryComments: Codable, Hashable, Sendable {
-    public let storyID: Int
+    public let storyID: String
     public let title: String?
     public let author: String?
     public let points: Int?
@@ -49,7 +49,7 @@ public struct StoryComments: Codable, Hashable, Sendable {
     public let topLevel: [CommentNode]
 
     public init(
-        storyID: Int,
+        storyID: String,
         title: String?,
         author: String?,
         points: Int?,

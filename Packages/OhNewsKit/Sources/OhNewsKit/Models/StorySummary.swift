@@ -4,7 +4,7 @@ import Foundation
 ///
 /// 缓存有效性由 `promptVersion` 与 `modelName` 共同决定：换模型或改 prompt 后旧摘要自动失效。
 public struct StorySummary: Codable, Hashable, Sendable {
-    public let storyID: Int
+    public let storyID: String
     /// 英文标题的中文翻译。
     public let chineseTitle: String
     /// 2 到 3 句中文摘要。
@@ -17,7 +17,7 @@ public struct StorySummary: Codable, Hashable, Sendable {
     public let generatedAt: Date
 
     public init(
-        storyID: Int,
+        storyID: String,
         chineseTitle: String,
         summary: String,
         tags: [String],

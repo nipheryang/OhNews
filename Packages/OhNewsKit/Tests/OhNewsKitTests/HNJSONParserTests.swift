@@ -18,7 +18,8 @@ struct HNJSONParserTests {
     @Test func parsesStoryWithExternalURL() throws {
         let story = try #require(try HNJSONParser.parseStory(from: try Fixture.data("item-story")))
 
-        #expect(story.id == 1)
+        #expect(story.id == "hn:1")
+        #expect(story.sourceID == "hn")
         #expect(story.title == "Y Combinator")
         #expect(story.author == "pg")
         #expect(story.url?.absoluteString == "http://ycombinator.com")
@@ -62,7 +63,7 @@ struct HNJSONParserTests {
             try HNJSONParser.parseStoryComments(from: try Fixture.data("algolia-comments"))
         )
 
-        #expect(comments.storyID == 1)
+        #expect(comments.storyID == "hn:1")
         #expect(comments.title == "Y Combinator")
         // 样本结构：顶层 1 条，其下还有两层，共 3 个评论节点。
         #expect(comments.topLevel.count == 1)
