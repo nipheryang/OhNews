@@ -14,6 +14,7 @@
 		1F8BECA3EA328BA13962A659 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EBFE2C04F2F39882026718E /* SettingsView.swift */; };
 		21E28EE509BED350BFD4956A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 641552FA43F6EFCDF3A225D5 /* AppState.swift */; };
 		234018F44394AAE24869D306 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */; };
+		2A90B992D01843A7C573A9EF /* HNSourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C770821155A5A9BA690913C0 /* HNSourceProvider.swift */; };
 		2F01C2D9691AB7A629ED975D /* StoryList+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7472CA1FF53BEB6E2BD2F243 /* StoryList+Display.swift */; };
 		3A3C02E4C54FAE7EA3B5935A /* StoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53259EE86760DCF2553BAED2 /* StoryListView.swift */; };
 		3EA0C2E057AB15AAE4595DBC /* reader.css in Resources */ = {isa = PBXBuildFile; fileRef = DAFD5E2ED4564934AB0DD66D /* reader.css */; };
@@ -56,6 +57,7 @@
 		B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigPersistence.swift; sourceTree = "<group>"; };
 		C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		C4B03317112A6733873F1C3D /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
+		C770821155A5A9BA690913C0 /* HNSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNSourceProvider.swift; sourceTree = "<group>"; };
 		DAFD5E2ED4564934AB0DD66D /* reader.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = reader.css; sourceTree = "<group>"; };
 		E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleExtractor.swift; sourceTree = "<group>"; };
 		F3B44890862C4EAD57FCE612 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */,
 				E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */,
 				3E13AC35833EEA13732D6CB1 /* HNClient.swift */,
+				C770821155A5A9BA690913C0 /* HNSourceProvider.swift */,
 				F3B44890862C4EAD57FCE612 /* KeychainStore.swift */,
 				87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */,
 			);
@@ -263,6 +266,7 @@
 				C1008DF3D541E92E27B471B2 /* ConfigPersistence.swift in Sources */,
 				234018F44394AAE24869D306 /* EmptyStateView.swift in Sources */,
 				BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */,
+				2A90B992D01843A7C573A9EF /* HNSourceProvider.swift in Sources */,
 				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
 				F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */,

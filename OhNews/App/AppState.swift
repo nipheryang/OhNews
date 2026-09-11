@@ -52,7 +52,7 @@ final class AppState {
     var readerState: ReaderState = .idle
     var config: AIProviderConfig
 
-    private let client: HNClient
+    private let hackerNews: HNSourceProvider
     private let cache: CacheStore
     private let summaryService: SummaryService
     private var generatingIDs: Set<String> = []
@@ -62,11 +62,11 @@ final class AppState {
     @ObservationIgnored private lazy var extractor = ArticleExtractor()
 
     init(
-        client: HNClient = HNClient(),
+        hackerNews: HNSourceProvider = HNSourceProvider(),
         cache: CacheStore = CacheStore(),
         config: AIProviderConfig = ConfigPersistence.load()
     ) {
-        self.client = client
+        self.hackerNews = hackerNews
         self.cache = cache
         self.config = config
         self.summaryService = SummaryService(cache: cache, config: config)
@@ -113,29 +113,27 @@ final class AppState {
         await prefetchSummaries()
     }
 
-    /// 网络拉取。先取 ID 列表，再逐条取详情并增量上屏。
+    /// 网络拉取。数据来源交给 provider，这里只负责上屏与落缓存。
     private func fetch(_ list: StoryList) async {
         isLoading = true
         defer { isLoading = false }
 
-        do {
-            let ids = try await client.fetchStoryIDs(for: list)
-            await cache.storeItemIDs(
-                ids.map { HackerNewsSource.itemID(for: $0) },
-                forChannel: HackerNewsSource.channelID(for: list)
-            )
+        let channelID = HackerNewsSource.channelID(for: list)
+        var collected: [Story] = []
 
-            var collected: [Story] = []
-            for id in ids.prefix(Self.displayLimit * 2) {
-                if collected.count >= Self.displayLimit { break }
+        do {
+            for try await story in hackerNews.streamItems(
+                channelID: channelID,
+                limit: Self.displayLimit
+            ) {
                 if Task.isCancelled { return }
-                guard let story = try? await client.fetchStory(id: id) else { continue }
                 collected.append(story)
                 await cache.storeStories([story])
                 // 增量上屏：不必等 30 条全部取完才看到内容。
                 stories = collected
             }
 
+            await cache.storeItemIDs(collected.map(\.id), forChannel: channelID)
             readIDs = await cache.readIDs()
             summaries = await cache.summaries(forItemIDs: collected.map(\.id))
             lastUpdatedAt = await cache.lastUpdatedAt()
@@ -300,13 +298,9 @@ final class AppState {
         }
     }
 
-    /// 取评论树。
-    ///
-    /// 0.2.0 的 M0 阶段还没引入 provider 抽象，这里先按源前缀还原 HN 的数字 ID；
-    /// M1 接入 `NewsSourceProvider` 后，这一步由 provider 自己负责。
+    /// 取评论树。M1 阶段只有 HN 一个源；M3 接入 RSS 后改为按 `sourceID` 选择 provider。
     private func fetchComments(for story: Story) async -> StoryComments? {
-        guard let number = HackerNewsSource.numericID(fromItemID: story.id) else { return nil }
-        return try? await client.fetchStoryComments(id: number)
+        try? await hackerNews.fetchComments(itemID: story.id)
     }
 
     private static func message(for error: Error) -> String {

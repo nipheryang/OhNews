@@ -17,8 +17,12 @@ public protocol NewsSourceProvider: Sendable {
 
     /// 抓取某个频道的内容。
     ///
-    /// - Parameter limit: 期望的条目上限；实现方可以做节流或截断。
-    func fetchItems(channelID: String, limit: Int) async throws -> [Story]
+    /// 每取得一条就 `yield` 一条，调用方可以边收边上屏（HN 需要逐条请求，
+    /// 全部取完再显示会让首屏多等几秒）。实现方负责处理「取不够条数」的情况，
+    /// 例如跳过已删除的条目。
+    ///
+    /// - Parameter limit: 期望的条数上限。
+    func streamItems(channelID: String, limit: Int) -> AsyncThrowingStream<Story, Error>
 
     /// 抓取条目对应的评论树。不支持评论的来源返回 nil。
     func fetchComments(itemID: String) async throws -> StoryComments?
