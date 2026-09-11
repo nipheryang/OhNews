@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var config = AIProviderConfig.default
     @State private var apiKey = ""
     @State private var hasStoredKey = false
+    @State private var listLimit = ListPreferences.defaultLimit
     @State private var status: StatusMessage?
     @State private var isTesting = false
     @State private var isLoaded = false
@@ -107,6 +108,23 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("列表") {
+                Picker("每次显示条数", selection: $listLimit) {
+                    ForEach(ListPreferences.allowedLimits, id: \.self) { limit in
+                        Text("\(limit) 条").tag(limit)
+                    }
+                }
+                .onChange(of: listLimit) { _, newValue in
+                    var preferences = ListPreferences()
+                    preferences.listLimit = newValue
+                    Task { await state.applyListLimitChange() }
+                }
+
+                Text("同时决定一次抓取多少条、列表最多保留多少条。新内容从顶部插入，超出后从底部移除。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("关于") {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("OhNews")
@@ -177,6 +195,7 @@ struct SettingsView: View {
     private func load() {
         guard isLoaded == false else { return }
         config = state.config
+        listLimit = ListPreferences().listLimit
         loadStoredKey()
         isLoaded = true
     }

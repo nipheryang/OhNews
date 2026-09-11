@@ -44,7 +44,8 @@ actor HNSourceProvider: NewsSourceProvider {
                     let ids = try await client.fetchStoryIDs(for: list)
                     var collected = 0
 
-                    for id in ids {
+                    // 榜单里时常混有已删除的条目，候选多取一些才能凑满目标条数。
+                    for id in ids.prefix(limit * 2) {
                         if collected >= limit || Task.isCancelled { break }
                         guard let story = try? await client.fetchStory(id: id) else { continue }
                         continuation.yield(story)

@@ -56,14 +56,18 @@ struct StoryListView: View {
                     summary: state.summaries[story.id],
                     isGeneratingSummary: state.isGeneratingSummary(for: story)
                 )
-                .contentShape(Rectangle())
                 .onTapGesture {
                     Task { await state.select(story) }
                 }
+                .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                .listRowSeparator(.hidden)
             }
         }
         .listStyle(.inset)
         .refreshable { await state.refresh() }
+        // 新条目插入时用弹性动画把已有行往下推，而不是生硬地重排。
+        // 只在顺序变化时触发，所以普通刷新（已有条目原地更新）不会有动画。
+        .animation(.bouncy(duration: 0.45), value: state.stories.map(\.id))
     }
 
     @ToolbarContentBuilder

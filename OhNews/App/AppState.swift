@@ -43,12 +43,15 @@ struct SourceInputError: Error, Equatable {
 @MainActor
 @Observable
 final class AppState {
-    /// 列表一次展示多少条。
-    static let displayLimit = 30
     /// 列表加载后自动生成摘要的条数上限。
     static let summaryPrefetchLimit = 12
     /// 同时进行的摘要请求数。
     private static let summaryConcurrency = 3
+    /// 自动刷新间隔：4 小时。
+    private static let autoRefreshInterval: Duration = .seconds(4 * 60 * 60)
+
+    /// 列表条数上限，来自用户在设置里的选择。
+    private(set) var listLimit = ListPreferences.defaultLimit
 
     /// 侧栏当前选中的频道（如 `hn:top`、`rss:9a1f…`）。重启后沿用上次的选择。
     var selectedChannelID: String? {
@@ -80,6 +83,10 @@ final class AppState {
     private var generatingIDs: Set<String> = []
     private var articleTask: Task<Void, Never>?
     private let selectionPersistence = SelectionPersistence()
+    private let listPreferences = ListPreferences()
+    /// 冷启动后的第一次加载会联网刷新一次；之后切换频道只用缓存。
+    private var shouldRefreshOnLaunch = true
+    @ObservationIgnored private var autoRefreshTask: Task<Void, Never>?
     /// 正文抽取器要在首次使用时才创建 WKWebView，且不需要参与观察。
     @ObservationIgnored private lazy var extractor = ArticleExtractor()
 
@@ -113,14 +120,16 @@ final class AppState {
         return stories.first { $0.id == selectedStoryID }
     }
 
-    /// 启动准备：载入源列表并恢复上次选中的频道。
+    /// 启动准备：载入源列表、用户偏好，并恢复上次选中的频道。
     func prepare() async {
         await reloadSources()
+        listLimit = listPreferences.listLimit
 
         if let restored = selectionPersistence.load() {
             selectedChannelID = restored
         }
         await ensureSelectedChannelExists()
+        restartAutoRefreshTimer()
     }
 
     /// 重新生成源与频道列表。
@@ -149,35 +158,60 @@ final class AppState {
         channels = result
     }
 
-    /// 切换频道：先渲染缓存，再拉网络，最后补齐 AI 摘要。
+    /// 切换频道。
+    ///
+    /// 默认只读缓存：反复切标签不应该每次都打网络。只有两种情况才会抓取——
+    /// 这个频道还没有任何缓存（否则会一直空白），或这是冷启动后的第一次加载。
     func loadChannel(_ channelID: String) async {
         selectedStoryID = nil
         lastErrorMessage = nil
         articleTask?.cancel()
         readerState = .idle
 
-        let cachedStories = await cache.cachedStories(
-            forChannel: channelID,
-            limit: Self.displayLimit
-        )
+        let cachedStories = await cache.cachedStories(forChannel: channelID, limit: listLimit)
         readIDs = await cache.readIDs()
         stories = cachedStories
         lastUpdatedAt = await cache.lastUpdatedAt()
         summaries = await cache.summaries(forItemIDs: cachedStories.map(\.id))
 
-        await fetch(channelID)
+        let needsFetch = cachedStories.isEmpty || shouldRefreshOnLaunch
+        guard needsFetch else { return }
+
+        shouldRefreshOnLaunch = false
+        await fetch(channelID, isInitial: cachedStories.isEmpty)
         await prefetchSummaries()
     }
 
-    /// 用户主动刷新。
+    /// 用户主动刷新：重置自动刷新的计时，避免刚手动刷过又立刻自动刷一次。
     func refresh() async {
         guard let selectedChannelID else { return }
+        restartAutoRefreshTimer()
         await fetch(selectedChannelID)
         await prefetchSummaries()
     }
 
-    /// 网络拉取。数据来源交给 provider，这里只负责上屏与落缓存。
-    private func fetch(_ channelID: String) async {
+    /// 用户在设置里改了列表条数：立刻按新上限调整，不够的话抓一次补齐。
+    func applyListLimitChange() async {
+        let updated = listPreferences.listLimit
+        guard updated != listLimit else { return }
+        listLimit = updated
+
+        if stories.count > listLimit {
+            stories = Array(stories.prefix(listLimit))
+            if let selectedChannelID {
+                await cache.storeItemIDs(stories.map(\.id), forChannel: selectedChannelID)
+            }
+        } else if let selectedChannelID {
+            await fetch(selectedChannelID)
+            await prefetchSummaries()
+        }
+    }
+
+    /// 网络拉取。数据来源交给 provider，这里只负责上屏、合并与落缓存。
+    ///
+    /// - Parameter isInitial: 该频道还没有旧数据时边收边上屏；否则静默合并进现有列表，
+    ///   让用户感觉不到刷新，但分数与评论数已经是新的。
+    private func fetch(_ channelID: String, isInitial: Bool = false) async {
         guard let channel = channels.first(where: { $0.id == channelID }),
               let provider = provider(for: channel.sourceID)
         else { return }
@@ -185,28 +219,59 @@ final class AppState {
         isLoading = true
         defer { isLoading = false }
 
-        var collected: [Story] = []
+        var fetched: [Story] = []
 
         do {
             for try await story in provider.streamItems(
                 channelID: channelID,
-                limit: Self.displayLimit
+                limit: listLimit
             ) {
                 if Task.isCancelled { return }
-                collected.append(story)
-                await cache.storeStories([story])
-                // 增量上屏：不必等 30 条全部取完才看到内容。
-                stories = collected
+                fetched.append(story)
+                if isInitial {
+                    // 首次加载没有旧数据可保，逐条上屏比等全部取完更快看到内容。
+                    stories = fetched
+                }
             }
 
-            await cache.storeItemIDs(collected.map(\.id), forChannel: channelID)
+            await cache.storeStories(fetched)
+            if isInitial {
+                stories = fetched
+            } else {
+                stories = ListMerger.merge(existing: stories, fetched: fetched, limit: listLimit)
+            }
+            await cache.storeItemIDs(stories.map(\.id), forChannel: channelID)
+
             readIDs = await cache.readIDs()
-            summaries = await cache.summaries(forItemIDs: collected.map(\.id))
+            summaries = await cache.summaries(forItemIDs: stories.map(\.id))
             lastUpdatedAt = await cache.lastUpdatedAt()
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = Self.message(for: error)
         }
+    }
+
+    // MARK: - 自动刷新
+
+    /// 每 4 小时刷新一次当前频道。
+    ///
+    /// 用「睡满间隔再触发」而不是轮询。`Task.sleep` 走连续时钟，系统睡眠时间
+    /// 照常计入，合盖过夜再打开不会漏掉这一轮。
+    private func restartAutoRefreshTimer() {
+        autoRefreshTask?.cancel()
+        autoRefreshTask = Task { [weak self] in
+            while Task.isCancelled == false {
+                try? await Task.sleep(for: Self.autoRefreshInterval)
+                guard Task.isCancelled == false else { return }
+                await self?.autoRefresh()
+            }
+        }
+    }
+
+    private func autoRefresh() async {
+        guard isLoading == false, let selectedChannelID else { return }
+        await fetch(selectedChannelID)
+        await prefetchSummaries()
     }
 
     private func provider(for sourceID: String) -> (any NewsSourceProvider)? {
