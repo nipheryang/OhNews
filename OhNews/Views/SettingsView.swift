@@ -13,6 +13,8 @@ struct SettingsView: View {
     @State private var apiKey = ""
     @State private var hasStoredKey = false
     @State private var listLimit = ListPreferences.defaultLimit
+    @State private var summaryScope = SummaryGenerationScope.leadingItems
+    @State private var isConfirmingClearCache = false
     @State private var status: StatusMessage?
     @State private var isTesting = false
     @State private var isLoaded = false
@@ -108,6 +110,24 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("摘要生成") {
+                Picker("生成范围", selection: $summaryScope) {
+                    ForEach(SummaryGenerationScope.allCases, id: \.self) { scope in
+                        Text(scope.displayName).tag(scope)
+                    }
+                }
+                .onChange(of: summaryScope) { _, newValue in
+                    var preferences = SummaryPreferences()
+                    preferences.scope = newValue
+                    Task { await state.applySummaryScopeChange() }
+                }
+
+                Text(summaryScopeHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("列表") {
                 Picker("每次显示条数", selection: $listLimit) {
                     ForEach(ListPreferences.allowedLimits, id: \.self) { limit in
@@ -123,6 +143,26 @@ struct SettingsView: View {
                 Text("同时决定一次抓取多少条、列表最多保留多少条。新内容从顶部插入，超出后从底部移除。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("缓存") {
+                HStack {
+                    Text("当前占用")
+                    Spacer()
+                    Text(state.cacheSizeText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Button("删除缓存", role: .destructive) {
+                    isConfirmingClearCache = true
+                }
+                .disabled(state.cacheSizeBytes == 0)
+
+                Text("包括已缓存的内容、已读记录与 AI 摘要。订阅配置与各项设置不会被删除。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Section("关于") {
@@ -180,7 +220,32 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 540)
         .frame(minHeight: 520)
-        .task { load() }
+        .task {
+            load()
+            await state.refreshCacheSize()
+        }
+        .confirmationDialog(
+            "删除全部缓存？",
+            isPresented: $isConfirmingClearCache
+        ) {
+            Button("删除", role: .destructive) {
+                Task { await state.clearCache() }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("已缓存的内容、已读记录与 AI 摘要会被清空，下次打开会重新抓取。订阅配置会保留。")
+        }
+    }
+
+    private var summaryScopeHint: String {
+        switch summaryScope {
+        case .leadingItems:
+            "自动为列表最前面 \(SummaryPreferences.automaticLimit) 条生成摘要；其余条目可在列表里右键按需生成。"
+        case .allItems:
+            "自动为列表中所有条目生成摘要。列表条数越多，AI 调用成本越高。"
+        case .manual:
+            "不自动生成。在列表里右键任意条目，选择「生成 AI 摘要」。"
+        }
     }
 
     private var presetHint: String {
@@ -196,6 +261,7 @@ struct SettingsView: View {
         guard isLoaded == false else { return }
         config = state.config
         listLimit = ListPreferences().listLimit
+        summaryScope = SummaryPreferences().scope
         loadStoredKey()
         isLoaded = true
     }

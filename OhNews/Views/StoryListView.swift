@@ -30,7 +30,7 @@ struct StoryListView: View {
             if state.config.isEnabled {
                 AIUnavailableBanner(
                     title: "AI 摘要未启用",
-                    message: "填入 API Key 后，会为列表前 \(AppState.summaryPrefetchLimit) 条自动生成中文摘要；不配置也能正常阅读。"
+                    message: "填入 API Key 后即可生成中文摘要；不配置也能正常阅读。"
                 )
             }
         case .failed(let message):

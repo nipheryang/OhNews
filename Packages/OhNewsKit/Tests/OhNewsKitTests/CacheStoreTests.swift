@@ -145,4 +145,17 @@ struct CacheStoreTests {
         #expect(items.isEmpty)
         #expect(story == nil)
     }
+
+    @Test func reportsCacheFileSize() async throws {
+        let directory = makeTempDirectory()
+        let store = CacheStore(directory: directory)
+
+        // 还没有写过任何东西时没有文件，报 0。
+        let empty = await store.cacheSizeInBytes()
+        #expect(empty == 0)
+
+        await store.storeStories([makeStory(number: 1)])
+        let filled = await store.cacheSizeInBytes()
+        #expect(filled > 0)
+    }
 }

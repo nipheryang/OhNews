@@ -43,8 +43,8 @@ struct SourceInputError: Error, Equatable {
 @MainActor
 @Observable
 final class AppState {
-    /// 列表加载后自动生成摘要的条数上限。
-    static let summaryPrefetchLimit = 12
+    /// 列表加载后自动生成摘要的条数上限（`.leadingItems` 档位使用）。
+    static let summaryPrefetchLimit = SummaryPreferences.automaticLimit
     /// 同时进行的摘要请求数。
     private static let summaryConcurrency = 3
     /// 自动刷新间隔：4 小时。
@@ -52,6 +52,12 @@ final class AppState {
 
     /// 列表条数上限，来自用户在设置里的选择。
     private(set) var listLimit = ListPreferences.defaultLimit
+
+    /// AI 摘要的生成范围，来自用户在设置里的选择。
+    private(set) var summaryScope: SummaryGenerationScope = .leadingItems
+
+    /// 缓存文件占用的字节数，供设置页展示。
+    private(set) var cacheSizeBytes: Int64 = 0
 
     /// 侧栏当前选中的频道（如 `hn:top`、`rss:9a1f…`）。重启后沿用上次的选择。
     var selectedChannelID: String? {
@@ -84,6 +90,7 @@ final class AppState {
     private var articleTask: Task<Void, Never>?
     private let selectionPersistence = SelectionPersistence()
     private let listPreferences = ListPreferences()
+    private let summaryPreferences = SummaryPreferences()
     /// 冷启动后的第一次加载会联网刷新一次；之后切换频道只用缓存。
     private var shouldRefreshOnLaunch = true
     @ObservationIgnored private var autoRefreshTask: Task<Void, Never>?
@@ -124,6 +131,8 @@ final class AppState {
     func prepare() async {
         await reloadSources()
         listLimit = listPreferences.listLimit
+        summaryScope = summaryPreferences.scope
+        await refreshCacheSize()
 
         if let restored = selectionPersistence.load() {
             selectedChannelID = restored
@@ -245,6 +254,7 @@ final class AppState {
             readIDs = await cache.readIDs()
             summaries = await cache.summaries(forItemIDs: stories.map(\.id))
             lastUpdatedAt = await cache.lastUpdatedAt()
+            await refreshCacheSize()
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = Self.message(for: error)
@@ -372,9 +382,9 @@ final class AppState {
         aiStatus = ready ? .ready : .notConfigured
     }
 
-    /// 为列表前若干条生成摘要。已有缓存的条目直接跳过。
+    /// 按用户选择的范围生成摘要。已有缓存的条目直接跳过。
     func prefetchSummaries() async {
-        guard config.isEnabled else { return }
+        guard config.isEnabled, summaryScope != .manual else { return }
 
         let ready = await summaryService.isConfigured()
         guard ready else {
@@ -383,8 +393,17 @@ final class AppState {
         }
         aiStatus = .ready
 
-        let pending = Array(stories.prefix(Self.summaryPrefetchLimit))
-            .filter { summaries[$0.id] == nil }
+        let candidates: [Story]
+        switch summaryScope {
+        case .leadingItems:
+            candidates = Array(stories.prefix(Self.summaryPrefetchLimit))
+        case .allItems:
+            candidates = stories
+        case .manual:
+            return
+        }
+
+        let pending = candidates.filter { summaries[$0.id] == nil }
         guard pending.isEmpty == false else { return }
 
         await withTaskGroup(of: Void.self) { group in
@@ -455,6 +474,37 @@ final class AppState {
 
     private func generateSummary(for story: Story) async {
         await generateSummaryNow(for: story)
+    }
+
+    /// 用户在设置里改了摘要范围：立即按新范围补生成。
+    func applySummaryScopeChange() async {
+        summaryScope = summaryPreferences.scope
+        await prefetchSummaries()
+    }
+
+    // MARK: - 缓存
+
+    var cacheSizeText: String {
+        guard cacheSizeBytes > 0 else { return "无缓存" }
+        return ByteCountFormatter.string(fromByteCount: cacheSizeBytes, countStyle: .file)
+    }
+
+    func refreshCacheSize() async {
+        cacheSizeBytes = await cache.cacheSizeInBytes()
+    }
+
+    /// 清空内容缓存。订阅配置与各项偏好不受影响。
+    func clearCache() async {
+        await cache.clear()
+        readIDs = []
+        summaries = [:]
+        cacheSizeBytes = 0
+
+        // 缓存没了，当前列表也重新来一次，避免内存与磁盘状态对不上。
+        if let selectedChannelID {
+            await loadChannel(selectedChannelID)
+        }
+        await refreshCacheSize()
     }
 
     func saveConfig(_ newConfig: AIProviderConfig) async {

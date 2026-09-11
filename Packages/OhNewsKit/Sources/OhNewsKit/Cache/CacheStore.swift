@@ -189,6 +189,12 @@ public actor CacheStore {
         snapshot.updatedAt
     }
 
+    /// 缓存文件占用的字节数。设置里展示它，便于用户决定要不要清理。
+    public func cacheSizeInBytes() -> Int64 {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        return (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+    }
+
     public func clear() {
         snapshot = Snapshot()
         save()
