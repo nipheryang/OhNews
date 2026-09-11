@@ -37,7 +37,10 @@ final class AppState {
     /// 同时进行的摘要请求数。
     private static let summaryConcurrency = 3
 
-    var selectedList: StoryList? = .top
+    /// 侧栏当前选中的榜单。重启后沿用上次的选择，默认 Top。
+    var selectedList: StoryList? = .top {
+        didSet { selectionPersistence.save(selectedList) }
+    }
     var stories: [Story] = []
     var readIDs: Set<Int> = []
     var summaries: [Int: StorySummary] = [:]
@@ -54,6 +57,7 @@ final class AppState {
     private let summaryService: SummaryService
     private var generatingIDs: Set<Int> = []
     private var articleTask: Task<Void, Never>?
+    private let selectionPersistence = SelectionPersistence()
     /// 正文抽取器要在首次使用时才创建 WKWebView，且不需要参与观察。
     @ObservationIgnored private lazy var extractor = ArticleExtractor()
 
@@ -66,6 +70,11 @@ final class AppState {
         self.cache = cache
         self.config = config
         self.summaryService = SummaryService(cache: cache, config: config)
+
+        // 在 `init` 里赋值不会触发 `didSet`，因此恢复选择不会反向写一遍。
+        if let restored = selectionPersistence.load() {
+            selectedList = restored
+        }
     }
 
     var activeList: StoryList { selectedList ?? .top }
