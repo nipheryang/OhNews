@@ -23,6 +23,8 @@ struct StoryRowView: View {
     let isSelected: Bool
     let summary: StorySummary?
     let isGeneratingSummary: Bool
+    /// 显示用标题。译名优先：收藏列表里存了译文标题时，不该还显示英文原标题。
+    var displayTitle: String? = nil
 
     @State private var isHovering = false
 
@@ -30,7 +32,7 @@ struct StoryRowView: View {
         VStack(alignment: .leading, spacing: 0) {
             eyebrow
 
-            Text(story.title)
+            Text(displayTitle ?? story.title)
                 .font(Typography.rowTitle)
                 .foregroundStyle(titleColor)
                 .lineSpacing(Typography.rowTitleLineSpacing)
@@ -133,7 +135,7 @@ struct StoryRowView: View {
     }
 
     private var accessibilityLabel: String {
-        var parts = [story.title, story.sourceHost ?? "自述帖"]
+        var parts = [displayTitle ?? story.title, story.sourceHost ?? "自述帖"]
         parts.append(RelativeTime.text(for: story.postedAt))
         parts.append(contentsOf: metaParts)
         if isRead { parts.append("已读") }

@@ -8,15 +8,30 @@ import Foundation
 /// 存完整的 `Story` 快照，而不只是标题与链接：收藏列表要能显示来源、分数，
 /// 用户点开时阅读器也要有 `Story` 才能按 url 重新抓取正文。正文 HTML 本身
 /// 不存——按 url 重抓即可，存下来会让文件迅速变大。
+///
+/// 另外带上译文标题与 AI 摘要：它们让列表**不必等打开内容**就能显示中文。
+/// 存在这里而不是每次去读存档，是因为列表要一次性拿到全部条目，
+/// 逐个读存档文件会变成几十次磁盘访问。
 public struct SavedArticle: Codable, Hashable, Identifiable, Sendable {
     public let story: Story
     public let savedAt: Date
+    /// 收藏时已有的译文标题。列表用它代替英文原标题。
+    public let translatedTitle: String?
+    /// 收藏时已有的 AI 摘要。
+    public let summary: StorySummary?
 
     public var id: String { story.id }
 
-    public init(story: Story, savedAt: Date) {
+    public init(
+        story: Story,
+        savedAt: Date,
+        translatedTitle: String? = nil,
+        summary: StorySummary? = nil
+    ) {
         self.story = story
         self.savedAt = savedAt
+        self.translatedTitle = translatedTitle
+        self.summary = summary
     }
 }
 
@@ -142,6 +157,28 @@ public actor LibraryStore {
         }
         addArticle(article, kind: kind)
         return true
+    }
+
+    /// 更新已保存条目的译文标题与摘要，不动保存时间（排序靠它）。
+    ///
+    /// 用户可能先收藏、后翻译：那时条目已经在列表里了，但还没有中文可显示。
+    public func updateMetadata(
+        itemID: String,
+        translatedTitle: String?,
+        summary: StorySummary?
+    ) {
+        for kind in Kind.allCases {
+            var items = list(for: kind)
+            guard let index = items.firstIndex(where: { $0.id == itemID }) else { continue }
+            let old = items[index]
+            items[index] = SavedArticle(
+                story: old.story,
+                savedAt: old.savedAt,
+                translatedTitle: translatedTitle ?? old.translatedTitle,
+                summary: summary ?? old.summary
+            )
+            setList(items, for: kind)
+        }
     }
 
     // MARK: - 段落级

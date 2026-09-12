@@ -227,8 +227,11 @@ struct StoryListView: View {
                 story: article.story,
                 isRead: state.isRead(article.story),
                 isSelected: state.selectedStoryID == article.id,
-                summary: state.summaries[article.id],
-                isGeneratingSummary: state.isGeneratingSummary(for: article.story)
+                // 清单里的摘要是收藏时冻下来的，优先用它：列表不必等打开内容
+                // 就能显示中文标题与摘要。
+                summary: article.summary ?? state.summaries[article.id],
+                isGeneratingSummary: state.isGeneratingSummary(for: article.story),
+                displayTitle: article.translatedTitle
             )
             .tag(article.id)
             .contextMenu {

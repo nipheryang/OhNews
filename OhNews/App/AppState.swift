@@ -1029,15 +1029,39 @@ final class AppState {
         collectionItems = await library.articles(.collection)
         readLaterItems = await library.articles(.readLater)
         passageItems = await library.allPassages()
+        await backfillMetadataIfNeeded()
+    }
+
+    /// 给清单里缺中文信息的条目补上译文标题与摘要。
+    ///
+    /// 两种情况会缺：一是在这两个字段存在之前收的，二是先收藏、后翻译的。
+    /// 先看清单，只有真缺的时候才去读存档，正常情况下是零开销。
+    private func backfillMetadataIfNeeded() async {
+        let missing = (collectionItems + readLaterItems).filter {
+            $0.translatedTitle == nil || $0.summary == nil
+        }
+        guard missing.isEmpty == false else { return }
+
+        var changed = false
+        for item in missing {
+            guard let archive = await archives.archive(itemID: item.id) else { continue }
+            let title = archive.translation?.title
+            let summary = archive.summary
+            guard title != nil || summary != nil else { continue }
+            await library.updateMetadata(itemID: item.id, translatedTitle: title, summary: summary)
+            changed = true
+        }
+        guard changed else { return }
+
+        // 不调 `reloadLibrary`，避免自己调自己。
+        collectionItems = await library.articles(.collection)
+        readLaterItems = await library.articles(.readLater)
     }
 
     /// 切换收藏，返回切换后是否已收藏。
     @discardableResult
     func toggleCollection(_ story: Story) async -> Bool {
-        let saved = await library.toggleArticle(
-            SavedArticle(story: story, savedAt: Date()),
-            kind: .collection
-        )
+        let saved = await library.toggleArticle(savedArticle(for: story), kind: .collection)
         await reloadLibrary()
         // 收藏就存一份离线副本；取消收藏连副本一起删。
         if saved {
@@ -1051,10 +1075,7 @@ final class AppState {
     /// 切换稍后读，返回切换后是否已加入。
     @discardableResult
     func toggleReadLater(_ story: Story) async -> Bool {
-        let saved = await library.toggleArticle(
-            SavedArticle(story: story, savedAt: Date()),
-            kind: .readLater
-        )
+        let saved = await library.toggleArticle(savedArticle(for: story), kind: .readLater)
         await reloadLibrary()
         if saved {
             await archiveForSave(story)
@@ -1261,10 +1282,31 @@ final class AppState {
     /// 内容有变化（正文抓到、讨论区到达、翻译完成）时刷新存档。
     ///
     /// 只写已经收藏或加入稍后读的条目：没存的没必要占硬盘。
+    /// 清单里的中文标题与摘要也一并更新，收藏列表才能立刻显示。
     private func refreshArchiveIfSaved(for story: Story) async {
         guard isCollected(story) || isInReadLater(story) else { return }
+
+        await library.updateMetadata(
+            itemID: story.id,
+            translatedTitle: story.id == articleStoryID ? latestTranslation?.title : nil,
+            summary: summaries[story.id]
+        )
+        await reloadLibrary()
+
         guard let archive = makeArchive(for: story) else { return }
         await archives.save(archive)
+    }
+
+    /// 收藏时要一并写进清单的中文信息。
+    ///
+    /// 只有当前打开的正是这一篇时，手上才有它的译文；摘要是全局字典，随时能取。
+    private func savedArticle(for story: Story) -> SavedArticle {
+        SavedArticle(
+            story: story,
+            savedAt: Date(),
+            translatedTitle: story.id == articleStoryID ? latestTranslation?.title : nil,
+            summary: summaries[story.id]
+        )
     }
 
     /// 把存档里的正文与译文恢复到界面上。讨论区不在这里恢复（见 `loadComments`）。

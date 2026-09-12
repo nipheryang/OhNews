@@ -205,6 +205,94 @@ struct LibraryStoreTests {
         #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("cache.json").path) == false)
     }
 
+    @Test("更新译文标题与摘要，不动保存时间")  
+    func updateMetadataKeepsSavedAt() async {
+        let (store, _) = makeStore()
+        await store.addArticle(article("a", at: 100), kind: .collection)
+
+        await store.updateMetadata(
+            itemID: "a",
+            translatedTitle: "中文标题",
+            summary: StorySummary(
+                storyID: "a",
+                chineseTitle: "中文标题",
+                summary: "摘要",
+                tags: [],
+                commentConsensus: nil,
+                modelName: "m",
+                promptVersion: "v2",
+                generatedAt: Date(timeIntervalSince1970: 1)
+            )
+        )
+
+        let item = await store.articles(.collection).first
+        #expect(item?.translatedTitle == "中文标题")
+        #expect(item?.summary?.chineseTitle == "中文标题")
+        // 排序靠 savedAt，不能被改掉。
+        #expect(item?.savedAt == Date(timeIntervalSince1970: 100))
+    }
+
+    @Test("更新时传 nil 不会抹掉已有的值")
+    func updateMetadataIgnoresNil() async {
+        let (store, _) = makeStore()
+        await store.addArticle(
+            SavedArticle(story: article("a").story, savedAt: Date(), translatedTitle: "原有标题"),
+            kind: .collection
+        )
+
+        await store.updateMetadata(itemID: "a", translatedTitle: nil, summary: nil)
+        #expect(await store.articles(.collection).first?.translatedTitle == "原有标题")
+    }
+
+    @Test("同一篇同时在收藏与稍后读时，两边都更新")
+    func updateMetadataCoversBothKinds() async {
+        let (store, _) = makeStore()
+        await store.addArticle(article("a"), kind: .collection)
+        await store.addArticle(article("a"), kind: .readLater)
+
+        await store.updateMetadata(itemID: "a", translatedTitle: "中文标题", summary: nil)
+        #expect(await store.articles(.collection).first?.translatedTitle == "中文标题")
+        #expect(await store.articles(.readLater).first?.translatedTitle == "中文标题")
+    }
+
+    @Test("清单里的中文信息能存下来")
+    func metadataPersists() async {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OhNewsLibraryMeta-\(UUID().uuidString)", isDirectory: true)
+
+        let first = LibraryStore(directory: dir)
+        await first.addArticle(
+            SavedArticle(
+                story: article("a").story,
+                savedAt: Date(),
+                translatedTitle: "中文标题"
+            ),
+            kind: .collection
+        )
+
+        let restored = await LibraryStore(directory: dir).articles(.collection).first
+        #expect(restored?.translatedTitle == "中文标题")
+    }
+
+    @Test("旧数据没有这两个字段也能读出来")
+    func decodesLegacyWithoutMetadata() async throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OhNewsLibraryLegacy-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        // 模拟这两个字段存在之前写下的 library.json。
+        let legacy = """
+        {"version":1,"collections":[{"savedAt":"2026-09-13T00:00:00Z","story":{"id":"hn:1","sourceID":"hn","title":"T","author":"a","postedAt":"2026-09-13T00:00:00Z","type":"story"}}],"readLater":[],"passages":[]}
+        """
+        try legacy.data(using: .utf8)?.write(to: dir.appendingPathComponent("library.json"))
+
+        let store = LibraryStore(directory: dir)
+        let items = await store.articles(.collection)
+        #expect(items.count == 1)
+        #expect(items.first?.translatedTitle == nil)
+        #expect(items.first?.summary == nil)
+    }
+
     // MARK: - 侧栏入口
 
     @Test("侧栏入口的选择值不与频道冲突")
