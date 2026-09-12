@@ -25,15 +25,10 @@ targets:
     platform: macOS
     sources:
       - path: OhNews
-      # AGPL 要求把完整许可文本随程序一并交给使用者，所以它必须进应用包。
+      # MIT 要求随程序一并交付版权声明与许可文本，所以它必须进应用包。
       # 用构建阶段引用根目录的文件，避免在仓库里维护两份副本。
-      # LICENSE 必须是逐字一致的官方文本（否则 GitHub 会把许可识别成 Other），
-      # 版权声明与商业授权说明因此放在 NOTICE 里。
+      # LICENSE 必须与官方文本逐字一致（否则 GitHub 会把许可识别成 Other）。
       - path: LICENSE
-        buildPhase: resources
-      - path: NOTICE
-        buildPhase: resources
-      - path: LICENSING.md
         buildPhase: resources
     dependencies:
       - package: OhNewsKit
@@ -57,7 +52,7 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.news
         NSPrincipalClass: NSApplication
-        NSHumanReadableCopyright: Copyright (C) 2026 Nipher. Licensed under AGPL-3.0.
+        NSHumanReadableCopyright: Copyright (c) 2026 Nipher. MIT licensed.
         NSAppTransportSecurity:
           # 仅放开 WKWebView 内容里的 http 外链，不全局放开 ATS
           NSAllowsArbitraryLoadsInWebContent: true

@@ -34,7 +34,7 @@
 		<true/>
 	</dict>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright (C) 2026 Nipher. Licensed under AGPL-3.0.</string>
+	<string>Copyright (c) 2026 Nipher. MIT licensed.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

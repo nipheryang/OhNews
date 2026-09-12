@@ -1,5 +1,5 @@
 // Copyright (C) 2026 Nipher
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 import OhNewsKit
 import SwiftUI
