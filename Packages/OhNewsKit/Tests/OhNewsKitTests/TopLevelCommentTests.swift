@@ -6,7 +6,7 @@ import Testing
 
 @testable import OhNewsKit
 
-/// 顶层评论的挑选：按 HN 网页排名排序，并只渲染前若干条。
+/// 顶层评论的挑选：按 HN 网页排名排序，且整个评论模块只保留前若干条。
 @Suite("Top Level Comment Selection")
 struct TopLevelCommentTests {
     private func node(_ id: Int, children: [CommentNode] = []) -> CommentNode {
@@ -23,6 +23,8 @@ struct TopLevelCommentTests {
     private func comments(_ topLevel: [CommentNode]) -> StoryComments {
         StoryComments(storyID: "hn:1", title: nil, author: nil, points: nil, topLevel: topLevel)
     }
+
+    // MARK: - 排名顺序
 
     @Test("从 Firebase item 读出 kids 排名顺序")
     func parsesKidsOrder() throws {
@@ -48,11 +50,13 @@ struct TopLevelCommentTests {
         #expect(reordered.topLevel.map(\.id) == [1, 2])
     }
 
-    @Test("只渲染前 N 条顶层评论，其余计入未显示")
-    func limitsTopLevel() {
+    // MARK: - 总条数上限
+
+    @Test("整个评论模块只保留前 N 条，其余计入未显示")
+    func limitsTotalComments() {
         let result = CommentTreeBuilder.build(
             comments((1...25).map { node($0) }),
-            options: CommentTreeBuilder.Options(maxTopLevel: 10, formatDate: { _ in "x" })
+            options: CommentTreeBuilder.Options(maxComments: 10, formatDate: { _ in "x" })
         )
         #expect(result.renderedCount == 10)
         #expect(result.omittedCount == 15)
@@ -60,23 +64,31 @@ struct TopLevelCommentTests {
         #expect(result.html.contains(">11<") == false)
     }
 
-    @Test("子回复随父节点一起带入，不被顶层上限截掉")
-    func childrenComeWithParent() {
+    @Test("子回复占用同一个额度：靠前的讨论连同回复优先出现")
+    func childrenShareTheQuota() {
+        let tree = [
+            node(1, children: [node(2), node(3)]),
+            node(4, children: [node(5)]),
+            node(6)
+        ]
         let result = CommentTreeBuilder.build(
-            comments([node(1, children: [node(2), node(3)]), node(4)]),
-            options: CommentTreeBuilder.Options(maxTopLevel: 1, formatDate: { _ in "x" })
+            comments(tree),
+            options: CommentTreeBuilder.Options(maxComments: 4, formatDate: { _ in "x" })
         )
-        #expect(result.renderedCount == 3)
-        #expect(result.omittedCount == 1)
+        #expect(result.renderedCount == 4)
+        #expect(result.omittedCount == 2)
+        #expect(result.html.contains(">4<"))
+        #expect(result.html.contains(">5<") == false)
+        #expect(result.html.contains(">6<") == false)
     }
 
-    @Test("不设上限时渲染全部顶层评论")
-    func unlimitedByDefault() {
+    @Test("评论不足上限时全部显示，不计未显示")
+    func fewerThanLimit() {
         let result = CommentTreeBuilder.build(
-            comments((1...25).map { node($0) }),
-            options: CommentTreeBuilder.Options(formatDate: { _ in "x" })
+            comments([node(1), node(2), node(3)]),
+            options: CommentTreeBuilder.Options(maxComments: 10, formatDate: { _ in "x" })
         )
-        #expect(result.renderedCount == 25)
+        #expect(result.renderedCount == 3)
         #expect(result.omittedCount == 0)
     }
 }

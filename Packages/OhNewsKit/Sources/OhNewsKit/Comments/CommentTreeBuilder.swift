@@ -13,12 +13,10 @@ public enum CommentTreeBuilder {
     /// 渲染参数。
     public struct Options: Sendable {
         /// 最多渲染多少条（含各层子评论）。热门帖的树可能上千条，必须有上限。
-        public var maxComments: Int
-        /// 只渲染排名最前的多少条顶层评论；`nil` 表示不限。
         ///
-        /// 热门帖上千条评论，全量渲染既慢、翻译成本也高，而真正值得读的
-        /// 就是 HN 排名最前的那几条；其余在末尾给原文入口。
-        public var maxTopLevel: Int?
+        /// 这是**总条数**：超出部分不在评论模块里出现，也不参与翻译，
+        /// 只在末尾给一个原文入口。
+        public var maxComments: Int
         /// 缩进在哪一层封顶，更深的层级不再继续内缩，避免正文被挤成窄柱。
         public var maxIndentLevel: Int
         /// 顶层评论是否默认展开。
@@ -28,13 +26,11 @@ public enum CommentTreeBuilder {
 
         public init(
             maxComments: Int = 400,
-            maxTopLevel: Int? = nil,
             maxIndentLevel: Int = 5,
             expandTopLevel: Bool = true,
             formatDate: @escaping @Sendable (Date) -> String = CommentTreeBuilder.defaultDateFormat
         ) {
             self.maxComments = maxComments
-            self.maxTopLevel = maxTopLevel
             self.maxIndentLevel = maxIndentLevel
             self.expandTopLevel = expandTopLevel
             self.formatDate = formatDate
@@ -64,10 +60,9 @@ public enum CommentTreeBuilder {
         options: Options = .default
     ) -> Result {
         var context = Context(options: options)
-        // 只渲染排名最前的若干条顶层评论；子回复随父节点一起带上。
-        let topLevel = options.maxTopLevel.map { Array(comments.topLevel.prefix($0)) }
-            ?? comments.topLevel
-        let html = context.render(topLevel, depth: 1)
+        // 顶层评论已按 HN 排名排好，这里按排名顺序深度优先取满额度：
+        // 因此排在最前的讨论（连同它的回复）会优先出现。
+        let html = context.render(comments.topLevel, depth: 1)
         let omitted = max(0, comments.totalCount - context.rendered)
 
         return Result(
