@@ -6,8 +6,6 @@ OhNews is a native macOS news reader. It ships with Hacker News and accepts any 
 
 It is built for the everyday loop: scan what is new, understand what a story is about, and read the article when it matters — without juggling browser tabs.
 
-**Open source under the MIT License.** Use it, modify it, redistribute it, including commercially.
-
 ---
 
 ## Install
