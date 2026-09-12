@@ -8,7 +8,8 @@ import Foundation
 /// 改动 prompt 或输出格式时递增，已缓存的译文会自动失效——与摘要的
 /// `PromptVersion` 各自独立，因为两者变化的时机不同。
 public enum TranslationVersion {
-    public static let current = "t1"
+    /// t2：标题与讨论区纳入翻译；送翻前剥掉内联标签；prompt 明确禁止输出 HTML。
+    public static let current = "t2"
 }
 
 /// 组装翻译请求。
@@ -30,7 +31,8 @@ public enum TranslationPromptBuilder {
     要求：
     - translations 的条数与顺序必须与输入的 segments 完全一致，不得合并、拆分或遗漏。
     - 只输出译文本身，不要附带原文，不要加编号或引号。
-    - 文本里的 [[0]]、[[1]] 这类标记是链接占位符，必须原样保留，不得翻译、删除或移动位置。
+    - 输出必须是纯文本：不要包含任何 HTML 标签（如 <p>、<span>、<i>）或 Markdown 标记。
+      文本里的 [[0]]、[[1]] 是链接占位符，是唯一的例外，原样保留、不得翻译或移动位置。
     - 技术术语、产品名、代码标识符（如 SwiftUI、PostgreSQL、pip install）保留英文原文。
     - 已经是中文的片段原样返回。
     - 单个片段内部保持原有的标点与换行习惯，不要自行添加小标题或列表。

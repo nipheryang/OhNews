@@ -90,6 +90,29 @@ struct ArticleSegmenterTests {
         #expect(plan.segments.map(\.text) == ["This one is English."])
     }
 
+    /// 送翻文本必须是纯文本：带标签进去，模型会把标签一并带回译文，
+    /// 最终在页面上显示成可见的 `<span></span>`。
+    @Test func stripsInlineTagsBeforeSending() {
+        let html = "<p>See the <span class=\"x\">note</span> below.</p>"
+
+        let plan = ArticleSegmenter.plan(html)
+
+        #expect(plan.segments.count == 1)
+        #expect(plan.segments[0].text.contains("note"))
+        #expect(plan.segments[0].text.contains("<span") == false)
+        #expect(plan.segments[0].text.contains("</span>") == false)
+    }
+
+    @Test func stripsInlineTagsButKeepsLinkMarkers() {
+        let html = "<p>A <em>note</em> and <a href=\"https://e.com\">a link</a>.</p>"
+
+        let plan = ArticleSegmenter.plan(html)
+
+        #expect(plan.segments.count == 2)
+        #expect(plan.segments[0].text.contains("<em>") == false)
+        #expect(plan.segments[0].text.contains("[[0]]"))
+    }
+
     @Test func skipsSymbolOnlyParagraphs() {
         let plan = ArticleSegmenter.plan("<p>***</p><p>—</p><p>A real sentence.</p>")
 

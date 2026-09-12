@@ -180,10 +180,14 @@ actor TranslationService {
         var sections: [Section] = []
 
         // 标题是纯文本，包成段落走同一套分段机制，装配后再取回纯文本。
-        if let title = parts.title, title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            let plan = ArticleSegmenter.plan("<p>\(escape(title))</p>")
-            if plan.isEmpty == false {
-                sections.append(Section(kind: .title, plan: plan))
+        // 标题可能含内联标签（RSS 源常见），先取纯文本再送翻。
+        if let title = parts.title {
+            let plain = HTMLText.plain(from: title).trimmingCharacters(in: .whitespacesAndNewlines)
+            if plain.isEmpty == false {
+                let plan = ArticleSegmenter.plan("<p>\(escape(plain))</p>")
+                if plan.isEmpty == false {
+                    sections.append(Section(kind: .title, plan: plan))
+                }
             }
         }
         if let html = parts.articleHTML, html.isEmpty == false {

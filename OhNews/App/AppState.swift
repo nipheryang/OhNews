@@ -689,14 +689,14 @@ final class AppState {
         return parts.joined(separator: "\n")
     }
 
-    /// 当前应显示的标题（译文优先）。
+    /// 当前应显示的标题（译文优先）。标题可能带内联标签，显示前取纯文本。
     var displayTitle: String? {
         if case .showingTranslation(let result) = translationState,
            let title = result.title,
            title.isEmpty == false {
             return title
         }
-        return selectedStory?.title
+        return selectedStory.map { HTMLText.plain(from: $0.title) }
     }
 
     /// 当前应显示的正文（译文优先）。
@@ -737,6 +737,12 @@ final class AppState {
     }
 
     private func startTranslation() async {
+        // 讨论区可能还在加载：等它到位再翻。否则讨论区 HTML 为空，整片评论会被漏掉，
+        // 而且翻译完成后评论才到，页面上就会一直是一半译文一半原文。
+        if case .loading = commentsState, let task = commentsTask {
+            await task.value
+        }
+
         guard let story = selectedStory, let parts = translatableParts else { return }
         guard config.isEnabled else {
             translationState = .failed("需要先在设置里启用 AI 才能翻译。")

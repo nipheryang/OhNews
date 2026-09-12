@@ -108,8 +108,13 @@ public enum ArticleSegmenter {
             guard containsTranslatableText(inner) else { continue }
 
             let (text, links, labels) = extractLinks(from: inner, offset: segments.count + 1)
+            // 剥掉其余内联标签，只留纯文本与链接占位符。否则模型会把 `<span>`
+            // 这类标签一并带进译文，最终在页面上显示成可见的标签文本。
+            let plain = HTMLText.plain(from: text).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard plain.isEmpty == false else { continue }
+
             let index = segments.count
-            segments.append(Segment(index: index, text: text, links: links))
+            segments.append(Segment(index: index, text: plain, links: links))
             // 链接文字排在正文之后，一起送翻。
             for label in labels {
                 segments.append(Segment(index: segments.count, text: label.text, links: []))
