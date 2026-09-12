@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import Foundation
 
 /// 请求闸门：按通道限制并发数与最小请求间隔。

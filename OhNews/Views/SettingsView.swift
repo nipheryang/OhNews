@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import AppKit
 import OhNewsKit
 import SwiftUI
@@ -183,17 +186,21 @@ struct SettingsView: View {
                     Text("Hacker News 阅读器 · 版本 \(appVersion)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("专有软件 © 2026 Nipher")
+                    Text("AGPL-3.0 开源 · © 2026 Nipher")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Button("查看最终用户许可协议") {
-                    openBundledDocument(named: "EULA")
+                Button("查看开源许可（AGPL-3.0）") {
+                    openBundledDocument(named: "LICENSE", withExtension: nil)
+                }
+
+                Button("商业授权说明") {
+                    openBundledDocument(named: "LICENSING", withExtension: "md")
                 }
 
                 Button("查看第三方组件声明") {
-                    openBundledDocument(named: "THIRD_PARTY_NOTICES")
+                    openBundledDocument(named: "THIRD_PARTY_NOTICES", withExtension: "md")
                 }
             }
 
@@ -354,8 +361,9 @@ struct SettingsView: View {
         status = .success("已保存。")
     }
 
-    private func openBundledDocument(named name: String) {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "md") else {
+    /// 许可类文件随应用包分发：AGPL 要求把完整许可文本一并交给使用者。
+    private func openBundledDocument(named name: String, withExtension ext: String?) {
+        guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
             status = .failure("找不到随应用附带的文档。")
             return
         }

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import Foundation
 
 /// OhNews 的纯逻辑层：模型、解析、prompt 组装与降级决策。

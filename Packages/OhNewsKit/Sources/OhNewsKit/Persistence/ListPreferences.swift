@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import Foundation
 
 /// 列表展示相关的偏好。

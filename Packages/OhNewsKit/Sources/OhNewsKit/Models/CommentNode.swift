@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import Foundation
 
 /// HN 评论节点，对应 Algolia items 接口返回的 children 结构。

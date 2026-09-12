@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import Foundation
 
 /// HN 的正文与评论都是 HTML 片段，喂给模型前需要转成纯文本。

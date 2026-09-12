@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 Nipher
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # 分别构建 arm64 与 x86_64 的 OhNews 安装包（DMG）。
 #

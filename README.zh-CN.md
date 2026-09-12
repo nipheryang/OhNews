@@ -6,7 +6,7 @@ OhNews 是一款原生 macOS 新闻阅读应用，当前支持 Hacker News，提
 
 它面向这样一类使用方式：快速浏览 Hacker News，理解一条内容背后的讨论，并直接打开原文，而不必在多个浏览器标签之间来回切换。
 
-OhNews 是专有的 source-available 产品，使用与分发须遵守 [`LICENSE`](LICENSE) 与 [`EULA.md`](EULA.md)。
+OhNews 是采用 **GNU Affero 通用公共许可证 v3** 的自由开源软件，并采用双授权模式：无法接受 AGPL 约束的场景（例如嵌入闭源产品）可另行购买商业授权。详见 [`LICENSE`](LICENSE) 与 [`LICENSING.md`](LICENSING.md)。
 
 ## 安装
 
@@ -109,8 +109,10 @@ swift test --package-path Packages/OhNewsKit
 
 ## 许可与法律文件
 
-OhNews 为专有软件。使用或分发前请阅读 [`LICENSE`](LICENSE) 与 [`EULA.md`](EULA.md)。
+OhNews 以 **GNU Affero 通用公共许可证 v3** 开源（[`LICENSE`](LICENSE)）。你可以免费使用、修改与再分发，**包括商业用途**，前提是沿用同一许可并提供完整对应源码；若把修改版作为网络服务提供给他人使用，还须向使用者提供源码（AGPL 第 13 条）。
 
-应用包含以 Apache License 2.0 授权的 Mozilla Readability.js 0.6.0。归属声明与完整第三方许可文本见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 与 [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt)。
+如果 AGPL 不适合你的情况（例如要把 OhNews 嵌入闭源产品），可购买商业授权，详见 [`LICENSING.md`](LICENSING.md)。
 
-EULA 为产品草案，在任何商业发布或付费功能上线前应由律师复核。
+贡献代码需要授予再授权权利，以便项目同时提供两种授权；见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+
+应用包含以 Apache License 2.0 授权的 Mozilla Readability.js 0.6.0。Apache-2.0 与 AGPL 兼容，因此该组件可以随本作品分发，其归属要求保持不变。归属声明与完整第三方许可文本见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 与 [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt)。

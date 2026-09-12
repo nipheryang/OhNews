@@ -1,3 +1,6 @@
+/* Copyright (C) 2026 Nipher
+   SPDX-License-Identifier: AGPL-3.0-only */
+
 /* OhNews 阅读器排版样式。
    只作用于 loadHTMLString 载入的正文文档，不影响应用其他界面。
 

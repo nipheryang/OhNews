@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import Foundation
 
 /// 测试用的真实接口样本。全部来自线上响应，未做人工改写（除非注释说明）。

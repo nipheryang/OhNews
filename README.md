@@ -6,7 +6,7 @@ OhNews is a native macOS app for reading Hacker News, with optional Chinese AI s
 
 It is designed for people who want to scan Hacker News, understand the discussion around a story, and open the original article without switching between several browser tabs.
 
-OhNews is a proprietary, source-available product. The terms in [`LICENSE`](LICENSE) and [`EULA.md`](EULA.md) govern its use and distribution.
+OhNews is free and open source software, licensed under the GNU Affero General Public License v3. It is dual-licensed: a commercial license is available for cases the AGPL does not permit, such as shipping it inside a closed-source product. See [`LICENSE`](LICENSE) and [`LICENSING.md`](LICENSING.md).
 
 ## Install
 
@@ -109,8 +109,10 @@ When adding or removing source files under `OhNews/`, run `xcodegen generate` be
 
 ## License And Legal Documents
 
-OhNews is proprietary software. See [`LICENSE`](LICENSE) and [`EULA.md`](EULA.md) before using or distributing the application.
+OhNews is open source under the **GNU Affero General Public License v3** ([`LICENSE`](LICENSE)). You may use, modify and redistribute it, including commercially, as long as you pass on the same license and make the corresponding source available. Running a modified version as a network service also requires offering its source to users (AGPL section 13).
 
-The app includes Mozilla Readability.js 0.6.0 under the Apache License 2.0. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt) for attribution and the complete third-party license text.
+If the AGPL does not fit your situation — embedding OhNews in a closed-source product, for example — a commercial license is available. See [`LICENSING.md`](LICENSING.md).
 
-The EULA is a product draft and should be reviewed by counsel before any commercial release or paid feature launch.
+Contributions require a grant of relicensing rights so the project can keep offering both licenses; see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+The app includes Mozilla Readability.js 0.6.0 under the Apache License 2.0. Apache-2.0 is compatible with the AGPL, so the component ships inside this work with its own attribution requirements intact. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).

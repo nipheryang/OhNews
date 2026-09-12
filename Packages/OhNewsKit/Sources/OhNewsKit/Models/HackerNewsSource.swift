@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Nipher
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import Foundation
 
 /// Hacker News 作为信息源的静态定义：源标识、频道标识，以及与 `StoryList` 的映射。
