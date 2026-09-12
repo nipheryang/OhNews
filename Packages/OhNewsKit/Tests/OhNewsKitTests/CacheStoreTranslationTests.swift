@@ -17,14 +17,18 @@ struct CacheStoreTranslationTests {
         contentHash: String = "hash-a",
         modelName: String = "deepseek-v4-flash",
         version: String = TranslationVersion.current,
-        html: String = "<p>译文</p>"
+        title: String? = "中文标题",
+        html: String = "<p>译文</p>",
+        discussionHTML: String? = "<p>译文讨论</p>"
     ) -> ArticleTranslation {
         ArticleTranslation(
             itemID: itemID,
             contentHash: contentHash,
             modelName: modelName,
             version: version,
+            title: title,
             html: html,
+            discussionHTML: discussionHTML,
             generatedAt: Date(timeIntervalSince1970: 1_780_000_000)
         )
     }
@@ -43,6 +47,26 @@ struct CacheStoreTranslationTests {
         )
 
         #expect(found?.html == "<p>译文</p>")
+        // 标题与讨论区也要完整往返，不能只存正文。
+        #expect(found?.title == "中文标题")
+        #expect(found?.discussionHTML == "<p>译文讨论</p>")
+    }
+
+    @Test func toleratesMissingOptionalParts() async throws {
+        let directory = makeTempDirectory()
+        let store = CacheStore(directory: directory)
+        await store.storeTranslation(makeTranslation(title: nil, discussionHTML: nil))
+
+        let reopened = CacheStore(directory: directory)
+        let found = await reopened.translation(
+            itemID: "hn:1",
+            contentHash: "hash-a",
+            modelName: "deepseek-v4-flash",
+            version: TranslationVersion.current
+        )
+
+        #expect(found?.title == nil)
+        #expect(found?.discussionHTML == nil)
     }
 
     /// 正文变了（先抽到摘要版、后抓到完整版）旧译文必须作废。

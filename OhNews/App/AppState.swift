@@ -43,8 +43,8 @@ enum TranslationState: Equatable {
     /// 显示原文。
     case showingOriginal
     case translating(done: Int, total: Int)
-    /// 显示译文（HTML，结构与原文一致）。
-    case showingTranslation(String)
+    /// 显示译文（标题、正文、讨论区三部分）。
+    case showingTranslation(TranslationResult)
     case failed(String)
 }
 
@@ -70,6 +70,8 @@ struct SourceInputError: Error, Equatable {
 final class AppState {
     /// 列表加载后自动生成摘要的条数上限（`.leadingItems` 档位使用）。
     static let summaryPrefetchLimit = SummaryPreferences.automaticLimit
+    /// 讨论区最多渲染多少条。热门帖的树可能上千条，超出部分在末尾说明。
+    static let maxRenderedComments = 400
     /// 同时进行的摘要请求数。
     private static let summaryConcurrency = 3
     /// 自动刷新间隔：4 小时。
@@ -635,17 +637,89 @@ final class AppState {
 
     // MARK: - 翻译
 
-    /// 当前可翻译的正文。只有真正拿到正文或自述帖正文时才有值。
-    var translatableHTML: String? {
-        switch readerState {
+    /// 当前可翻译的内容。只有真正拿到正文、标题或讨论区时才非空。
+    private var translatableParts: TranslationParts? {
+        let article: String? = switch readerState {
+        case .article(let article): article.html
+        case .selfPost(let html): html
+        default: nil
+        }
+
+        let parts = TranslationParts(
+            title: selectedStory?.title,
+            articleHTML: article,
+            discussionHTML: discussionHTML(for: selectedStory)
+        )
+        return parts.isEmpty ? nil : parts
+    }
+
+    var canTranslate: Bool {
+        config.isEnabled && translatableParts != nil
+    }
+
+    /// 讨论区 HTML。没有评论时返回 nil。
+    ///
+    /// 放在状态层而不是视图里：渲染与翻译要用同一份，分开生成容易出现两者不一致。
+    func discussionHTML(for story: Story?) -> String? {
+        guard let story,
+              case .ready(let comments) = commentsState,
+              comments.topLevel.isEmpty == false
+        else { return nil }
+
+        let result = CommentTreeBuilder.build(
+            comments,
+            options: CommentTreeBuilder.Options(
+                maxComments: Self.maxRenderedComments,
+                formatDate: RelativeTime.text(for:)
+            )
+        )
+
+        var parts: [String] = [
+            "<h2 class=\"discussion-title\">讨论 · \(comments.totalCount) 条</h2>",
+            result.html
+        ]
+        if result.omittedCount > 0 {
+            let link = HackerNewsSource.numericID(fromItemID: story.id).map {
+                "<a href=\"https://news.ycombinator.com/item?id=\($0)\">在 Hacker News 上查看完整讨论</a>"
+            } ?? "在 Hacker News 上查看完整讨论"
+            parts.append(
+                "<p class=\"discussion-omitted\">还有 \(result.omittedCount) 条未显示，\(link)。</p>"
+            )
+        }
+        return parts.joined(separator: "\n")
+    }
+
+    /// 当前应显示的标题（译文优先）。
+    var displayTitle: String? {
+        if case .showingTranslation(let result) = translationState,
+           let title = result.title,
+           title.isEmpty == false {
+            return title
+        }
+        return selectedStory?.title
+    }
+
+    /// 当前应显示的正文（译文优先）。
+    var displayArticleHTML: String? {
+        if case .showingTranslation(let result) = translationState,
+           let html = result.articleHTML,
+           html.isEmpty == false {
+            return html
+        }
+        return switch readerState {
         case .article(let article): article.html
         case .selfPost(let html): html
         default: nil
         }
     }
 
-    var canTranslate: Bool {
-        translatableHTML != nil && config.isEnabled
+    /// 当前应显示的讨论区（译文优先）。
+    var displayDiscussionHTML: String? {
+        if case .showingTranslation(let result) = translationState,
+           let html = result.discussionHTML {
+            return html
+        }
+        return discussionHTML(for: selectedStory)
     }
 
     /// 翻译正文；已经在显示译文时切回原文，正在翻译时取消。
@@ -663,7 +737,7 @@ final class AppState {
     }
 
     private func startTranslation() async {
-        guard let story = selectedStory, let html = translatableHTML else { return }
+        guard let story = selectedStory, let parts = translatableParts else { return }
         guard config.isEnabled else {
             translationState = .failed("需要先在设置里启用 AI 才能翻译。")
             return
@@ -679,8 +753,8 @@ final class AppState {
             // 开头就解包成强引用：后面要跨越 await，不能直接引用被捕获的 weak var。
             guard let self else { return }
             do {
-                let translated = try await service.translate(
-                    html: html,
+                let result = try await service.translate(
+                    parts: parts,
                     itemID: itemID
                 ) { done, total in
                     Task { @MainActor [weak self] in
@@ -689,7 +763,7 @@ final class AppState {
                     }
                 }
                 guard Task.isCancelled == false else { return }
-                self.translationState = .showingTranslation(translated)
+                self.translationState = .showingTranslation(result)
             } catch {
                 guard Task.isCancelled == false else { return }
                 self.translationState = .failed(Self.message(for: error))

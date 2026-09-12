@@ -23,8 +23,9 @@ struct StoryDetailView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// 讨论区最多渲染多少条。热门帖的树可能上千条，超出部分在末尾说明。
-    private static let maxRenderedComments = 400
+    /// 讨论区最多渲染多少条由 `AppState` 统一控制，视图不再自己定阈值。
+
+    /// 降级场景的提示，转成与讨论区同一份文档里的 HTML。
 
     var body: some View {
         Group {
@@ -94,42 +95,41 @@ struct StoryDetailView: View {
 
                 Spacer(minLength: 8)
 
-                // 操作只留图标：阅读区的主路径是“读”，按钮越多越吵。
-                HStack(spacing: 2) {
+                // 操作只留图标：阅读区的主路径是「读」，按钮越多越吵。
+                // 但图标要够大、间距要够松，否则几个按钮挤成一团反而更难用。
+                HStack(spacing: 4) {
                     if let url = story.url {
-                        Button {
+                        ReaderActionButton(title: "在浏览器中打开") {
                             NSWorkspace.shared.open(url)
                         } label: {
-                            Label("在浏览器中打开", systemImage: "safari")
+                            Image(systemName: "safari")
                         }
-                        .help("在浏览器中打开")
                     }
 
-                    Button {
+                    ReaderActionButton(title: "重新抓取正文") {
                         Task { await state.reloadArticle(for: story) }
                     } label: {
-                        Label("重新抓取", systemImage: "arrow.clockwise")
+                        Image(systemName: "arrow.clockwise")
                     }
                     .disabled(state.readerState == .loading)
-                    .help("重新抓取正文")
 
-                    // 只在真的拿到正文时才出现：降级场景下没什么可翻。
-                    if state.translatableHTML != nil {
-                        Button {
+                    // 只在真有可翻内容（或正在翻）时出现：降级场景下没什么可翻。
+                    if state.canTranslate || isTranslating {
+                        ReaderActionButton(title: translationButtonHelp) {
                             Task { await state.toggleTranslation() }
                         } label: {
-                            Label(translationButtonTitle, systemImage: translationButtonIcon)
+                            TranslationGlyph(
+                                symbol: translationButtonIcon,
+                                progress: translationProgress
+                            )
                         }
-                        .disabled(state.canTranslate == false)
-                        .help(translationButtonHelp)
+                        // 未配置 AI 时置灰；但翻译中仍可点，用于取消。
+                        .disabled(state.canTranslate == false && isTranslating == false)
                     }
                 }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .foregroundStyle(Palette.inkFaint)
             }
 
-            Text(headerTitle(for: story))
+            Text(state.displayTitle ?? headerTitle(for: story))
                 .font(Typography.readerTitle)
                 .foregroundStyle(Palette.ink)
                 .lineSpacing(Typography.readerTitleLineSpacing)
@@ -170,12 +170,12 @@ struct StoryDetailView: View {
 
     @ViewBuilder
     private func content(for story: Story) -> some View {
-        // 正在显示译文时直接渲染译文，讨论区照旧接在后面。
-        if case .showingTranslation(let translated) = state.translationState {
+        // 显示译文时用译文；讨论区也跟着切（两者一起翻的）。
+        if case .showingTranslation = state.translationState, let html = state.displayArticleHTML {
             ArticleWebView(
-                html: translated,
+                html: html,
                 baseURL: nil,
-                discussionHTML: discussionHTML(for: story)
+                discussionHTML: state.displayDiscussionHTML
             )
         } else {
             originalContent(for: story)
@@ -184,31 +184,34 @@ struct StoryDetailView: View {
 
     // MARK: - 翻译按钮
 
-    private var translationButtonTitle: String {
-        switch state.translationState {
-        case .showingOriginal: "翻译正文"
-        case .translating(let done, let total):
-            total > 0 ? "翻译中 \(done)/\(total)" : "翻译中…"
-        case .showingTranslation: "显示原文"
-        case .failed: "重试翻译"
+    private var isTranslating: Bool {
+        if case .translating = state.translationState { return true }
+        return false
+    }
+
+    /// 0…1 的翻译进度；未在翻译时为 nil。
+    private var translationProgress: Double? {
+        guard case .translating(let done, let total) = state.translationState, total > 0 else {
+            return nil
         }
+        return Double(done) / Double(total)
     }
 
     private var translationButtonIcon: String {
         switch state.translationState {
         case .showingOriginal: "translate"
-        case .translating: "stop.circle"
+        case .translating: "translate"
         case .showingTranslation: "arrow.uturn.backward"
         case .failed: "arrow.clockwise"
         }
     }
 
     private var translationButtonHelp: String {
-        if state.canTranslate == false {
+        if state.canTranslate == false && isTranslating == false {
             return "需要先在设置里启用 AI 才能翻译"
         }
         return switch state.translationState {
-        case .showingOriginal: "把正文翻译成中文"
+        case .showingOriginal: "把标题、正文与讨论区翻译成中文"
         case .translating: "点击取消翻译"
         case .showingTranslation: "切回原文"
         case .failed: "重新翻译"
@@ -239,14 +242,14 @@ struct StoryDetailView: View {
             ArticleWebView(
                 html: article.html,
                 baseURL: article.sourceURL ?? story.url,
-                discussionHTML: discussionHTML(for: story)
+                discussionHTML: state.displayDiscussionHTML
             )
 
         case .selfPost(let html):
             ArticleWebView(
                 html: HTMLSanitizer.sanitize(html),
                 baseURL: nil,
-                discussionHTML: discussionHTML(for: story)
+                discussionHTML: state.displayDiscussionHTML
             )
 
         case .degraded(let level):
@@ -255,7 +258,7 @@ struct StoryDetailView: View {
             ArticleWebView(
                 html: noticeHTML(for: level, story: story),
                 baseURL: nil,
-                discussionHTML: discussionHTML(for: story)
+                discussionHTML: state.displayDiscussionHTML
             )
 
         case .failed(let message):
@@ -269,35 +272,6 @@ struct StoryDetailView: View {
                 }
             }
         }
-    }
-
-    /// 讨论区 HTML。没有评论时返回 nil，阅读器不会出现空的讨论段。
-    private func discussionHTML(for story: Story) -> String? {
-        guard case .ready(let comments) = state.commentsState,
-              comments.topLevel.isEmpty == false
-        else { return nil }
-
-        let result = CommentTreeBuilder.build(
-            comments,
-            options: CommentTreeBuilder.Options(
-                maxComments: Self.maxRenderedComments,
-                formatDate: RelativeTime.text(for:)
-            )
-        )
-
-        var parts: [String] = [
-            "<h2 class=\"discussion-title\">讨论 · \(comments.totalCount) 条</h2>",
-            result.html
-        ]
-        if result.omittedCount > 0 {
-            let link = HackerNewsSource.numericID(fromItemID: story.id).map {
-                "<a href=\"https://news.ycombinator.com/item?id=\($0)\">在 Hacker News 上查看完整讨论</a>"
-            } ?? "在 Hacker News 上查看完整讨论"
-            parts.append(
-                "<p class=\"discussion-omitted\">还有 \(result.omittedCount) 条未显示，\(link)。</p>"
-            )
-        }
-        return parts.joined(separator: "\n")
     }
 
     /// 降级场景的提示，转成与讨论区同一份文档里的 HTML。
@@ -350,6 +324,80 @@ struct StoryDetailView: View {
             既没有可解析的正文，也没有评论可以看。
             可以直接用上面的「浏览器打开」按钮查看原始链接。
             """
+        }
+    }
+}
+
+/// 阅读器头部的操作按钮。
+///
+/// 图标本身要够大好点，同时保持克制：悬停时只给一层极淡的底色，
+/// 不做外发光或位移，否则会和「安静阅读」的基调冲突。
+private struct ReaderActionButton<Content: View>: View {
+    let title: String
+    let action: () -> Void
+    let content: Content
+
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    init(
+        title: String,
+        action: @escaping () -> Void,
+        @ViewBuilder label: () -> Content
+    ) {
+        self.title = title
+        self.action = action
+        self.content = label()
+    }
+
+    var body: some View {
+        Button(action: action) {
+            content
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: Metrics.radiusSmall + 3, style: .continuous)
+                        .fill(isHovering && isEnabled ? Palette.hoverWash : Color.clear)
+                )
+                .contentShape(
+                    RoundedRectangle(cornerRadius: Metrics.radiusSmall + 3, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isEnabled ? Palette.inkSoft : Palette.inkFaint)
+        .onHover { hovering in
+            withAnimation(Motion.standard) { isHovering = hovering }
+        }
+        .help(title)
+    }
+}
+
+/// 翻译按钮的图标。
+///
+/// 翻译中在图标外围画一圈进度：能看出还在动、也能看出剩多少，
+/// 又不像进度条那样把注意力从正文上拉走。
+private struct TranslationGlyph: View {
+    let symbol: String
+    /// 0…1；nil 表示不在翻译中。
+    let progress: Double?
+
+    var body: some View {
+        ZStack {
+            Image(systemName: symbol)
+                // 很轻的呼吸：只用来表示「还在跑」，不抢眼。
+                .symbolEffect(.pulse, options: .repeating, isActive: progress != nil)
+
+            if let progress {
+                Circle()
+                    .trim(from: 0, to: max(0.03, progress))
+                    .stroke(
+                        Palette.inkSoft,
+                        style: StrokeStyle(lineWidth: 1.5, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 27, height: 27)
+                    .animation(Motion.standard, value: progress)
+            }
         }
     }
 }
