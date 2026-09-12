@@ -158,8 +158,7 @@ struct ReaderDocumentBuilderTests {
         #expect(document.contains("<base") == false)
     }
 
-    @Test func buildsFromArticle() {
-        let article = Article(
+    @Test func buildsFromArticle() {        let article = Article(
             title: "标题",
             byline: nil,
             siteName: nil,
@@ -171,5 +170,28 @@ struct ReaderDocumentBuilderTests {
         let document = ReaderDocumentBuilder.build(article: article, style: "p{}")
         #expect(document.contains("<p>正文</p>"))
         #expect(document.contains("https://example.com"))
+    }
+
+    @Test func omitsTopInsetByDefault() {
+        let document = ReaderDocumentBuilder.build(html: "<p>x</p>", style: "p{}")
+        #expect(document.contains("padding-top") == false)
+    }
+
+    @Test func injectsTopInset() {
+        let document = ReaderDocumentBuilder.build(
+            html: "<p>x</p>",
+            style: "p{}",
+            topInset: 236
+        )
+        #expect(document.contains("body { padding-top: 236px !important; }"))
+    }
+
+    @Test func ignoresZeroTopInset() {
+        let document = ReaderDocumentBuilder.build(
+            html: "<p>x</p>",
+            style: "p{}",
+            topInset: 0
+        )
+        #expect(document.contains("padding-top") == false)
     }
 }

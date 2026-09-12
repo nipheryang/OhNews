@@ -33,8 +33,13 @@ struct StoryDetailView: View {
                 VStack(spacing: 0) {
                     header(for: story)
                     hairline
-                    insight(for: story)
+                    // 解读是浮层（overlay），不是流式的一块：正文在它后面滑过，
+                    // 文字经过下边缘时被玻璃遮住。正文自身的顶部留白由 `topInset`
+                    // 交给文档，这样开头不会被面板永远挡住。
                     content(for: story)
+                        .overlay(alignment: .top) {
+                            insight(for: story)
+                        }
                 }
             } else {
                 emptyState
@@ -227,12 +232,15 @@ struct StoryDetailView: View {
         let target = state.pendingScroll?.itemID == story.id
             ? state.pendingScroll?.paragraphIndex
             : nil
+        // 顶部浮层占掉多少，正文就让出多少。解读不可用时不留白。
+        let inset = state.insightState == .unavailable ? 0 : InsightCardView.height
 
         return ArticleWebView(
             html: html,
             baseURL: baseURL,
             discussionHTML: state.displayDiscussionHTML,
             scrollTarget: target,
+            topInset: inset,
             contextMenuItems: { readerContextMenu(for: story) }
         )
     }
@@ -589,6 +597,8 @@ struct ArticleWebView: NSViewRepresentable {
     var discussionHTML: String?
     /// 需要滚动到的段落编号。用后由 `AppState` 清掉，避免下次重新渲染又跳。
     var scrollTarget: Int?
+    /// 正文顶部预留的高度，让正文从顶部浮层下边缘开始。
+    var topInset: CGFloat = 0
     /// 正文右键菜单里的项。返回空数组时，正文里右键什么也不发生。
     var contextMenuItems: () -> [ReaderContextMenuItem] = { [] }
 
@@ -616,7 +626,8 @@ struct ArticleWebView: NSViewRepresentable {
             html: html,
             style: ReaderStyle.css,
             baseURL: baseURL,
-            discussionHTML: discussionHTML
+            discussionHTML: discussionHTML,
+            topInset: topInset
         )
         guard context.coordinator.loadedDocument != document else {
             context.coordinator.scrollIfNeeded(in: webView, target: scrollTarget)
