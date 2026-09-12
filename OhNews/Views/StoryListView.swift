@@ -24,6 +24,11 @@ struct StoryListView: View {
                 listContent
             }
         }
+        // 整列的高度取自容器（窗口），而不是由 `List` 的内容高度决定：
+        // `List` 会按全部内容高度索取空间，这个需求传给 `NavigationSplitView`
+        // 后会把整列撑成列表全长，窗口装不下就溢出——侧栏因此空白，正文上方
+        // 也看不到。放在根视图上（而不是列表上）可以避免与提示条叠加出循环。
+        .containerRelativeFrame(.vertical)
         .navigationTitle(state.selectedChannel?.name ?? "OhNews")
         .toolbar { toolbarContent }
     }
