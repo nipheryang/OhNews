@@ -1008,19 +1008,61 @@ final class AppState {
     }
 
     /// 保存一段正文。返回 nil 表示不符合保存条件（空、过长、重复）。
+    ///
+    /// 失败时给一条提示：从右键菜单点过来的用户看不到任何列表变化，
+    /// 不说明原因就和没点上一样。
     @discardableResult
     func savePassage(text: String, paragraphIndex: Int, for story: Story) async -> SavedPassage? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else {
+            showNotice("没有选中文字")
+            return nil
+        }
+        guard trimmed.count <= LibraryStore.maxPassageLength else {
+            showNotice("选中的内容超过 \(LibraryStore.maxPassageLength) 字，没有收藏")
+            return nil
+        }
+
         let saved = await library.addPassage(
             SavedPassage(
                 itemID: story.id,
                 articleTitle: displayTitle ?? story.title,
-                text: text,
+                text: trimmed,
                 paragraphIndex: paragraphIndex,
                 savedAt: Date()
             )
         )
+        guard let saved else {
+            showNotice("这一段已经在收藏里了")
+            return nil
+        }
+
         await reloadLibrary()
+        showNotice("已收藏这一段")
         return saved
+    }
+
+    // MARK: - 轻提示
+
+    /// 一次性的轻提示，例如「已收藏这一段」。几秒后自己消失。
+    private(set) var transientNotice: String?
+
+    @ObservationIgnored private var noticeTask: Task<Void, Never>?
+
+    /// 提示会替换上一条，并把计时重新开始——连续操作时不会提前消失。
+    func showNotice(_ text: String) {
+        transientNotice = text
+        noticeTask?.cancel()
+        noticeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2.6))
+            guard Task.isCancelled == false else { return }
+            self?.transientNotice = nil
+        }
+    }
+
+    func dismissNotice() {
+        noticeTask?.cancel()
+        transientNotice = nil
     }
 
     func removePassage(id: String) async {

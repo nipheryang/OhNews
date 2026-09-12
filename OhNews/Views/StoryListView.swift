@@ -14,6 +14,10 @@ struct StoryListView: View {
         VStack(spacing: 0) {
             banner
 
+            if let notice = state.transientNotice {
+                noticeBar(notice)
+            }
+
             if let entry = state.activeLibraryEntry {
                 libraryContent(for: entry)
             } else if state.stories.isEmpty {
@@ -31,8 +35,28 @@ struct StoryListView: View {
         // 后会把整列撑成列表全长，窗口装不下就溢出——侧栏因此空白，正文上方
         // 也看不到。放在根视图上（而不是列表上）可以避免与提示条叠加出循环。
         .containerRelativeFrame(.vertical)
+        .animation(reduceMotion ? nil : Motion.standard, value: state.transientNotice)
         .navigationTitle(navigationTitle)
         .toolbar { toolbarContent }
+    }
+
+    /// 轻提示条：一条发丝线分隔的等宽小字，不抢占内容区。
+    private func noticeBar(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            Text(text)
+                .font(Typography.uiSmall)
+                .foregroundStyle(Palette.ink)
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.vertical, 9)
+        .background(Palette.surface)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Palette.line)
+                .frame(height: Metrics.hairline)
+        }
+        .transition(.opacity)
     }
 
     private var navigationTitle: String {
