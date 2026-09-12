@@ -92,9 +92,24 @@ final class AppState {
     }
 
     /// 内置源与用户添加的订阅源。
-    var allSources: [NewsSource] = []
+    ///
+    /// 这里带着一个诊断：这两个数组只在 `prepare()` 里赋值，如果它们从非空变成空，
+    /// 就说明有意外路径在重置状态——那是侧栏变空的直接原因。定位后可以移除。
+    var allSources: [NewsSource] = [] {
+        didSet {
+            if allSources.isEmpty, oldValue.isEmpty == false {
+                print("[OhNews] 诊断：allSources 从 \(oldValue.count) 项变成空")
+            }
+        }
+    }
     /// 全部频道，顺序与源顺序一致。
-    var channels: [SourceChannel] = []
+    var channels: [SourceChannel] = [] {
+        didSet {
+            if channels.isEmpty, oldValue.isEmpty == false {
+                print("[OhNews] 诊断：channels 从 \(oldValue.count) 项变成空")
+            }
+        }
+    }
 
     var stories: [Story] = []
     var readIDs: Set<String> = []
@@ -229,11 +244,27 @@ final class AppState {
         channels = result
     }
 
+    /// 保证源与频道已经载入。
+    ///
+    /// `allSources` / `channels` 只在 `prepare()` 里赋值一次，之后没有任何地方重建。
+    /// 一旦那次初始化失效（启动被打断、异步环节出错），侧栏会永久空白，
+    /// 而列表因为直接渲染缓存看起来仍然正常——用户看到的就是「一半正常一半空白」。
+    /// 因此任何依赖频道的地方都先调一次这个幂等检查。
+    func ensureSourcesLoaded() async {
+        guard allSources.isEmpty || channels.isEmpty else { return }
+        // 只在异常路径输出，便于在 Xcode 控制台里看到兜底被触发过。
+        print("[OhNews] 频道数据为空，正在重建（兜底）")
+        await reloadSources()
+    }
+
     /// 切换频道。
     ///
     /// 默认只读缓存：反复切标签不应该每次都打网络。只有两种情况才会抓取——
     /// 这个频道还没有任何缓存（否则会一直空白），或这是冷启动后的第一次加载。
     func loadChannel(_ channelID: String) async {
+        // 频道数据缺失时先重建：否则下面拿不到 provider，列表会停在缓存上不动。
+        await ensureSourcesLoaded()
+
         selectedStoryID = nil
         lastErrorMessage = nil
         articleTask?.cancel()
@@ -317,6 +348,9 @@ final class AppState {
                 stories = ListMerger.merge(existing: stories, fetched: fetched, limit: listLimit)
             }
             await cache.storeItemIDs(stories.map(\.id), forChannel: channelID)
+
+            // 抓取结束后再确认一次：侧栏依赖频道数据，一旦为空界面会缺一块。
+            await ensureSourcesLoaded()
 
             readIDs = await cache.readIDs()
             summaries = await cache.summaries(forItemIDs: stories.map(\.id))
