@@ -38,6 +38,16 @@ private enum CommentsFetchResult {
     case failed(Error)
 }
 
+/// 正文翻译的状态。
+enum TranslationState: Equatable {
+    /// 显示原文。
+    case showingOriginal
+    case translating(done: Int, total: Int)
+    /// 显示译文（HTML，结构与原文一致）。
+    case showingTranslation(String)
+    case failed(String)
+}
+
 /// 侧栏分组：一个信息源及其频道。
 struct ChannelGroup: Identifiable, Hashable {
     let source: NewsSource
@@ -107,6 +117,9 @@ final class AppState {
     /// 讨论区的加载状态。
     private(set) var commentsState: CommentsState = .idle
 
+    /// 正文翻译的状态。
+    private(set) var translationState: TranslationState = .showingOriginal
+
     /// 评论缓存。同一条内容的评论会被摘要与讨论区两处需要，缓存避免取两遍。
     ///
     /// 不落盘：评论树体积大、时效性强，写进 `cache.json` 会让刚做完的
@@ -116,10 +129,12 @@ final class AppState {
     @ObservationIgnored private var commentTasks: [String: Task<CommentsFetchResult, Never>] = [:]
     private static let commentsCacheLimit = 20
     private var commentsTask: Task<Void, Never>?
+    private var translationTask: Task<Void, Never>?
 
     private let hackerNews: HNSourceProvider
     private let cache: CacheStore
     private let summaryService: SummaryService
+    private let translationService: TranslationService
     private let sourcesPersistence = SourcesPersistence()
     /// RSS 源按需创建并缓存；HN 的 provider 常驻。
     @ObservationIgnored private var rssProviders: [String: RSSSourceProvider] = [:]
@@ -146,6 +161,7 @@ final class AppState {
         self.cache = cache
         self.config = config
         self.summaryService = SummaryService(cache: cache, config: config)
+        self.translationService = TranslationService(cache: cache, config: config)
     }
 
     // MARK: - 频道
@@ -222,6 +238,8 @@ final class AppState {
         articleStoryID = nil
         commentsTask?.cancel()
         commentsState = .idle
+        translationTask?.cancel()
+        translationState = .showingOriginal
         readerState = .idle
 
         let cachedStories = await cache.cachedStories(forChannel: channelID, limit: listLimit)
@@ -548,6 +566,7 @@ final class AppState {
         config = newConfig
         ConfigPersistence.save(newConfig)
         await summaryService.updateConfig(newConfig)
+        await translationService.updateConfig(newConfig)
         // 换了配置，旧的一次性失败提示不再有参考价值。
         aiFailureMessage = nil
         await refreshAIStatus()
@@ -608,6 +627,74 @@ final class AppState {
         // 讨论区与正文并行加载，互不阻塞。
         commentsTask?.cancel()
         commentsTask = Task { await self.loadComments(for: story) }
+
+        // 换了内容，翻译状态回到原文。
+        translationTask?.cancel()
+        translationState = .showingOriginal
+    }
+
+    // MARK: - 翻译
+
+    /// 当前可翻译的正文。只有真正拿到正文或自述帖正文时才有值。
+    var translatableHTML: String? {
+        switch readerState {
+        case .article(let article): article.html
+        case .selfPost(let html): html
+        default: nil
+        }
+    }
+
+    var canTranslate: Bool {
+        translatableHTML != nil && config.isEnabled
+    }
+
+    /// 翻译正文；已经在显示译文时切回原文，正在翻译时取消。
+    func toggleTranslation() async {
+        switch translationState {
+        case .showingTranslation:
+            translationState = .showingOriginal
+        case .translating:
+            translationTask?.cancel()
+            translationTask = nil
+            translationState = .showingOriginal
+        case .showingOriginal, .failed:
+            await startTranslation()
+        }
+    }
+
+    private func startTranslation() async {
+        guard let story = selectedStory, let html = translatableHTML else { return }
+        guard config.isEnabled else {
+            translationState = .failed("需要先在设置里启用 AI 才能翻译。")
+            return
+        }
+
+        translationTask?.cancel()
+        translationState = .translating(done: 0, total: 0)
+
+        let service = translationService
+        let itemID = story.id
+
+        translationTask = Task { [weak self] in
+            // 开头就解包成强引用：后面要跨越 await，不能直接引用被捕获的 weak var。
+            guard let self else { return }
+            do {
+                let translated = try await service.translate(
+                    html: html,
+                    itemID: itemID
+                ) { done, total in
+                    Task { @MainActor [weak self] in
+                        guard let self, case .translating = self.translationState else { return }
+                        self.translationState = .translating(done: done, total: total)
+                    }
+                }
+                guard Task.isCancelled == false else { return }
+                self.translationState = .showingTranslation(translated)
+            } catch {
+                guard Task.isCancelled == false else { return }
+                self.translationState = .failed(Self.message(for: error))
+            }
+        }
     }
 
     private func loadArticle(for story: Story) async {
@@ -720,6 +807,9 @@ final class AppState {
     }
 
     private static func message(for error: Error) -> String {
+        if let aiError = error as? AIError {
+            return aiError.displayMessage
+        }
         if let clientError = error as? HNClientError, case .http(let status) = clientError {
             return "HN 接口返回 \(status)，稍后重试即可，缓存内容仍可阅读。"
         }

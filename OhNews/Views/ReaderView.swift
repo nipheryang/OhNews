@@ -112,6 +112,17 @@ struct StoryDetailView: View {
                     }
                     .disabled(state.readerState == .loading)
                     .help("重新抓取正文")
+
+                    // 只在真的拿到正文时才出现：降级场景下没什么可翻。
+                    if state.translatableHTML != nil {
+                        Button {
+                            Task { await state.toggleTranslation() }
+                        } label: {
+                            Label(translationButtonTitle, systemImage: translationButtonIcon)
+                        }
+                        .disabled(state.canTranslate == false)
+                        .help(translationButtonHelp)
+                    }
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
@@ -159,6 +170,53 @@ struct StoryDetailView: View {
 
     @ViewBuilder
     private func content(for story: Story) -> some View {
+        // 正在显示译文时直接渲染译文，讨论区照旧接在后面。
+        if case .showingTranslation(let translated) = state.translationState {
+            ArticleWebView(
+                html: translated,
+                baseURL: nil,
+                discussionHTML: discussionHTML(for: story)
+            )
+        } else {
+            originalContent(for: story)
+        }
+    }
+
+    // MARK: - 翻译按钮
+
+    private var translationButtonTitle: String {
+        switch state.translationState {
+        case .showingOriginal: "翻译正文"
+        case .translating(let done, let total):
+            total > 0 ? "翻译中 \(done)/\(total)" : "翻译中…"
+        case .showingTranslation: "显示原文"
+        case .failed: "重试翻译"
+        }
+    }
+
+    private var translationButtonIcon: String {
+        switch state.translationState {
+        case .showingOriginal: "translate"
+        case .translating: "stop.circle"
+        case .showingTranslation: "arrow.uturn.backward"
+        case .failed: "arrow.clockwise"
+        }
+    }
+
+    private var translationButtonHelp: String {
+        if state.canTranslate == false {
+            return "需要先在设置里启用 AI 才能翻译"
+        }
+        return switch state.translationState {
+        case .showingOriginal: "把正文翻译成中文"
+        case .translating: "点击取消翻译"
+        case .showingTranslation: "切回原文"
+        case .failed: "重新翻译"
+        }
+    }
+
+    @ViewBuilder
+    private func originalContent(for story: Story) -> some View {
         switch state.readerState {
         case .idle:
             VStack(spacing: 10) {

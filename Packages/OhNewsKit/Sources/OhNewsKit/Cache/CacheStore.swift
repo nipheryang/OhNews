@@ -26,12 +26,13 @@ public actor CacheStore {
         var channelOrder: [String: [String]] = [:]
         var readIDs: [String] = []
         var summaries: [String: StorySummary] = [:]
+        var translations: [String: ArticleTranslation] = [:]
         var updatedAt: Date = .distantPast
 
         init() {}
 
         private enum CodingKeys: String, CodingKey {
-            case schemaVersion, stories, channelOrder, readIDs, summaries, updatedAt
+            case schemaVersion, stories, channelOrder, readIDs, summaries, translations, updatedAt
         }
 
         init(from decoder: Decoder) throws {
@@ -61,6 +62,7 @@ public actor CacheStore {
             channelOrder = try container.decodeIfPresent([String: [String]].self, forKey: .channelOrder) ?? [:]
             readIDs = try container.decodeIfPresent([String].self, forKey: .readIDs) ?? []
             summaries = try container.decodeIfPresent([String: StorySummary].self, forKey: .summaries) ?? [:]
+            translations = try container.decodeIfPresent([String: ArticleTranslation].self, forKey: .translations) ?? [:]
             updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
         }
     }
@@ -184,6 +186,27 @@ public actor CacheStore {
             }
         }
         return result
+    }
+
+    // MARK: - 译文
+
+    /// 读取译文。内容哈希、模型或 prompt 版本不符时视为过期。
+    public func translation(
+        itemID: String,
+        contentHash: String,
+        modelName: String,
+        version: String
+    ) -> ArticleTranslation? {
+        guard let record = snapshot.translations[itemID] else { return nil }
+        return record.matches(contentHash: contentHash, modelName: modelName, version: version)
+            ? record
+            : nil
+    }
+
+    public func storeTranslation(_ translation: ArticleTranslation) {
+        snapshot.translations[translation.itemID] = translation
+        snapshot.updatedAt = Date()
+        save()
     }
 
     // MARK: - 维护
