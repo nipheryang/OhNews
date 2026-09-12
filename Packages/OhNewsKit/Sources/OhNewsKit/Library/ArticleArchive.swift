@@ -48,6 +48,9 @@ public struct ArticleArchive: Codable, Hashable, Sendable {
     /// AI 摘要。没有就是 nil。
     public let summary: StorySummary?
 
+    /// 正文解读。没有就是 nil。
+    public let insight: ArticleInsight?
+
     public init(
         itemID: String,
         story: Story,
@@ -59,7 +62,8 @@ public struct ArticleArchive: Codable, Hashable, Sendable {
         discussionHTML: String? = nil,
         translation: ArchivedTranslation? = nil,
         showsTranslation: Bool = false,
-        summary: StorySummary? = nil
+        summary: StorySummary? = nil,
+        insight: ArticleInsight? = nil
     ) {
         self.itemID = itemID
         self.story = story
@@ -72,6 +76,7 @@ public struct ArticleArchive: Codable, Hashable, Sendable {
         self.translation = translation
         self.showsTranslation = showsTranslation
         self.summary = summary
+        self.insight = insight
     }
 
     /// 正文有没有真正存下来。只存到降级层级说明这次没抓到正文，

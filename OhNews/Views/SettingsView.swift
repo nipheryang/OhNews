@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var keyState: AIKeyState = .missing
     @State private var listLimit = ListPreferences.defaultLimit
     @State private var summaryScope = SummaryGenerationScope.leadingItems
+    @State private var insightEnabled = true
     @State private var appearance = AppAppearance.system
     @State private var isConfirmingClearCache = false
     @State private var isConfirmingClearArchives = false
@@ -122,6 +123,20 @@ struct SettingsView: View {
                 }
 
                 Text(summaryScopeHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("正文解读") {
+                Toggle("打开正文时自动生成", isOn: $insightEnabled)
+                    .onChange(of: insightEnabled) { _, newValue in
+                        var preferences = InsightPreferences()
+                        preferences.isEnabled = newValue
+                        Task { await state.applyInsightEnabledChange() }
+                    }
+
+                Text("在正文顶部生成一份解读：正文讲了什么，以及评论区的核心观点与趋势。\n它需要连同正文一起送给模型，因此每打开一篇会调一次 AI（按内容缓存，同一篇不会重复调）。关掉后不再自动生成，但正文里仍可手动重新生成。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -331,6 +346,7 @@ struct SettingsView: View {
         config = state.config
         listLimit = ListPreferences().listLimit
         summaryScope = SummaryPreferences().scope
+        insightEnabled = InsightPreferences().isEnabled
         appearance = state.appearance
         loadStoredKey()
         isLoaded = true

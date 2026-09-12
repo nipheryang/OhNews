@@ -33,6 +33,7 @@ struct StoryDetailView: View {
                 VStack(spacing: 0) {
                     header(for: story)
                     hairline
+                    insight(for: story)
                     content(for: story)
                 }
             } else {
@@ -40,11 +41,27 @@ struct StoryDetailView: View {
             }
         }
         .background(Palette.paper)
+        // 与中栏同一个道理：`WKWebView` 会按正文内容高度索取空间，长文章（几千点的
+        // 内容）会把这个需求传给 `NavigationSplitView`，三列便都按那个高度布局，
+        // 窗口装不下就溢出——侧栏被挤到可视区之上而空白，正文上方也被裁掉。
+        // 正文自己会在 WebView 内部滚动，外层高度取容器即可。
+        .containerRelativeFrame(.vertical)
         // 正文状态切换用短交叉淡化，不位移：阅读时内容位置跳动比“没有动画”更难受。
         .animation(
             reduceMotion ? nil : Motion.standard,
             value: state.readerState
         )
+    }
+
+    /// 正文之上的 AI 解读。没有可显示的解读时不占任何位置。
+    @ViewBuilder
+    private func insight(for story: Story) -> some View {
+        if state.insightState != .unavailable {
+            InsightCardView(state: state.insightState) {
+                Task { await state.regenerateInsight() }
+            }
+            .animation(reduceMotion ? nil : Motion.standard, value: state.insightState)
+        }
     }
 
     private var hairline: some View {

@@ -96,6 +96,9 @@ enum Typography {
     static let summaryTitle = Font.system(size: 15, weight: .semibold, design: .serif)
     static let summaryBody = Font.system(size: 13.5, design: .serif)
     static let summaryBodyLineSpacing: CGFloat = 4
+    /// 正文解读。比摘要正文稍大一点：它出现在正文区，读者已经进入阅读状态。
+    static let insightBody = Font.system(size: 14, design: .serif)
+    static let insightBodyLineSpacing: CGFloat = 5
     static let readerTitle = Font.system(size: 26, weight: .semibold, design: .serif)
     static let readerTitleLineSpacing: CGFloat = 2
     static let displayTitle = Font.system(size: 20, weight: .semibold, design: .serif)

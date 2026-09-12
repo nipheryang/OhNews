@@ -23,6 +23,7 @@
 		4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */; };
 		54D199DC4A783A0BC631B283 /* OhNewsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 42FE398B922B1B7937CC4E33 /* OhNewsKit */; };
 		5EB4B0FC4C26FC564D230A4A /* ReaderContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DEFC92A972089147C96262 /* ReaderContextMenu.swift */; };
+		5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664307FBDE3EB878CF62DCE /* InsightService.swift */; };
 		5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */; };
 		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
 		912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */; };
@@ -30,6 +31,7 @@
 		A15286E403FD3CF62438DDC0 /* AddSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */; };
 		A5CE2BC67631DB1331463C66 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D622AE7B84D3799C108448A /* TranslationService.swift */; };
 		AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */; };
+		BE1349A85C5BFFE024525385 /* InsightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3128CCEF47ADFEB57F54FBE /* InsightCardView.swift */; };
 		BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E13AC35833EEA13732D6CB1 /* HNClient.swift */; };
 		C1008DF3D541E92E27B471B2 /* ConfigPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */; };
 		C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A534019F6349291DE9DB5B /* SidebarView.swift */; };
@@ -45,6 +47,7 @@
 		07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIProviderPreset+Display.swift"; sourceTree = "<group>"; };
 		106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		2EBFE2C04F2F39882026718E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3664307FBDE3EB878CF62DCE /* InsightService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightService.swift; sourceTree = "<group>"; };
 		37C886291A0E1E5B6794617C /* SummaryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardView.swift; sourceTree = "<group>"; };
 		3E13AC35833EEA13732D6CB1 /* HNClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNClient.swift; sourceTree = "<group>"; };
 		50212C0207876FC1311FC8C5 /* LICENSE */ = {isa = PBXFileReference; path = LICENSE; sourceTree = "<group>"; };
@@ -68,6 +71,7 @@
 		B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSSourceProvider.swift; sourceTree = "<group>"; };
 		C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
+		C3128CCEF47ADFEB57F54FBE /* InsightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightCardView.swift; sourceTree = "<group>"; };
 		C4B03317112A6733873F1C3D /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		C770821155A5A9BA690913C0 /* HNSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNSourceProvider.swift; sourceTree = "<group>"; };
 		D2A4E4F740CA7C92115032A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -131,6 +135,7 @@
 				E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */,
 				3E13AC35833EEA13732D6CB1 /* HNClient.swift */,
 				C770821155A5A9BA690913C0 /* HNSourceProvider.swift */,
+				3664307FBDE3EB878CF62DCE /* InsightService.swift */,
 				F3B44890862C4EAD57FCE612 /* KeychainStore.swift */,
 				B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */,
 				87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */,
@@ -178,6 +183,7 @@
 			children = (
 				525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */,
 				106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */,
+				C3128CCEF47ADFEB57F54FBE /* InsightCardView.swift */,
 				A4DEFC92A972089147C96262 /* ReaderContextMenu.swift */,
 				68CA6670660742AAC2DAD3E9 /* ReaderView.swift */,
 				A206012A0B5B7A9EFEDF2260 /* RootView.swift */,
@@ -290,6 +296,8 @@
 				234018F44394AAE24869D306 /* EmptyStateView.swift in Sources */,
 				BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */,
 				2A90B992D01843A7C573A9EF /* HNSourceProvider.swift in Sources */,
+				BE1349A85C5BFFE024525385 /* InsightCardView.swift in Sources */,
+				5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */,
 				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
 				912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */,
@@ -347,7 +355,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -361,7 +369,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.5.0;
+				MARKETING_VERSION = 0.6.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -426,7 +434,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -446,7 +454,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.5.0;
+				MARKETING_VERSION = 0.6.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

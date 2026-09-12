@@ -27,12 +27,14 @@ public actor CacheStore {
         var readIDs: [String] = []
         var summaries: [String: StorySummary] = [:]
         var translations: [String: ArticleTranslation] = [:]
+        /// 正文解读。与摘要、译文同为缓存，条目 ID → 解读。
+        var insights: [String: ArticleInsight] = [:]
         var updatedAt: Date = .distantPast
 
         init() {}
 
         private enum CodingKeys: String, CodingKey {
-            case schemaVersion, stories, channelOrder, readIDs, summaries, translations, updatedAt
+            case schemaVersion, stories, channelOrder, readIDs, summaries, translations, insights, updatedAt
         }
 
         init(from decoder: Decoder) throws {
@@ -63,6 +65,7 @@ public actor CacheStore {
             readIDs = try container.decodeIfPresent([String].self, forKey: .readIDs) ?? []
             summaries = try container.decodeIfPresent([String: StorySummary].self, forKey: .summaries) ?? [:]
             translations = try container.decodeIfPresent([String: ArticleTranslation].self, forKey: .translations) ?? [:]
+            insights = try container.decodeIfPresent([String: ArticleInsight].self, forKey: .insights) ?? [:]
             updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
         }
     }
@@ -186,6 +189,34 @@ public actor CacheStore {
             }
         }
         return result
+    }
+
+    // MARK: - 正文解读
+
+    /// 读取解读。内容哈希、模型或 prompt 版本不符时视为过期。
+    public func insight(
+        itemID: String,
+        contentHash: String,
+        modelName: String,
+        promptVersion: String
+    ) -> ArticleInsight? {
+        guard let record = snapshot.insights[itemID] else { return nil }
+        return record.matches(
+            contentHash: contentHash,
+            modelName: modelName,
+            promptVersion: promptVersion
+        ) ? record : nil
+    }
+
+    /// 不校验版本，仅用于展示。
+    public func insight(itemID: String) -> ArticleInsight? {
+        snapshot.insights[itemID]
+    }
+
+    public func storeInsight(_ insight: ArticleInsight) {
+        snapshot.insights[insight.itemID] = insight
+        snapshot.updatedAt = Date()
+        save()
     }
 
     // MARK: - 译文

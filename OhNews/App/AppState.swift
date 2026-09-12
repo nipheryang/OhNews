@@ -28,6 +28,15 @@ enum CommentsState: Equatable {
     case failed(String)
 }
 
+/// 正文解读的加载状态。
+enum InsightState: Equatable {
+    /// 未启用，或这条内容没有可解读的正文。
+    case unavailable
+    case generating
+    case ready(ArticleInsight)
+    case failed(String)
+}
+
 /// 一次评论获取的结果。
 ///
 /// 需要区分「取到了」「这个来源没有评论」和「请求失败」三种情况：
@@ -144,6 +153,12 @@ final class AppState {
     /// 正文翻译的状态。
     private(set) var translationState: TranslationState = .showingOriginal
 
+    /// 正文解读的状态。
+    private(set) var insightState: InsightState = .unavailable
+
+    /// 是否在打开正文后自动生成解读。
+    private(set) var insightEnabled = true
+
     /// 评论缓存。同一条内容的评论会被摘要与讨论区两处需要，缓存避免取两遍。
     ///
     /// 不落盘：评论树体积大、时效性强，写进 `cache.json` 会让刚做完的
@@ -154,11 +169,15 @@ final class AppState {
     private static let commentsCacheLimit = 20
     private var commentsTask: Task<Void, Never>?
     private var translationTask: Task<Void, Never>?
+    private var insightTask: Task<Void, Never>?
+    /// 正在生成解读的条目。用来丢弃「生成期间用户已经切走」的结果。
+    private var insightItemID: String?
 
     private let hackerNews: HNSourceProvider
     private let cache: CacheStore
     private let summaryService: SummaryService
     private let translationService: TranslationService
+    private let insightService: InsightService
     private let sourcesPersistence = SourcesPersistence()
     /// RSS 源按需创建并缓存；HN 的 provider 常驻。
     @ObservationIgnored private var rssProviders: [String: RSSSourceProvider] = [:]
@@ -170,6 +189,7 @@ final class AppState {
     private let selectionPersistence = SelectionPersistence()
     private let listPreferences = ListPreferences()
     private let summaryPreferences = SummaryPreferences()
+    private let insightPreferences = InsightPreferences()
     /// 收藏与稍后读的存储。与缓存分开，缓存清空不影响这里。
     private let library = LibraryStore()
     /// 收藏内容的离线存档。
@@ -190,6 +210,7 @@ final class AppState {
         self.config = config
         self.summaryService = SummaryService(cache: cache, config: config)
         self.translationService = TranslationService(cache: cache, config: config)
+        self.insightService = InsightService(cache: cache, config: config)
     }
 
     // MARK: - 频道
@@ -220,6 +241,7 @@ final class AppState {
         await reloadSources()
         listLimit = listPreferences.listLimit
         summaryScope = summaryPreferences.scope
+        insightEnabled = insightPreferences.isEnabled
         appearance = AppearancePreferences().appearance
         await refreshCacheSize()
         await refreshArchiveSize()
@@ -621,6 +643,7 @@ final class AppState {
         ConfigPersistence.save(newConfig)
         await summaryService.updateConfig(newConfig)
         await translationService.updateConfig(newConfig)
+        await insightService.updateConfig(newConfig)
         // 换了配置，旧的一次性失败提示不再有参考价值。
         aiFailureMessage = nil
         await refreshAIStatus()
@@ -691,6 +714,12 @@ final class AppState {
         translationState = .showingOriginal
         latestTranslation = nil
         archivedDiscussionHTML = nil
+
+        // 解读也跟着换。
+        insightTask?.cancel()
+        insightTask = nil
+        insightItemID = nil
+        insightState = .unavailable
     }
 
     // MARK: - 翻译
@@ -913,6 +942,8 @@ final class AppState {
 
         // 正文到了，如果这条已经被收藏、而当时只存下元数据，现在补上。
         await refreshArchiveIfSaved(for: story)
+        // 正文就位，看看能不能开始生成解读。
+        await generateInsightIfReady(for: story)
     }
 
     /// 取评论树。按条目所属源选择 provider；不支持评论的来源返回 nil。
@@ -980,6 +1011,8 @@ final class AppState {
         }
 
         await refreshArchiveIfSaved(for: story)
+        // 讨论区就位，看看能不能开始生成解读。
+        await generateInsightIfReady(for: story)
     }
 
     /// 手动重试讨论区。
@@ -987,6 +1020,99 @@ final class AppState {
         guard let story = selectedStory else { return }
         commentsCache[story.id] = nil
         await loadComments(for: story)
+    }
+
+    // MARK: - 正文解读
+
+    /// 正文与讨论区都到位后自动生成解读。
+    ///
+    /// 两者是并行加载的，谁先到不一定，所以两边完成时都调它，由它判断现在能不能开始。
+    /// `insightTask` 保证同一篇只生成一次。
+    private func generateInsightIfReady(for story: Story) async {
+        guard insightEnabled else { return }
+        guard story.id == selectedStoryID else { return }
+        guard insightTask == nil else { return }
+        // 已经有了就别再跑一遍（存档带进来的解读也走这条）：
+        // 即便缓存能命中，中间那次状态切换也会让界面闪一下。
+        if case .ready = insightState { return }
+        guard let articleHTML = insightArticleHTML else { return }
+        // 讨论区还在加载就先等：这份解读有一半是讲评论的，早生成会得到一份
+        // 没有讨论区的结果，之后还得再生成一次。
+        guard commentsState != .loading else { return }
+
+        startInsight(for: story, articleHTML: articleHTML, ignoringCache: false)
+    }
+
+    /// 手动重新生成，忽略缓存。
+    func regenerateInsight() async {
+        guard let story = selectedStory else { return }
+        guard let articleHTML = insightArticleHTML else { return }
+        insightTask?.cancel()
+        startInsight(for: story, articleHTML: articleHTML, ignoringCache: true)
+    }
+
+    /// 用户在设置里改了开关：关掉就收起现有的解读，打开就立刻补一份。
+    func applyInsightEnabledChange() async {
+        insightEnabled = insightPreferences.isEnabled
+        guard insightEnabled else {
+            insightTask?.cancel()
+            insightTask = nil
+            insightItemID = nil
+            insightState = .unavailable
+            return
+        }
+        guard let story = selectedStory else { return }
+        await generateInsightIfReady(for: story)
+    }
+
+    private func startInsight(for story: Story, articleHTML: String, ignoringCache: Bool) {
+        insightItemID = story.id
+        insightState = .generating
+        let discussionHTML = insightDiscussionHTML
+
+        insightTask = Task { [weak self] in
+            guard let self else { return }
+            let result = await self.insightService.insight(
+                story: story,
+                articleHTML: articleHTML,
+                discussionHTML: discussionHTML,
+                ignoringCache: ignoringCache
+            )
+            await self.finishInsight(result, for: story)
+        }
+    }
+
+    private func finishInsight(_ insight: ArticleInsight?, for story: Story) async {
+        insightTask = nil
+        // 生成期间用户切到了别的内容：丢掉这次结果，别写到新内容头上。
+        guard story.id == selectedStoryID, insightItemID == story.id else { return }
+
+        guard let insight else {
+            insightState = .failed("正文解读暂时生成不了，可以稍后重试。")
+            return
+        }
+        insightState = .ready(insight)
+        // 收藏过的条目顺带更新存档，下次打开就有解读。
+        await refreshArchiveIfSaved(for: story)
+    }
+
+    /// 送进解读的正文。
+    ///
+    /// 用原文而不是译文：解读本身就是中文，不必先翻一遍，也不依赖翻译是否完成。
+    private var insightArticleHTML: String? {
+        switch readerState {
+        case .article(let article):
+            article.html.isEmpty ? nil : article.html
+        case .selfPost(let html):
+            html.isEmpty ? nil : html
+        default:
+            nil
+        }
+    }
+
+    /// 送进解读的讨论区。同样用原文。
+    private var insightDiscussionHTML: String? {
+        archivedDiscussionHTML ?? discussionHTML(for: selectedStory)
     }
 
     // MARK: - 收藏与稍后读
@@ -1270,8 +1396,17 @@ final class AppState {
             discussionHTML: archivedDiscussionHTML ?? discussionHTML(for: story),
             translation: translation,
             showsTranslation: isShowingTranslation,
-            summary: summaries[story.id]
+            summary: summaries[story.id],
+            insight: archivedInsight
         )
+    }
+
+    /// 当前可存档的解读：只在它属于当前这篇时才有效。
+    private var archivedInsight: ArticleInsight? {
+        guard case .ready(let insight) = insightState,
+              insight.itemID == articleStoryID
+        else { return nil }
+        return insight
     }
 
     private var isShowingTranslation: Bool {
@@ -1335,6 +1470,10 @@ final class AppState {
 
         if let summary = archive.summary {
             summaries[archive.itemID] = summary
+        }
+
+        if let insight = archive.insight {
+            insightState = .ready(insight)
         }
     }
 
