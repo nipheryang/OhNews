@@ -775,20 +775,28 @@ final class AppState {
     }
 
     private func startTranslation() async {
+        guard let story = selectedStory else { return }
+        guard config.isEnabled else {
+            translationState = .failed("需要先在设置里启用 AI 才能翻译。")
+            return
+        }
+
+        // 先进入翻译态再去等别的：讨论区可能要加载一会儿，而这段时间界面上
+        // 必须已经有反馈，否则点下去像没点上。
+        translationTask?.cancel()
+        translationState = .translating(done: 0, total: 0)
+
         // 讨论区可能还在加载：等它到位再翻。否则讨论区 HTML 为空，整片评论会被漏掉，
         // 而且翻译完成后评论才到，页面上就会一直是一半译文一半原文。
         if case .loading = commentsState, let task = commentsTask {
             await task.value
         }
 
-        guard let story = selectedStory, let parts = translatableParts else { return }
-        guard config.isEnabled else {
-            translationState = .failed("需要先在设置里启用 AI 才能翻译。")
+        guard let parts = translatableParts else {
+            // 没有可翻内容（例如整篇已是中文）：退回原文态，不能停在「翻译中」。
+            translationState = .showingOriginal
             return
         }
-
-        translationTask?.cancel()
-        translationState = .translating(done: 0, total: 0)
 
         let service = translationService
         let itemID = story.id

@@ -190,10 +190,14 @@ struct StoryDetailView: View {
     }
 
     /// 0…1 的翻译进度；未在翻译时为 nil。
+    ///
+    /// 段落数还没拿到的准备阶段返回 0，而不是 nil——这一小段时间也要有可见
+    /// 的反馈，否则点下去像没点上。
     private var translationProgress: Double? {
-        guard case .translating(let done, let total) = state.translationState, total > 0 else {
+        guard case .translating(let done, let total) = state.translationState else {
             return nil
         }
+        guard total > 0 else { return 0 }
         return Double(done) / Double(total)
     }
 
@@ -374,31 +378,61 @@ private struct ReaderActionButton<Content: View>: View {
 
 /// 翻译按钮的图标。
 ///
-/// 翻译中在图标外围画一圈进度：能看出还在动、也能看出剩多少，
-/// 又不像进度条那样把注意力从正文上拉走。
+/// 翻译中在图标外围画一圈进度：既看得出在动，也看得出剩多少。
+/// 段落数还没拿到时没有真实进度可报，就画一圈旋转的弧（不确定进度），
+/// 让点击立刻有反馈。
 private struct TranslationGlyph: View {
     let symbol: String
-    /// 0…1；nil 表示不在翻译中。
+    /// 0…1；`nil` 表示不在翻译中；0 表示已在翻译但尚无进度。
     let progress: Double?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isSpinning = false
+
+    /// 圆环直径与线宽。图标与圆环共用同一直径并各自居中，两者才会同心。
+    private let diameter: CGFloat = 28
+    private let lineWidth: CGFloat = 2.5
 
     var body: some View {
         ZStack {
             Image(systemName: symbol)
-                // 很轻的呼吸：只用来表示「还在跑」，不抢眼。
-                .symbolEffect(.pulse, options: .repeating, isActive: progress != nil)
+                .frame(width: diameter, height: diameter)
 
             if let progress {
-                Circle()
-                    .trim(from: 0, to: max(0.03, progress))
-                    .stroke(
-                        Palette.inkSoft,
-                        style: StrokeStyle(lineWidth: 1.5, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 27, height: 27)
-                    .animation(Motion.standard, value: progress)
+                if progress > 0 {
+                    arc(to: progress)
+                        .animation(Motion.standard, value: progress)
+                } else {
+                    // 准备阶段：一段短弧匀速旋转。
+                    arc(to: 0.28)
+                        .rotationEffect(.degrees(isSpinning ? 360 : 0))
+                        .animation(
+                            reduceMotion
+                                ? nil
+                                : .linear(duration: 0.9).repeatForever(autoreverses: false),
+                            value: isSpinning
+                        )
+                }
             }
         }
+        .frame(width: diameter, height: diameter)
+        .onAppear { isSpinning = (progress == 0) }
+        .onChange(of: progress) { _, newValue in
+            // 只有准备阶段（0）才旋转；拿到真实进度后切回确定进度。
+            isSpinning = (newValue == 0)
+        }
+    }
+
+    /// 从 12 点方向顺时针画一段弧。
+    private func arc(to fraction: Double) -> some View {
+        Circle()
+            .trim(from: 0, to: max(0.05, fraction))
+            .stroke(
+                Palette.inkSoft,
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+            )
+            .rotationEffect(.degrees(-90))
+            .frame(width: diameter, height: diameter)
     }
 }
 
@@ -456,3 +490,4 @@ struct ArticleWebView: NSViewRepresentable {
         }
     }
 }
+
