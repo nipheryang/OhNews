@@ -3,65 +3,61 @@ import SwiftUI
 
 /// 列表行内的 AI 摘要。
 ///
-/// 摘要是一层「阅读辅助」，不是第二张卡片：没有独立底色，只用一道极细的
-/// 强调线和缩进与标题区分。背景色一旦加上去，一条新闻就会被切成两个视觉单元。
+/// 处理成博客里 `blockquote` 的形态：左侧一道引线 + 缩进，**没有任何底色**。
+/// 这套设计语言是单色的，所以 AI 内容不用颜色区分，而用排版区分——
+/// 等宽小标签说明来源，衬线正文承接阅读。
 struct SummaryBlockView: View {
     let summary: StorySummary
 
     var body: some View {
-        HStack(alignment: .top, spacing: Metrics.summaryIndent) {
-            Capsule()
-                .fill(Palette.aiAccent.opacity(0.3))
-                .frame(width: Metrics.summaryRuleWidth)
+        HStack(alignment: .top, spacing: Metrics.quoteIndent) {
+            Rectangle()
+                .fill(Palette.lineStrong)
+                .frame(width: Metrics.quoteRuleWidth)
 
-            VStack(alignment: .leading, spacing: 4) {
-                // AI 中文标题是辅助标题：原文标题必须是整行唯一的最高层级，
-                // 所以这里降为次级文字，靠字重而不是亮度来区分正文。
+            VStack(alignment: .leading, spacing: 6) {
+                label
+
                 Text(summary.chineseTitle)
                     .font(Typography.summaryTitle)
-                    .foregroundStyle(Palette.textSecondary)
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // 摘要不设上限时，一条长摘要能把行高撑到相邻行的两三倍，
-                // 列表的扫描节奏就没了。截断到 4 行，完整内容留给后续的阅读区。
+                // 不截断时一条长摘要能把行高撑到相邻行的两三倍，列表节奏就没了。
                 Text(summary.summary)
                     .font(Typography.summaryBody)
-                    .foregroundStyle(Palette.textSecondary)
+                    .foregroundStyle(Palette.inkSoft)
                     .lineSpacing(Typography.summaryBodyLineSpacing)
                     .lineLimit(4)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let consensus = summary.commentConsensus {
-                    Label(consensus, systemImage: "bubble.left.and.bubble.right")
-                        .font(Typography.summaryFootnote)
-                        .foregroundStyle(Palette.textTertiary)
+                    Text("共识 · \(consensus)")
+                        .font(Typography.eyebrow)
+                        .tracking(Metrics.metaTracking)
+                        .foregroundStyle(Palette.inkFaint)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-
-                if summary.tags.isEmpty == false {
-                    HStack(spacing: 6) {
-                        ForEach(summary.tags, id: \.self) { tag in
-                            Text(tag)
-                                .font(Typography.tag)
-                                .foregroundStyle(Palette.aiAccent)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 1.5)
-                                .background(
-                                    Palette.aiAccent.opacity(0.12),
-                                    in: RoundedRectangle(
-                                        cornerRadius: Metrics.tagCornerRadius,
-                                        style: .continuous
-                                    )
-                                )
-                        }
-                    }
-                    .padding(.top, 2)
-                }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 12)
+    }
+
+    /// 标签与来源说明合到同一行等宽小字里，不再用彩色胶囊。
+    private var label: some View {
+        Text(labelText)
+            .font(Typography.eyebrow)
+            .tracking(Metrics.eyebrowTracking)
+            .textCase(.uppercase)
+            .foregroundStyle(Palette.inkFaint)
+            .lineLimit(1)
+    }
+
+    private var labelText: String {
+        guard summary.tags.isEmpty == false else { return "AI 摘要" }
+        return "AI 摘要 · " + summary.tags.joined(separator: " · ")
     }
 }
 
@@ -74,17 +70,17 @@ struct SummarySkeletonView: View {
     @State private var isDimmed = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: Metrics.summaryIndent) {
-            Capsule()
-                .fill(Palette.aiAccent.opacity(0.2))
-                .frame(width: Metrics.summaryRuleWidth)
+        HStack(alignment: .top, spacing: Metrics.quoteIndent) {
+            Rectangle()
+                .fill(Palette.lineStrong)
+                .frame(width: Metrics.quoteRuleWidth)
 
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 8) {
                 bar(trailingInset: 200)
                 bar(trailingInset: 40)
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 12)
         .opacity(reduceMotion ? 0.7 : (isDimmed ? 0.55 : 1))
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
@@ -95,8 +91,8 @@ struct SummarySkeletonView: View {
     }
 
     private func bar(trailingInset: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(Palette.textTertiary.opacity(0.28))
+        RoundedRectangle(cornerRadius: 2, style: .continuous)
+            .fill(Palette.ink.opacity(0.08))
             .frame(height: 9)
             .padding(.trailing, trailingInset)
     }
@@ -104,8 +100,7 @@ struct SummarySkeletonView: View {
 
 /// AI 不可用时的提示条。整个列表只显示一条，不逐行重复。
 ///
-/// 用「抬起表面」表达这是一条状态提示，语义上与摘要彻底分开——
-/// 之前两者共用同一个 `.quaternary` 底色，含义就糊在一起了。
+/// 形态对齐博客 `.prose pre`：1px 线条 + 圆角，清淡但不含糊。
 struct AIUnavailableBanner: View {
     let title: String
     let message: String
@@ -113,17 +108,17 @@ struct AIUnavailableBanner: View {
     var onDismiss: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(Palette.aiAccent.opacity(0.8))
-
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Palette.textPrimary)
+                    .font(Typography.eyebrow)
+                    .tracking(Metrics.eyebrowTracking)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Palette.inkFaint)
+
                 Text(message)
-                    .font(Typography.summaryFootnote)
-                    .foregroundStyle(Palette.textSecondary)
+                    .font(Typography.uiSmall)
+                    .foregroundStyle(Palette.inkSoft)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -131,26 +126,32 @@ struct AIUnavailableBanner: View {
 
             if let onDismiss {
                 Button(action: onDismiss) {
-                    Label("关闭", systemImage: "xmark")
+                    Text("关闭").underline()
                 }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .foregroundStyle(Palette.textSecondary)
+                .buttonStyle(.plain)
+                .font(Typography.uiSmall)
+                .foregroundStyle(Palette.inkSoft)
                 .help("关闭提示")
             }
 
             SettingsLink {
-                Text("去设置")
+                Text("去设置").underline()
             }
-            .controlSize(.small)
+            .buttonStyle(.plain)
+            .font(Typography.uiSmall)
+            .foregroundStyle(Palette.inkSoft)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(
-            Palette.raisedSurface,
-            in: RoundedRectangle(cornerRadius: Metrics.bannerCornerRadius, style: .continuous)
+            Palette.surface,
+            in: RoundedRectangle(cornerRadius: Metrics.radiusMedium, style: .continuous)
         )
-        .padding(.horizontal, Metrics.listHorizontalInset)
-        .padding(.top, 8)
+        .overlay {
+            RoundedRectangle(cornerRadius: Metrics.radiusMedium, style: .continuous)
+                .stroke(Palette.line, lineWidth: Metrics.hairline)
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.vertical, 12)
     }
 }

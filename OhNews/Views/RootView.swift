@@ -17,7 +17,10 @@ struct RootView: View {
         } detail: {
             StoryDetailView()
         }
-        .background(Palette.windowBackground)
+        .background(Palette.paper)
+        // 强调色就是墨色：整套语言是单色的，控件也应如此。
+        // 这同时把侧栏的原生选中高亮从系统蓝改成墨色，省去额外的样式对抗。
+        .tint(Palette.accent)
         .preferredColorScheme(preferredScheme)
         // 先载入源与上次选中的频道；频道确定后由下面这个 task 负责加载内容。
         .task { await state.prepare() }

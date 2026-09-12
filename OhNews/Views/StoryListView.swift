@@ -74,8 +74,8 @@ struct StoryListView: View {
             if let message = state.lastErrorMessage {
                 // 有缓存但刷新失败：不遮挡内容，只在顶部提示。
                 Label(message, systemImage: "exclamationmark.triangle")
-                    .font(Typography.metadata)
-                    .foregroundStyle(Palette.textSecondary)
+                    .font(Typography.uiSmall)
+                    .foregroundStyle(Palette.inkSoft)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
@@ -93,21 +93,21 @@ struct StoryListView: View {
                     rowMenu(for: story)
                 }
                 .listRowInsets(EdgeInsets(
-                    top: Metrics.cardSpacing / 2,
-                    leading: Metrics.listHorizontalInset,
-                    bottom: Metrics.cardSpacing / 2,
-                    trailing: Metrics.listHorizontalInset
+                    top: 0,
+                    leading: Metrics.gutter,
+                    bottom: 0,
+                    trailing: Metrics.gutter
                 ))
                 .listRowSeparator(.hidden)
-                // 用不透明的行背景遮住 `List` 自带的选中高亮：它是一块通栏直角方块，
-                // 会盖过卡片的圆角与左右留白，和卡片语言直接冲突。
-                // 选中态由卡片自己的强调色底色表达，键盘导航仍然走原生选择。
-                .listRowBackground(Palette.listSurface)
+                // 用不透明的纸底色作行背景：既遮住 `List` 自带的选中高亮
+                // （一块通栏直角方块，与这套发丝线语言格格不入），
+                // 也让条目之间只靠自己的 1px 线条分隔，不产生卡片感。
+                .listRowBackground(Palette.paper)
             }
         }
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
-        .background(Palette.listSurface)
+        .background(Palette.paper)
         .onChange(of: state.selectedStoryID) { _, newValue in
             guard let newValue,
                   let story = state.stories.first(where: { $0.id == newValue })
@@ -115,10 +115,10 @@ struct StoryListView: View {
             Task { await state.select(story) }
         }
         .refreshable { await state.refresh() }
-        // 新条目插入时把已有行往下推。用短时平滑弹簧而不是弹跳：阅读场景里
-        // 明显的运动会让用户丢失阅读位置，这里只需要“被轻轻让开”的感觉。
+        // 新条目插入时把已有行往下推。用博客同一条缓动曲线，短而非弹跳：
+        // 阅读场景里明显的运动会让人丢失阅读位置。
         .animation(
-            reduceMotion ? nil : .snappy(duration: 0.26),
+            reduceMotion ? nil : Motion.insert,
             value: state.stories.map(\.id)
         )
     }

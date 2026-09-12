@@ -2,6 +2,10 @@ import OhNewsKit
 import SwiftUI
 
 /// 侧栏：按信息源分组展示频道，并提供订阅管理入口。
+///
+/// 形态对齐博客的页头导航：**纯文字、无图标**，分组标题用等宽大写小字
+/// （博客里的 `.eyebrow`）。底色就是纸白，与内容区不做明度区分——
+/// 两者的边界交给一条发丝线交代。
 struct SidebarView: View {
     @Environment(AppState.self) private var state
 
@@ -15,9 +19,12 @@ struct SidebarView: View {
 
         List(selection: $state.selectedChannelID) {
             ForEach(state.channelGroups) { group in
-                Section(group.source.name) {
+                Section {
                     ForEach(group.channels) { channel in
-                        Label(channel.name, systemImage: icon(for: channel))
+                        Text(channel.name)
+                            .font(Typography.ui)
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
                             .tag(channel.id)
                             .contextMenu {
                                 if group.source.kind == .rss {
@@ -31,12 +38,18 @@ struct SidebarView: View {
                                 }
                             }
                     }
+                } header: {
+                    Text(group.source.name)
+                        .font(Typography.eyebrow)
+                        .tracking(Metrics.eyebrowTracking)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Palette.inkFaint)
                 }
             }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
-        .background(Palette.sidebarSurface)
+        .background(Palette.paper)
         .navigationSplitViewColumnWidth(min: 188, ideal: 208, max: 260)
         .toolbar {
             ToolbarItem {
@@ -90,12 +103,5 @@ struct SidebarView: View {
             get: { deletingSource != nil },
             set: { if $0 == false { deletingSource = nil } }
         )
-    }
-
-    private func icon(for channel: SourceChannel) -> String {
-        if let list = HackerNewsSource.list(forChannelID: channel.id) {
-            return list.systemImage
-        }
-        return "dot.radiowaves.up.forward"
     }
 }

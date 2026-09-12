@@ -25,25 +25,43 @@ struct StoryDetailView: View {
             if let story = state.selectedStory {
                 VStack(spacing: 0) {
                     header(for: story)
-                    Rectangle()
-                        .fill(Palette.separator)
-                        .frame(height: 1)
+                    hairline
                     content(for: story)
                 }
             } else {
-                ContentUnavailableView {
-                    Label("选择一条新闻", systemImage: "newspaper")
-                } description: {
-                    Text(emptyHint)
-                }
+                emptyState
             }
         }
-        .background(Palette.windowBackground)
+        .background(Palette.paper)
         // 正文状态切换用短交叉淡化，不位移：阅读时内容位置跳动比“没有动画”更难受。
         .animation(
-            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            reduceMotion ? nil : Motion.standard,
             value: state.readerState
         )
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(Palette.line)
+            .frame(height: Metrics.hairline)
+    }
+
+    /// 空状态：衬线标题 + 等宽提示，与整套排版语言一致。
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Text("选择一条新闻")
+                .font(Typography.emptyStateTitle)
+                .foregroundStyle(Palette.ink)
+
+            Text(emptyHint)
+                .font(Typography.meta)
+                .tracking(Metrics.metaTracking)
+                .foregroundStyle(Palette.inkFaint)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// 空状态不只是“什么都没选”，得告诉用户当前在哪个频道、下一步做什么。
@@ -51,59 +69,63 @@ struct StoryDetailView: View {
         guard let name = state.selectedChannel?.name else {
             return "在中间列表选中条目，正文会显示在这里。"
         }
-        return "当前频道「\(name)」。选中条目后，正文会显示在这里。"
+        return "当前频道「\(name)」· 选中条目后正文显示在这里"
     }
 
     // MARK: - 头部
 
+    /// 头部按博客的文章页编排：等宽眉标在上，衬线大标题在下。
     private func header(for story: Story) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(headerTitle(for: story))
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Palette.textPrimary)
-                    .lineSpacing(2)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(headerEyebrow(for: story))
+                    .font(Typography.readerMeta)
+                    .tracking(Metrics.metaTracking)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Palette.inkFaint)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
-                HStack(spacing: 6) {
-                    SourceBadge(host: story.sourceHost)
-                    Text(headerSubtitle(for: story))
-                        .font(Typography.metadata)
-                        .foregroundStyle(Palette.textSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-            }
+                Spacer(minLength: 8)
 
-            Spacer(minLength: 0)
-
-            // 操作只留图标：阅读区的主路径是“读”，按钮越多越吵。
-            HStack(spacing: 2) {
-                if let url = story.url {
-                    Button {
-                        NSWorkspace.shared.open(url)
-                    } label: {
-                        Label("在浏览器中打开", systemImage: "safari")
+                // 操作只留图标：阅读区的主路径是“读”，按钮越多越吵。
+                HStack(spacing: 2) {
+                    if let url = story.url {
+                        Button {
+                            NSWorkspace.shared.open(url)
+                        } label: {
+                            Label("在浏览器中打开", systemImage: "safari")
+                        }
+                        .help("在浏览器中打开")
                     }
-                    .help("在浏览器中打开")
-                }
 
-                Button {
-                    Task { await state.reloadArticle(for: story) }
-                } label: {
-                    Label("重新抓取", systemImage: "arrow.clockwise")
+                    Button {
+                        Task { await state.reloadArticle(for: story) }
+                    } label: {
+                        Label("重新抓取", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(state.readerState == .loading)
+                    .help("重新抓取正文")
                 }
-                .disabled(state.readerState == .loading)
-                .help("重新抓取正文")
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .foregroundStyle(Palette.inkFaint)
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .foregroundStyle(Palette.textSecondary)
+
+            Text(headerTitle(for: story))
+                .font(Typography.readerTitle)
+                .foregroundStyle(Palette.ink)
+                .lineSpacing(Typography.readerTitleLineSpacing)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 14)
+        // 先限定正文宽度再加内边距，才能和 `reader.css` 的
+        // `max-width: 720px` + `padding: 0 40px`（content-box）对上升，
+        // 否则头部会比正文窄 40pt，两栏看起来错位。
+        .frame(maxWidth: Metrics.readerMaxWidth, alignment: .leading)
+        .padding(.horizontal, 40)
+        .padding(.top, 22)
+        .padding(.bottom, 18)
     }
 
     private func headerTitle(for story: Story) -> String {
@@ -113,18 +135,15 @@ struct StoryDetailView: View {
         return story.title
     }
 
-    private func headerSubtitle(for story: Story) -> String {
+    /// 眉标：来源 · 分数 · 评论 · 作者，全部压成一行等宽小字。
+    private func headerEyebrow(for story: Story) -> String {
         var parts: [String] = []
-        if let host = story.sourceHost {
-            parts.append(host)
-        } else {
-            parts.append("自述帖")
-        }
+        parts.append(story.sourceHost ?? "自述帖")
         if let score = story.score {
             parts.append("\(score) 分")
         }
         if let commentCount = story.commentCount {
-            parts.append("\(commentCount) 条评论")
+            parts.append("\(commentCount) 评论")
         }
         parts.append(story.author)
         return parts.joined(separator: " · ")
@@ -136,14 +155,19 @@ struct StoryDetailView: View {
     private func content(for story: Story) -> some View {
         switch state.readerState {
         case .idle:
-            ContentUnavailableView(
-                "还没有打开正文",
-                systemImage: "doc.text",
-                description: Text("在中间列表点选一条内容即可阅读。")
-            )
+            VStack(spacing: 10) {
+                Text("还没有打开正文")
+                    .font(Typography.emptyStateTitle)
+                    .foregroundStyle(Palette.ink)
+                Text("在中间列表点选一条内容即可阅读")
+                    .font(Typography.meta)
+                    .tracking(Metrics.metaTracking)
+                    .foregroundStyle(Palette.inkFaint)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .loading:
-            ProgressView("正在抓取正文…")
+            ProgressView()
                 .controlSize(.small)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 

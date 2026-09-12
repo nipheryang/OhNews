@@ -21,7 +21,7 @@
 		4574F832C0EFE272A9A21CE8 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34B48E54B95714D0A84EBC7 /* Theme.swift */; };
 		4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */; };
 		54D199DC4A783A0BC631B283 /* OhNewsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 42FE398B922B1B7937CC4E33 /* OhNewsKit */; };
-		82FA528FCFB194D2F18720A5 /* SourceBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1499F9EDB5E1B555E9F9F2F6 /* SourceBadge.swift */; };
+		5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */; };
 		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
 		912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */; };
 		91DB2C913378D4E8133D7635 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */; };
@@ -41,7 +41,6 @@
 		06B1FAEBCC9A70143AA84890 /* OhNewsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OhNewsApp.swift; sourceTree = "<group>"; };
 		07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIProviderPreset+Display.swift"; sourceTree = "<group>"; };
 		106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
-		1499F9EDB5E1B555E9F9F2F6 /* SourceBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceBadge.swift; sourceTree = "<group>"; };
 		2EBFE2C04F2F39882026718E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		37C886291A0E1E5B6794617C /* SummaryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardView.swift; sourceTree = "<group>"; };
 		3E13AC35833EEA13732D6CB1 /* HNClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNClient.swift; sourceTree = "<group>"; };
@@ -63,6 +62,7 @@
 		B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigPersistence.swift; sourceTree = "<group>"; };
 		B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSSourceProvider.swift; sourceTree = "<group>"; };
 		C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
+		C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
 		C4B03317112A6733873F1C3D /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		C770821155A5A9BA690913C0 /* HNSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNSourceProvider.swift; sourceTree = "<group>"; };
 		DAFD5E2ED4564934AB0DD66D /* reader.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = reader.css; sourceTree = "<group>"; };
@@ -174,7 +174,6 @@
 				A206012A0B5B7A9EFEDF2260 /* RootView.swift */,
 				2EBFE2C04F2F39882026718E /* SettingsView.swift */,
 				78A534019F6349291DE9DB5B /* SidebarView.swift */,
-				1499F9EDB5E1B555E9F9F2F6 /* SourceBadge.swift */,
 				53259EE86760DCF2553BAED2 /* StoryListView.swift */,
 				9E8F18C00B024979631A7D55 /* StoryRowView.swift */,
 				37C886291A0E1E5B6794617C /* SummaryCardView.swift */,
@@ -187,6 +186,7 @@
 			children = (
 				78756EC08D238F27332945B7 /* Info.plist */,
 				76E2D3C2A11A71A11AB5C9F0 /* OhNews.entitlements */,
+				C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */,
 				E34B48E54B95714D0A84EBC7 /* Theme.swift */,
 			);
 			path = Support;
@@ -284,10 +284,10 @@
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
 				912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */,
 				F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */,
+				5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */,
 				D3AC142A2FBC0D1625DA299B /* RootView.swift in Sources */,
 				1F8BECA3EA328BA13962A659 /* SettingsView.swift in Sources */,
 				C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */,
-				82FA528FCFB194D2F18720A5 /* SourceBadge.swift in Sources */,
 				2F01C2D9691AB7A629ED975D /* StoryList+Display.swift in Sources */,
 				3A3C02E4C54FAE7EA3B5935A /* StoryListView.swift in Sources */,
 				F9C4813577FE396A334AEEB1 /* StoryRowView.swift in Sources */,
