@@ -22,6 +22,7 @@
 		4574F832C0EFE272A9A21CE8 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34B48E54B95714D0A84EBC7 /* Theme.swift */; };
 		4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */; };
 		54D199DC4A783A0BC631B283 /* OhNewsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 42FE398B922B1B7937CC4E33 /* OhNewsKit */; };
+		5EB4B0FC4C26FC564D230A4A /* ReaderContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DEFC92A972089147C96262 /* ReaderContextMenu.swift */; };
 		5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */; };
 		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
 		912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */; };
@@ -61,6 +62,7 @@
 		9D622AE7B84D3799C108448A /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
 		9E8F18C00B024979631A7D55 /* StoryRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryRowView.swift; sourceTree = "<group>"; };
 		A206012A0B5B7A9EFEDF2260 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		A4DEFC92A972089147C96262 /* ReaderContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderContextMenu.swift; sourceTree = "<group>"; };
 		B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigPersistence.swift; sourceTree = "<group>"; };
 		B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSSourceProvider.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 			children = (
 				525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */,
 				106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */,
+				A4DEFC92A972089147C96262 /* ReaderContextMenu.swift */,
 				68CA6670660742AAC2DAD3E9 /* ReaderView.swift */,
 				A206012A0B5B7A9EFEDF2260 /* RootView.swift */,
 				2EBFE2C04F2F39882026718E /* SettingsView.swift */,
@@ -290,6 +293,7 @@
 				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
 				912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */,
+				5EB4B0FC4C26FC564D230A4A /* ReaderContextMenu.swift in Sources */,
 				F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */,
 				5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */,
 				D3AC142A2FBC0D1625DA299B /* RootView.swift in Sources */,

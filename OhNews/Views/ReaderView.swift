@@ -216,10 +216,26 @@ struct StoryDetailView: View {
             baseURL: baseURL,
             discussionHTML: state.displayDiscussionHTML,
             scrollTarget: target,
-            onCollectPassage: { text, index in
-                Task { await state.savePassage(text: text, paragraphIndex: index, for: story) }
-            }
+            contextMenuItems: { readerContextMenu(for: story) }
         )
+    }
+
+    /// 正文右键菜单的内容。
+    ///
+    /// 这里就是以后加功能的地方：往数组里添一项，菜单里就多一条，
+    /// 不需要动事件处理那一层。数组为空时正文里右键不会弹任何菜单。
+    private func readerContextMenu(for story: Story) -> [ReaderContextMenuItem] {
+        [
+            ReaderContextMenuItem(title: "收藏选中段落") { selection in
+                Task {
+                    await state.savePassage(
+                        text: selection.text,
+                        paragraphIndex: selection.paragraphIndex ?? -1,
+                        for: story
+                    )
+                }
+            }
+        ]
     }
 
     // MARK: - 翻译按钮
@@ -542,79 +558,42 @@ enum ReaderScript {
     }
 }
 
-/// 可以往系统菜单里追加条目的阅读视图。
-///
-/// macOS 上 WKWebView 的右键菜单由 WebProcess 生成，不经普通视图的菜单机制，
-/// 所以用子类覆写 `menu(for:)`，在系统菜单之后追加自己的条目——
-/// 「拷贝」「查找」等原有项全部保留。如果 `super` 拿不到菜单（不同系统版本
-/// 行为可能不同），至少补上一个「拷贝」，不让右键菜单整体消失。
-final class ReaderWebView: WKWebView {
-    /// 点「收藏选中段落」时触发。
-    var onCollectPassage: (() -> Void)?
-
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let menu = super.menu(for: event) ?? fallbackMenu()
-        menu.addItem(.separator())
-
-        let collect = NSMenuItem(
-            title: "收藏选中段落",
-            action: #selector(collectSelectedPassage),
-            keyEquivalent: ""
-        )
-        collect.target = self
-        menu.addItem(collect)
-        return menu
-    }
-
-    @objc private func collectSelectedPassage() {
-        onCollectPassage?()
-    }
-
-    /// `super` 没给菜单时的兵底。target 留空，让动作沿响应链找接收者。
-    private func fallbackMenu() -> NSMenu {
-        let menu = NSMenu()
-        let copy = NSMenuItem(title: "拷贝", action: Selector(("copy:")), keyEquivalent: "c")
-        copy.target = nil
-        menu.addItem(copy)
-        return menu
-    }
-}
-
 /// 阅读视图。
 ///
 /// 关闭 JavaScript 并用 `loadHTMLString` 呈现已清理的正文；链接点击交给系统浏览器，
 /// 避免阅读器被导航到别的页面。
+///
+/// 正文的右键菜单由 `ReaderContextMenuController` 接管，不再出现 WebKit 的系统菜单；
+/// 要往菜单里加功能，传一个非空的 `contextMenuItems` 即可。
 struct ArticleWebView: NSViewRepresentable {
     let html: String
     let baseURL: URL?
     /// 讨论区段落，为 nil 时不渲染。
     var discussionHTML: String?
-    /// 需要滚动到的段落编号。对用后由 `AppState` 清掉，避免下次重新渲染又跳。
+    /// 需要滚动到的段落编号。用后由 `AppState` 清掉，避免下次重新渲染又跳。
     var scrollTarget: Int?
-    /// 用户选了「收藏选中段落」时回调（选中的文字、所在段落编号）。
-    var onCollectPassage: ((String, Int) -> Void)?
+    /// 正文右键菜单里的项。返回空数组时，正文里右键什么也不发生。
+    var contextMenuItems: () -> [ReaderContextMenuItem] = { [] }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onCollectPassage: onCollectPassage)
+        Coordinator()
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = false
 
-        let webView = ReaderWebView(frame: .zero, configuration: configuration)
+        let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.underPageBackgroundColor = .clear
         webView.allowsMagnification = true
-        webView.onCollectPassage = { [weak coordinator = context.coordinator, weak webView] in
-            guard let webView else { return }
-            Task { await coordinator?.collectSelectedPassage(in: webView) }
-        }
+        // 在事件分发前接管右键，WebKit 的系统菜单就不会再出来。
+        context.coordinator.installContextMenu(in: webView, items: contextMenuItems)
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.onCollectPassage = onCollectPassage
+        context.coordinator.updateContextMenu(items: contextMenuItems)
 
         let document = ReaderDocumentBuilder.build(
             html: html,
@@ -633,16 +612,34 @@ struct ArticleWebView: NSViewRepresentable {
         webView.loadHTMLString(document, baseURL: baseURL)
     }
 
+    /// 视图销毁时卸掉事件监听，否则每换一篇文章都会留下一个。
+    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.uninstallContextMenu()
+    }
+
+    @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate {
         var loadedDocument: String?
-        var onCollectPassage: ((String, Int) -> Void)?
         /// 文档还没加载完时记下要跳的位置。
         var pendingScrollTarget: Int?
         /// 已经跳过的位置，用来避免重复触发。
         var appliedScrollTarget: Int?
 
-        init(onCollectPassage: ((String, Int) -> Void)? = nil) {
-            self.onCollectPassage = onCollectPassage
+        private let contextMenu = ReaderContextMenuController()
+
+        func installContextMenu(
+            in webView: WKWebView,
+            items: @escaping () -> [ReaderContextMenuItem]
+        ) {
+            contextMenu.install(in: webView, items: items)
+        }
+
+        func updateContextMenu(items: @escaping () -> [ReaderContextMenuItem]) {
+            contextMenu.update(items: items)
+        }
+
+        func uninstallContextMenu() {
+            contextMenu.uninstall()
         }
 
         /// 文档加载完成：先给段落编号，再做挂起的跳转。
@@ -652,18 +649,6 @@ struct ArticleWebView: NSViewRepresentable {
                 self.pendingScrollTarget = nil
                 self.scrollIfNeeded(in: webView, target: target)
             }
-        }
-
-        /// 取一次选区。取不到（无选区或脚本不可用）就不回调，界面无需提示。
-        func collectSelectedPassage(in webView: WKWebView) async {
-            guard let json = try? await webView.evaluateJavaScript(ReaderScript.readSelection),
-                  let raw = json as? String,
-                  let data = raw.data(using: .utf8),
-                  let payload = try? JSONDecoder().decode(SelectionPayload.self, from: data),
-                  payload.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            else { return }
-
-            onCollectPassage?(payload.text, payload.index)
         }
 
         func scrollIfNeeded(in webView: WKWebView, target: Int?) {
@@ -685,12 +670,6 @@ struct ArticleWebView: NSViewRepresentable {
             return .cancel
         }
     }
-}
-
-/// 段落选择脚本的返回结构。
-private struct SelectionPayload: Decodable {
-    let text: String
-    let index: Int
 }
 
 

@@ -1088,6 +1088,8 @@ final class AppState {
         guard let story else { return }
         // 先选中（选中会清掉上一次的跳转），再设新的目标。
         await select(story)
+        // 段落编号为负说明当时没能定位到段落（例如选区跨了好几段），只打开不跳。
+        guard passage.paragraphIndex >= 0 else { return }
         pendingScroll = PendingScroll(
             itemID: passage.itemID,
             paragraphIndex: passage.paragraphIndex
