@@ -7,7 +7,8 @@ license.
 ## 1. Open source: GNU AGPL-3.0
 
 The source in this repository is licensed under the **GNU Affero General Public
-License, version 3**. The complete text is in [`LICENSE`](LICENSE).
+License, version 3**. The complete text is in [`LICENSE`](LICENSE); the
+copyright notice is in [`NOTICE`](NOTICE).
 
 In practice this means you are free to use, study, modify and redistribute
 OhNews, **including for commercial purposes**, at no cost, provided you meet the

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00CC4ADFE1CA703D08475CCB /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 06670786090A4AB03A868028 /* NOTICE */; };
 		109C37CDEE6FAF8C02303FA1 /* Readability.js in Resources */ = {isa = PBXBuildFile; fileRef = C4B03317112A6733873F1C3D /* Readability.js */; };
 		16F9A2DF76F3A9ACC9394945 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */; };
 		17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3B44890862C4EAD57FCE612 /* KeychainStore.swift */; };
@@ -39,6 +40,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		06670786090A4AB03A868028 /* NOTICE */ = {isa = PBXFileReference; path = NOTICE; sourceTree = "<group>"; };
 		06B1FAEBCC9A70143AA84890 /* OhNewsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OhNewsApp.swift; sourceTree = "<group>"; };
 		07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIProviderPreset+Display.swift"; sourceTree = "<group>"; };
 		106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				0B35F8AF02901C973F9399EA /* Packages */,
 				50212C0207876FC1311FC8C5 /* LICENSE */,
 				6489E768048A4FBE2A5B169E /* LICENSING.md */,
+				06670786090A4AB03A868028 /* NOTICE */,
 				2FAC19518C9D5CC13A3D5D1D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -262,6 +265,7 @@
 			files = (
 				2283E846E8E0993CAEE0782D /* LICENSE in Resources */,
 				3518C0D12B4AD682BB83388D /* LICENSING.md in Resources */,
+				00CC4ADFE1CA703D08475CCB /* NOTICE in Resources */,
 				109C37CDEE6FAF8C02303FA1 /* Readability.js in Resources */,
 				16F9A2DF76F3A9ACC9394945 /* THIRD_PARTY_NOTICES.md in Resources */,
 				3EA0C2E057AB15AAE4595DBC /* reader.css in Resources */,

@@ -27,7 +27,11 @@ targets:
       - path: OhNews
       # AGPL 要求把完整许可文本随程序一并交给使用者，所以它必须进应用包。
       # 用构建阶段引用根目录的文件，避免在仓库里维护两份副本。
+      # LICENSE 必须是逐字一致的官方文本（否则 GitHub 会把许可识别成 Other），
+      # 版权声明与商业授权说明因此放在 NOTICE 里。
       - path: LICENSE
+        buildPhase: resources
+      - path: NOTICE
         buildPhase: resources
       - path: LICENSING.md
         buildPhase: resources
