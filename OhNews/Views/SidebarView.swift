@@ -21,6 +21,30 @@ struct SidebarView: View {
         @Bindable var state = state
 
         List(selection: $state.selectedChannelID) {
+            // 收藏与稍后读排在最上面：这是自己存下来的内容，回访频率比按源浏览高。
+            // 不配图标，与下面的频道保持同一种「纯文字」形态。
+            Section {
+                ForEach(LibraryEntry.allCases) { entry in
+                    HStack(spacing: 0) {
+                        Text(entry.title)
+                            .font(Typography.ui)
+                            .foregroundStyle(Palette.ink)
+                        Spacer(minLength: 8)
+                        Text("\(count(for: entry))")
+                            .font(Typography.uiSmall)
+                            .foregroundStyle(Palette.inkFaint)
+                            .monospacedDigit()
+                    }
+                    .tag(entry.rawValue)
+                }
+            } header: {
+                Text("我的")
+                    .font(Typography.eyebrow)
+                    .tracking(Metrics.eyebrowTracking)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Palette.inkFaint)
+            }
+
             ForEach(state.channelGroups) { group in
                 Section {
                     ForEach(group.channels) { channel in
@@ -91,6 +115,14 @@ struct SidebarView: View {
             Button("取消", role: .cancel) { deletingSource = nil }
         } message: { source in
             Text("「\(source.name)」将不再刷新。已缓存的内容不会被删除。")
+        }
+    }
+
+    /// 入口后面的条数。为空时也显示 0，而不是留白。
+    private func count(for entry: LibraryEntry) -> Int {
+        switch entry {
+        case .collection: state.collectionItems.count
+        case .readLater: state.readLaterItems.count
         }
     }
 

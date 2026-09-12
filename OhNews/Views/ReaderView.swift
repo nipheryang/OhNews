@@ -98,6 +98,19 @@ struct StoryDetailView: View {
                 // 操作只留图标：阅读区的主路径是「读」，按钮越多越吵。
                 // 但图标要够大、间距要够松，否则几个按钮挤成一团反而更难用。
                 HStack(spacing: 4) {
+                    // 收藏与稍后读用填充态表示已保存，与工具栏的同名入口一致。
+                    ReaderActionButton(title: isCollected ? "取消收藏" : "收藏") {
+                        Task { await state.toggleCollection(story) }
+                    } label: {
+                        Image(systemName: isCollected ? "bookmark.fill" : "bookmark")
+                    }
+
+                    ReaderActionButton(title: isInReadLater ? "从稍后读移除" : "加入稍后读") {
+                        Task { await state.toggleReadLater(story) }
+                    } label: {
+                        Image(systemName: isInReadLater ? "clock.badge.checkmark.fill" : "clock")
+                    }
+
                     if let url = story.url {
                         ReaderActionButton(title: "在浏览器中打开") {
                             NSWorkspace.shared.open(url)
@@ -152,6 +165,16 @@ struct StoryDetailView: View {
         return story.title
     }
 
+    private var isCollected: Bool {
+        guard let story = state.selectedStory else { return false }
+        return state.isCollected(story)
+    }
+
+    private var isInReadLater: Bool {
+        guard let story = state.selectedStory else { return false }
+        return state.isInReadLater(story)
+    }
+
     /// 眉标：来源 · 分数 · 评论 · 作者，全部压成一行等宽小字。
     private func headerEyebrow(for story: Story) -> String {
         var parts: [String] = []
@@ -172,14 +195,31 @@ struct StoryDetailView: View {
     private func content(for story: Story) -> some View {
         // 显示译文时用译文；讨论区也跟着切（两者一起翻的）。
         if case .showingTranslation = state.translationState, let html = state.displayArticleHTML {
-            ArticleWebView(
-                html: html,
-                baseURL: nil,
-                discussionHTML: state.displayDiscussionHTML
-            )
+            readerWebView(html: html, baseURL: nil, story: story)
         } else {
             originalContent(for: story)
         }
+    }
+
+    /// 正文渲染的唯一入口。
+    ///
+    /// 四种正文形态（正常、自述帖、降级、译文）共用它，段落收藏与跳转才
+    /// 不会只在一部分场景里能用。
+    private func readerWebView(html: String, baseURL: URL?, story: Story) -> some View {
+        // 跳转目标只在它确实属于当前这篇时才生效。
+        let target = state.pendingScroll?.itemID == story.id
+            ? state.pendingScroll?.paragraphIndex
+            : nil
+
+        return ArticleWebView(
+            html: html,
+            baseURL: baseURL,
+            discussionHTML: state.displayDiscussionHTML,
+            scrollTarget: target,
+            onCollectPassage: { text, index in
+                Task { await state.savePassage(text: text, paragraphIndex: index, for: story) }
+            }
+        )
     }
 
     // MARK: - 翻译按钮
@@ -243,26 +283,26 @@ struct StoryDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .article(let article):
-            ArticleWebView(
+            readerWebView(
                 html: article.html,
                 baseURL: article.sourceURL ?? story.url,
-                discussionHTML: state.displayDiscussionHTML
+                story: story
             )
 
         case .selfPost(let html):
-            ArticleWebView(
+            readerWebView(
                 html: HTMLSanitizer.sanitize(html),
                 baseURL: nil,
-                discussionHTML: state.displayDiscussionHTML
+                story: story
             )
 
         case .degraded(let level):
             // 正文取不到时，讨论区往往正是用户想看的内容，所以降级也走同一渲染通道，
             // 把提示与讨论放进同一份文档。
-            ArticleWebView(
+            readerWebView(
                 html: noticeHTML(for: level, story: story),
                 baseURL: nil,
-                discussionHTML: state.displayDiscussionHTML
+                story: story
             )
 
         case .failed(let message):
@@ -436,6 +476,110 @@ private struct TranslationGlyph: View {
     }
 }
 
+/// 阅读视图里要执行的脚本。
+///
+/// 阅读视图关闭了页面脚本，但应用侧 `evaluateJavaScript` 不受这个开关限制：
+/// 用它注入段落编号、读取选区。选区读取需要连同所在段落的编号一起拿到，
+/// 所以两段脚本都写成自执行函数并返回一个值。
+enum ReaderScript {
+    /// 给正文的块级元素按 DOM 顺序挂上 `p-<序号>`。
+    ///
+    /// 每次加载后重新编号，序号只保证在一次渲染内稳定（与跳转目标一致）。
+    static let tagParagraphs = """
+    (function () {
+      var blocks = document.querySelectorAll(
+        'article p, article h2, article h3, article h4, article h5, article h6,' +
+        'article blockquote, article pre, article li'
+      );
+      for (var i = 0; i < blocks.length; i++) {
+        blocks[i].id = 'p-' + i;
+      }
+      return blocks.length;
+    })()
+    """
+
+    /// 读选区，并给出它所在的段落编号。段落编号拿不到时为 -1。
+    /// 返回 JSON 字符串，因为在两个系统之间只能传基础类型。
+    static let readSelection = """
+    (function () {
+      var selection = window.getSelection();
+      var text = selection ? selection.toString() : '';
+      var index = -1;
+      if (selection && selection.rangeCount > 0 && text.trim().length > 0) {
+        var node = selection.getRangeAt(0).startContainer;
+        if (node && node.nodeType !== 1) { node = node.parentNode; }
+        while (node && node !== document.body) {
+          if (node.id && node.id.indexOf('p-') === 0) {
+            index = parseInt(node.id.substring(2), 10);
+            break;
+          }
+          node = node.parentNode;
+        }
+      }
+      return JSON.stringify({ text: text, index: index });
+    })()
+    """
+
+    /// 把某一段滚到视野中央，并用一条临时轮廓标出来。
+    /// 轮廓自己会消失，不需要另一段脚本来清。
+    static func scrollToParagraph(_ index: Int) -> String {
+        """
+        (function () {
+          var block = document.getElementById('p-\(index)');
+          if (!block) { return false; }
+          block.scrollIntoView({ block: 'center', behavior: 'auto' });
+          var previous = block.style.outline;
+          var previousOffset = block.style.outlineOffset;
+          block.style.outline = '2px solid rgba(127, 127, 127, 0.55)';
+          block.style.outlineOffset = '6px';
+          window.setTimeout(function () {
+            block.style.outline = previous;
+            block.style.outlineOffset = previousOffset;
+          }, 1600);
+          return true;
+        })()
+        """
+    }
+}
+
+/// 可以往系统菜单里追加条目的阅读视图。
+///
+/// macOS 上 WKWebView 的右键菜单由 WebProcess 生成，不经普通视图的菜单机制，
+/// 所以用子类覆写 `menu(for:)`，在系统菜单之后追加自己的条目——
+/// 「拷贝」「查找」等原有项全部保留。如果 `super` 拿不到菜单（不同系统版本
+/// 行为可能不同），至少补上一个「拷贝」，不让右键菜单整体消失。
+final class ReaderWebView: WKWebView {
+    /// 点「收藏选中段落」时触发。
+    var onCollectPassage: (() -> Void)?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = super.menu(for: event) ?? fallbackMenu()
+        menu.addItem(.separator())
+
+        let collect = NSMenuItem(
+            title: "收藏选中段落",
+            action: #selector(collectSelectedPassage),
+            keyEquivalent: ""
+        )
+        collect.target = self
+        menu.addItem(collect)
+        return menu
+    }
+
+    @objc private func collectSelectedPassage() {
+        onCollectPassage?()
+    }
+
+    /// `super` 没给菜单时的兵底。target 留空，让动作沿响应链找接收者。
+    private func fallbackMenu() -> NSMenu {
+        let menu = NSMenu()
+        let copy = NSMenuItem(title: "拷贝", action: Selector(("copy:")), keyEquivalent: "c")
+        copy.target = nil
+        menu.addItem(copy)
+        return menu
+    }
+}
+
 /// 阅读视图。
 ///
 /// 关闭 JavaScript 并用 `loadHTMLString` 呈现已清理的正文；链接点击交给系统浏览器，
@@ -445,36 +589,88 @@ struct ArticleWebView: NSViewRepresentable {
     let baseURL: URL?
     /// 讨论区段落，为 nil 时不渲染。
     var discussionHTML: String?
+    /// 需要滚动到的段落编号。对用后由 `AppState` 清掉，避免下次重新渲染又跳。
+    var scrollTarget: Int?
+    /// 用户选了「收藏选中段落」时回调（选中的文字、所在段落编号）。
+    var onCollectPassage: ((String, Int) -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(onCollectPassage: onCollectPassage)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = false
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = ReaderWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.underPageBackgroundColor = .clear
         webView.allowsMagnification = true
+        webView.onCollectPassage = { [weak coordinator = context.coordinator, weak webView] in
+            guard let webView else { return }
+            Task { await coordinator?.collectSelectedPassage(in: webView) }
+        }
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.onCollectPassage = onCollectPassage
+
         let document = ReaderDocumentBuilder.build(
             html: html,
             style: ReaderStyle.css,
             baseURL: baseURL,
             discussionHTML: discussionHTML
         )
-        guard context.coordinator.loadedDocument != document else { return }
+        guard context.coordinator.loadedDocument != document else {
+            context.coordinator.scrollIfNeeded(in: webView, target: scrollTarget)
+            return
+        }
         context.coordinator.loadedDocument = document
+        // 新文档加载后，旧编号已失效，要让下一次跳转重新执行。
+        context.coordinator.appliedScrollTarget = nil
+        context.coordinator.pendingScrollTarget = scrollTarget
         webView.loadHTMLString(document, baseURL: baseURL)
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         var loadedDocument: String?
+        var onCollectPassage: ((String, Int) -> Void)?
+        /// 文档还没加载完时记下要跳的位置。
+        var pendingScrollTarget: Int?
+        /// 已经跳过的位置，用来避免重复触发。
+        var appliedScrollTarget: Int?
+
+        init(onCollectPassage: ((String, Int) -> Void)? = nil) {
+            self.onCollectPassage = onCollectPassage
+        }
+
+        /// 文档加载完成：先给段落编号，再做挂起的跳转。
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            webView.evaluateJavaScript(ReaderScript.tagParagraphs) { _, _ in
+                guard let target = self.pendingScrollTarget else { return }
+                self.pendingScrollTarget = nil
+                self.scrollIfNeeded(in: webView, target: target)
+            }
+        }
+
+        /// 取一次选区。取不到（无选区或脚本不可用）就不回调，界面无需提示。
+        func collectSelectedPassage(in webView: WKWebView) async {
+            guard let json = try? await webView.evaluateJavaScript(ReaderScript.readSelection),
+                  let raw = json as? String,
+                  let data = raw.data(using: .utf8),
+                  let payload = try? JSONDecoder().decode(SelectionPayload.self, from: data),
+                  payload.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            else { return }
+
+            onCollectPassage?(payload.text, payload.index)
+        }
+
+        func scrollIfNeeded(in webView: WKWebView, target: Int?) {
+            guard let target, target != appliedScrollTarget else { return }
+            appliedScrollTarget = target
+            webView.evaluateJavaScript(ReaderScript.scrollToParagraph(target)) { _, _ in }
+        }
 
         func webView(
             _ webView: WKWebView,
@@ -490,4 +686,11 @@ struct ArticleWebView: NSViewRepresentable {
         }
     }
 }
+
+/// 段落选择脚本的返回结构。
+private struct SelectionPayload: Decodable {
+    let text: String
+    let index: Int
+}
+
 

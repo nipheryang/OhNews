@@ -17,10 +17,18 @@ struct LibraryStoreTests {
 
     private func article(_ id: String, at time: TimeInterval = 0) -> SavedArticle {
         SavedArticle(
-            itemID: id,
-            title: "标题 \(id)",
-            url: URL(string: "https://example.com/\(id)"),
-            sourceHost: "example.com",
+            story: Story(
+                id: id,
+                sourceID: "hn",
+                title: "标题 \(id)",
+                url: URL(string: "https://example.com/\(id)"),
+                score: 10,
+                author: "nipher",
+                postedAt: Date(timeIntervalSince1970: time),
+                commentCount: 3,
+                type: .story,
+                text: nil
+            ),
             savedAt: Date(timeIntervalSince1970: time)
         )
     }
@@ -88,7 +96,7 @@ struct LibraryStoreTests {
         await store.addArticle(article("new", at: 300), kind: .readLater)
         await store.addArticle(article("mid", at: 200), kind: .readLater)
 
-        #expect(await store.articles(.readLater).map(\.itemID) == ["new", "mid", "old"])
+        #expect(await store.articles(.readLater).map(\.id) == ["new", "mid", "old"])
     }
 
     // MARK: - 段落级
@@ -162,13 +170,29 @@ struct LibraryStoreTests {
         await first.addPassage(passage("一段正文", paragraph: 7))
 
         let second = LibraryStore(directory: dir)
-        #expect(await second.articles(.collection).map(\.itemID) == ["a"])
-        #expect(await second.articles(.readLater).map(\.itemID) == ["b"])
+        #expect(await second.articles(.collection).map(\.id) == ["a"])
+        #expect(await second.articles(.readLater).map(\.id) == ["b"])
 
         let passages = await second.allPassages()
         #expect(passages.count == 1)
         #expect(passages.first?.text == "一段正文")
         #expect(passages.first?.paragraphIndex == 7)
+    }
+
+    @Test("收藏保留完整条目，重启后仍可阅读")
+    func articleKeepsFullStory() async {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OhNewsLibraryStory-\(UUID().uuidString)", isDirectory: true)
+
+        let first = LibraryStore(directory: dir)
+        await first.addArticle(article("hn:1", at: 100), kind: .collection)
+
+        let restored = await LibraryStore(directory: dir).articles(.collection).first?.story
+        #expect(restored?.id == "hn:1")
+        #expect(restored?.url?.absoluteString == "https://example.com/hn:1")
+        #expect(restored?.sourceHost == "example.com")
+        #expect(restored?.score == 10)
+        #expect(restored?.commentCount == 3)
     }
 
     @Test("收藏不会写进缓存文件")
@@ -179,5 +203,31 @@ struct LibraryStoreTests {
         let library = dir.appendingPathComponent("library.json")
         #expect(FileManager.default.fileExists(atPath: library.path))
         #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("cache.json").path) == false)
+    }
+
+    // MARK: - 侧栏入口
+
+    @Test("侧栏入口的选择值不与频道冲突")
+    func entryIDsAreNamespaced() {
+        for entry in LibraryEntry.allCases {
+            #expect(entry.rawValue.hasPrefix("library:"))
+            #expect(entry.rawValue.contains(":"))
+        }
+        #expect(Set(LibraryEntry.allCases.map(\.rawValue)).count == LibraryEntry.allCases.count)
+    }
+
+    @Test("选择值能翻译回侧栏入口")
+    func matchingEntry() {
+        #expect(LibraryEntry.matching("library:collection") == .collection)
+        #expect(LibraryEntry.matching("library:readLater") == .readLater)
+        #expect(LibraryEntry.matching("hn:top") == nil)
+        #expect(LibraryEntry.matching(nil) == nil)
+        #expect(LibraryEntry.matching("library:unknown") == nil)
+    }
+
+    @Test("侧栏入口对应到正确的存储集合")
+    func entryMapsToKind() {
+        #expect(LibraryEntry.collection.kind == .collection)
+        #expect(LibraryEntry.readLater.kind == .readLater)
     }
 }

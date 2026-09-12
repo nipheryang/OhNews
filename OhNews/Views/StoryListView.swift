@@ -14,7 +14,9 @@ struct StoryListView: View {
         VStack(spacing: 0) {
             banner
 
-            if state.stories.isEmpty {
+            if let entry = state.activeLibraryEntry {
+                libraryContent(for: entry)
+            } else if state.stories.isEmpty {
                 EmptyStateView(
                     isLoading: state.isLoading,
                     errorMessage: state.lastErrorMessage,
@@ -29,8 +31,13 @@ struct StoryListView: View {
         // 后会把整列撑成列表全长，窗口装不下就溢出——侧栏因此空白，正文上方
         // 也看不到。放在根视图上（而不是列表上）可以避免与提示条叠加出循环。
         .containerRelativeFrame(.vertical)
-        .navigationTitle(state.selectedChannel?.name ?? "OhNews")
+        .navigationTitle(navigationTitle)
         .toolbar { toolbarContent }
+    }
+
+    private var navigationTitle: String {
+        if let entry = state.activeLibraryEntry { return entry.title }
+        return state.selectedChannel?.name ?? "OhNews"
     }
 
     /// 顶部提示。两种性质分开处理：
@@ -117,10 +124,8 @@ struct StoryListView: View {
         .scrollContentBackground(.hidden)
         .background(Palette.paper)
         .onChange(of: state.selectedStoryID) { _, newValue in
-            guard let newValue,
-                  let story = state.stories.first(where: { $0.id == newValue })
-            else { return }
-            Task { await state.select(story) }
+            guard let newValue else { return }
+            Task { await state.selectByID(newValue) }
         }
         .refreshable { await state.refresh() }
         // 新条目插入时把已有行往下推。用博客同一条缓动曲线，短而非弹跳：
@@ -129,6 +134,122 @@ struct StoryListView: View {
             reduceMotion ? nil : Motion.insert,
             value: state.stories.map(\.id)
         )
+    }
+
+    /// 中栏的收藏／稍后读列表。
+    ///
+    /// 行视图与频道列表共用：同一套排版、同一种已读与摘要行为，切过来不需要重新学。
+    ///
+    /// 收藏分「文章」与「段落」两段——两个级别的收藏共用收藏这一个入口；
+    /// 稍后读只收整篇，段落收在里面没有意义。
+    @ViewBuilder
+    private func libraryContent(for entry: LibraryEntry) -> some View {
+        let articles = state.activeLibraryItems
+        let passages = entry == .collection ? state.passageItems : []
+
+        if articles.isEmpty && passages.isEmpty {
+            VStack(spacing: 10) {
+                Text(entry.title)
+                    .font(Typography.emptyStateTitle)
+                    .foregroundStyle(Palette.ink)
+
+                Text(entry.emptyHint)
+                    .font(Typography.meta)
+                    .tracking(Metrics.metaTracking)
+                    .foregroundStyle(Palette.inkFaint)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 40)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List(selection: selection) {
+                if articles.isEmpty == false {
+                    if entry == .collection {
+                        Section {
+                            articleRows(articles)
+                        } header: {
+                            sectionHeader("文章")
+                        }
+                    } else {
+                        Section {
+                            articleRows(articles)
+                        }
+                    }
+                }
+
+                if passages.isEmpty == false {
+                    Section {
+                        passageRows(passages)
+                    } header: {
+                        sectionHeader("段落")
+                    }
+                }
+            }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Palette.paper)
+            .onChange(of: state.selectedStoryID) { _, newValue in
+                guard let newValue else { return }
+                Task { await state.selectByID(newValue) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func articleRows(_ articles: [SavedArticle]) -> some View {
+        ForEach(articles) { article in
+            StoryRowView(
+                story: article.story,
+                isRead: state.isRead(article.story),
+                isSelected: state.selectedStoryID == article.id,
+                summary: state.summaries[article.id],
+                isGeneratingSummary: state.isGeneratingSummary(for: article.story)
+            )
+            .tag(article.id)
+            .contextMenu {
+                rowMenu(for: article.story)
+            }
+            .listRowInsets(EdgeInsets(
+                top: 0,
+                leading: Metrics.gutter,
+                bottom: 0,
+                trailing: Metrics.gutter
+            ))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Palette.paper)
+        }
+    }
+
+    @ViewBuilder
+    private func passageRows(_ passages: [SavedPassage]) -> some View {
+        ForEach(passages) { passage in
+            SavedPassageRowView(
+                passage: passage,
+                isSelected: state.selectedStoryID == passage.id
+            )
+            .tag(passage.id)
+            .contextMenu {
+                Button("删除这条收藏", role: .destructive) {
+                    Task { await state.removePassage(id: passage.id) }
+                }
+            }
+            .listRowInsets(EdgeInsets(
+                top: 0,
+                leading: Metrics.gutter,
+                bottom: 0,
+                trailing: Metrics.gutter
+            ))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Palette.paper)
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(Typography.eyebrow)
+            .tracking(Metrics.eyebrowTracking)
+            .foregroundStyle(Palette.inkFaint)
     }
 
     /// 行的右键菜单。
@@ -151,6 +272,16 @@ struct StoryListView: View {
                 Task { await state.generateSummaryNow(for: story) }
             }
             .disabled(state.isGeneratingSummary(for: story))
+        }
+
+        Divider()
+
+        Button(state.isCollected(story) ? "取消收藏" : "收藏") {
+            Task { await state.toggleCollection(story) }
+        }
+
+        Button(state.isInReadLater(story) ? "从稍后读移除" : "稍后读") {
+            Task { await state.toggleReadLater(story) }
         }
 
         Divider()
@@ -183,6 +314,24 @@ struct StoryListView: View {
             }
             .disabled(state.isLoading)
             .help("重新获取榜单")
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                state.selectedChannelID = LibraryEntry.collection.rawValue
+            } label: {
+                Label("收藏", systemImage: LibraryEntry.collection.systemImage)
+            }
+            .help("查看收藏")
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                state.selectedChannelID = LibraryEntry.readLater.rawValue
+            } label: {
+                Label("稍后读", systemImage: LibraryEntry.readLater.systemImage)
+            }
+            .help("查看稍后读")
         }
 
         ToolbarItem(placement: .primaryAction) {

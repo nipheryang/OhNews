@@ -29,6 +29,8 @@ struct RootView: View {
         .task { await state.prepare() }
         .task(id: state.selectedChannelID) {
             guard let channelID = state.selectedChannelID else { return }
+            // 收藏／稍后读不是频道：中栏由收藏列表自己渲染，不去跑频道加载。
+            guard LibraryEntry.matching(channelID) == nil else { return }
             await state.loadChannel(channelID)
         }
     }

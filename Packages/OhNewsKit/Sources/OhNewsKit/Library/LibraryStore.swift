@@ -5,28 +5,17 @@ import Foundation
 
 /// 一篇文章的保存记录（收藏或稍后读）。
 ///
-/// 只存列表与跳转需要的字段，不存正文——正文在缓存里，缓存可以被清空，
-/// 而收藏必须留下来。
+/// 存完整的 `Story` 快照，而不只是标题与链接：收藏列表要能显示来源、分数，
+/// 用户点开时阅读器也要有 `Story` 才能按 url 重新抓取正文。正文 HTML 本身
+/// 不存——按 url 重抓即可，存下来会让文件迅速变大。
 public struct SavedArticle: Codable, Hashable, Identifiable, Sendable {
-    public let itemID: String
-    public let title: String
-    public let url: URL?
-    public let sourceHost: String?
+    public let story: Story
     public let savedAt: Date
 
-    public var id: String { itemID }
+    public var id: String { story.id }
 
-    public init(
-        itemID: String,
-        title: String,
-        url: URL?,
-        sourceHost: String?,
-        savedAt: Date
-    ) {
-        self.itemID = itemID
-        self.title = title
-        self.url = url
-        self.sourceHost = sourceHost
+    public init(story: Story, savedAt: Date) {
+        self.story = story
         self.savedAt = savedAt
     }
 }
@@ -127,28 +116,28 @@ public actor LibraryStore {
     }
 
     public func containsArticle(itemID: String, kind: Kind) -> Bool {
-        list(for: kind).contains { $0.itemID == itemID }
+        list(for: kind).contains { $0.id == itemID }
     }
 
     /// 加入收藏／稍后读。已存在则只刷新保存时间，不产生重复项。
     public func addArticle(_ article: SavedArticle, kind: Kind) {
         var items = list(for: kind)
-        items.removeAll { $0.itemID == article.itemID }
+        items.removeAll { $0.id == article.id }
         items.append(article)
         setList(items, for: kind)
     }
 
     public func removeArticle(itemID: String, kind: Kind) {
         var items = list(for: kind)
-        items.removeAll { $0.itemID == itemID }
+        items.removeAll { $0.id == itemID }
         setList(items, for: kind)
     }
 
     /// 切换状态，返回切换后是否处于保存状态。
     @discardableResult
     public func toggleArticle(_ article: SavedArticle, kind: Kind) -> Bool {
-        if containsArticle(itemID: article.itemID, kind: kind) {
-            removeArticle(itemID: article.itemID, kind: kind)
+        if containsArticle(itemID: article.id, kind: kind) {
+            removeArticle(itemID: article.id, kind: kind)
             return false
         }
         addArticle(article, kind: kind)

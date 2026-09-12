@@ -167,6 +167,8 @@ final class AppState {
     private let selectionPersistence = SelectionPersistence()
     private let listPreferences = ListPreferences()
     private let summaryPreferences = SummaryPreferences()
+    /// 收藏与稍后读的存储。与缓存分开，缓存清空不影响这里。
+    private let library = LibraryStore()
     /// 冷启动后的第一次加载会联网刷新一次；之后切换频道只用缓存。
     private var shouldRefreshOnLaunch = true
     @ObservationIgnored private var autoRefreshTask: Task<Void, Never>?
@@ -201,7 +203,11 @@ final class AppState {
 
     var selectedStory: Story? {
         guard let selectedStoryID else { return nil }
-        return stories.first { $0.id == selectedStoryID }
+        if let story = stories.first(where: { $0.id == selectedStoryID }) { return story }
+        // 从中栏的收藏／稍后读列表打开的条目不在 `stories` 里，此时从中栏
+        // 列表拿不到，回退到保存记录里那份快照。
+        let saved = collectionItems + readLaterItems
+        return saved.first { $0.id == selectedStoryID }?.story
     }
 
     /// 启动准备：载入源列表、用户偏好，并恢复上次选中的频道。
@@ -214,6 +220,7 @@ final class AppState {
         // 启动时就要算出真实的 AI 状态。之前这里是空的，`aiConfiguration`
         // 停在初始值，于是密钥配置正确也会先报一条「未启用」。
         await refreshAIStatus()
+        await reloadLibrary()
 
         if let restored = selectionPersistence.load() {
             selectedChannelID = restored
@@ -404,8 +411,10 @@ final class AppState {
 
     /// 删除源之后，选中的频道可能已经不存在，这时回落到 HN 首页。
     private func ensureSelectedChannelExists() async {
-        if let selectedChannelID, channels.contains(where: { $0.id == selectedChannelID }) {
-            return
+        if let selectedChannelID {
+            // 收藏／稍后读不是频道，但同样是合法的侧栏选择，不能当成失效项重置。
+            if LibraryEntry.matching(selectedChannelID) != nil { return }
+            if channels.contains(where: { $0.id == selectedChannelID }) { return }
         }
         selectedChannelID = HackerNewsSource.channelID(for: .top)
     }
@@ -638,6 +647,8 @@ final class AppState {
     /// 之前就把它写成目标条目，于是判断永远为 false，正文永远不会开始加载。
     /// 因此单独用 `articleStoryID` 记录阅读器当前对应哪一条。
     func select(_ story: Story) async {
+        // 换内容就清掉跳转目标：那个序号只对上一篇文章有意义。
+        pendingScroll = nil
         let needsArticle = articleStoryID != story.id
         selectedStoryID = story.id
 
@@ -930,6 +941,141 @@ final class AppState {
         guard let story = selectedStory else { return }
         commentsCache[story.id] = nil
         await loadComments(for: story)
+    }
+
+    // MARK: - 收藏与稍后读
+
+    /// 收藏列表，按保存时间倒序。
+    private(set) var collectionItems: [SavedArticle] = []
+    /// 稍后读列表，按保存时间倒序。
+    private(set) var readLaterItems: [SavedArticle] = []
+    /// 段落收藏，按保存时间倒序。
+    private(set) var passageItems: [SavedPassage] = []
+
+    /// 侧栏当前是不是停在收藏／稍后读入口上。
+    var activeLibraryEntry: LibraryEntry? {
+        LibraryEntry.matching(selectedChannelID)
+    }
+
+    /// 当前入口对应的文章列表；停在频道上时为空。
+    var activeLibraryItems: [SavedArticle] {
+        switch activeLibraryEntry {
+        case .collection: collectionItems
+        case .readLater: readLaterItems
+        case .none: []
+        }
+    }
+
+    func isCollected(_ story: Story) -> Bool {
+        collectionItems.contains { $0.id == story.id }
+    }
+
+    func isInReadLater(_ story: Story) -> Bool {
+        readLaterItems.contains { $0.id == story.id }
+    }
+
+    func passages(for story: Story) -> [SavedPassage] {
+        passageItems.filter { $0.itemID == story.id }
+    }
+
+    /// 读一次存储，刷新三个列表。
+    func reloadLibrary() async {
+        collectionItems = await library.articles(.collection)
+        readLaterItems = await library.articles(.readLater)
+        passageItems = await library.allPassages()
+    }
+
+    /// 切换收藏，返回切换后是否已收藏。
+    @discardableResult
+    func toggleCollection(_ story: Story) async -> Bool {
+        let saved = await library.toggleArticle(
+            SavedArticle(story: story, savedAt: Date()),
+            kind: .collection
+        )
+        await reloadLibrary()
+        return saved
+    }
+
+    /// 切换稍后读，返回切换后是否已加入。
+    @discardableResult
+    func toggleReadLater(_ story: Story) async -> Bool {
+        let saved = await library.toggleArticle(
+            SavedArticle(story: story, savedAt: Date()),
+            kind: .readLater
+        )
+        await reloadLibrary()
+        return saved
+    }
+
+    /// 保存一段正文。返回 nil 表示不符合保存条件（空、过长、重复）。
+    @discardableResult
+    func savePassage(text: String, paragraphIndex: Int, for story: Story) async -> SavedPassage? {
+        let saved = await library.addPassage(
+            SavedPassage(
+                itemID: story.id,
+                articleTitle: displayTitle ?? story.title,
+                text: text,
+                paragraphIndex: paragraphIndex,
+                savedAt: Date()
+            )
+        )
+        await reloadLibrary()
+        return saved
+    }
+
+    func removePassage(id: String) async {
+        await library.removePassage(id: id)
+        await reloadLibrary()
+    }
+
+    /// 需要在阅读器里滚到的位置。
+    ///
+    /// 带上所属条目：只存段落序号的话，切到别的文章时新渲染的视图会拿到同一个
+    /// 值而误跳。
+    struct PendingScroll: Equatable {
+        let itemID: String
+        let paragraphIndex: Int
+    }
+
+    var pendingScroll: PendingScroll?
+
+    /// 从段落收藏跳回原文的那一段。
+    func openSavedPassage(_ passage: SavedPassage) async {
+        let story = await cache.story(id: passage.itemID)
+            ?? (collectionItems + readLaterItems).first { $0.id == passage.itemID }?.story
+        guard let story else { return }
+        // 先选中（选中会清掉上一次的跳转），再设新的目标。
+        await select(story)
+        pendingScroll = PendingScroll(
+            itemID: passage.itemID,
+            paragraphIndex: passage.paragraphIndex
+        )
+    }
+
+    /// 从收藏／稍后读列表打开一篇文章。
+    ///
+    /// 缓存里可能已经没有这条（缓存可被清空），但保存记录带着完整的 `Story`，
+    /// 阅读器可以按 url 重新抓正文，所以仍然读得了。
+    func openSavedArticle(_ article: SavedArticle) async {
+        let story = await cache.story(id: article.id) ?? article.story
+        await select(story)
+    }
+
+    /// 按 ID 选中一条内容。先查中栏列表，再查收藏——两个列表共用同一条选择通道，
+    /// 调用方不必自己分情况。
+    func selectByID(_ id: String) async {
+        if let story = stories.first(where: { $0.id == id }) {
+            await select(story)
+            return
+        }
+        let saved = collectionItems + readLaterItems
+        if let article = saved.first(where: { $0.id == id }) {
+            await openSavedArticle(article)
+            return
+        }
+        if let passage = passageItems.first(where: { $0.id == id }) {
+            await openSavedPassage(passage)
+        }
     }
 
     private static func message(for error: Error) -> String {

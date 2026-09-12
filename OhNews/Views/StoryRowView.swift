@@ -140,3 +140,62 @@ struct StoryRowView: View {
         return parts.joined(separator: "，")
     }
 }
+
+/// 收藏列表里的一条段落。
+///
+/// 与文章行同一套语言：等宽眉标在上（这里是它出自哪篇），正文在下。
+/// 选中后点击会跳回原文那一段。
+struct SavedPassageRowView: View {
+    let passage: SavedPassage
+    let isSelected: Bool
+
+    @State private var isHovering = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(passage.articleTitle)
+                .font(Typography.eyebrow)
+                .tracking(Metrics.eyebrowTracking)
+                .textCase(.uppercase)
+                .foregroundStyle(Palette.inkFaint)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            // 段落正文用衬线体并允许多行：收藏的就是这段话本身，截得太短就没意义了。
+            Text(passage.text)
+                .font(Typography.summaryBody)
+                .foregroundStyle(isHovering ? Palette.inkSoft : Palette.ink)
+                .lineSpacing(Typography.summaryBodyLineSpacing)
+                .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+
+            Text(RelativeTime.text(for: passage.savedAt))
+                .font(Typography.meta)
+                .tracking(Metrics.metaTracking)
+                .foregroundStyle(Palette.inkFaint)
+                .padding(.top, 10)
+        }
+        .padding(.horizontal, Metrics.rowHorizontalPadding)
+        .padding(.vertical, Metrics.rowVerticalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(background)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Palette.line)
+                .frame(height: Metrics.hairline)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(Motion.standard) { isHovering = hovering }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("来自\(passage.articleTitle)的段落：\(passage.text)")
+    }
+
+    private var background: Color {
+        if isSelected { return Palette.selectedWash }
+        if isHovering { return Palette.hoverWash }
+        return .clear
+    }
+}
