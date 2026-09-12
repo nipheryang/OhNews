@@ -21,56 +21,43 @@ struct SidebarView: View {
         @Bindable var state = state
 
         List(selection: $state.selectedChannelID) {
-            // 收藏与稍后读排在最上面：这是自己存下来的内容，回访频率比按源浏览高。
-            // 不配图标，与下面的频道保持同一种「纯文字」形态。
-            Section {
-                ForEach(LibraryEntry.allCases) { entry in
-                    HStack(spacing: 0) {
-                        Text(entry.title)
-                            .font(Typography.ui)
-                            .foregroundStyle(Palette.ink)
-                        Spacer(minLength: 8)
-                        Text("\(count(for: entry))")
-                            .font(Typography.uiSmall)
-                            .foregroundStyle(Palette.inkFaint)
-                            .monospacedDigit()
-                    }
-                    .tag(entry.rawValue)
-                }
-            } header: {
-                Text("我的")
-                    .font(Typography.eyebrow)
-                    .tracking(Metrics.eyebrowTracking)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Palette.inkFaint)
+            // 收藏与稍后读是一级功能，直接可点：它们不放进可折叠的分组里。
+            ForEach(LibraryEntry.allCases) { entry in
+                sidebarRow(
+                    title: entry.title,
+                    count: count(for: entry),
+                    isSelected: state.selectedChannelID == entry.rawValue
+                )
+                .tag(entry.rawValue)
+                .listRowInsets(rowInsets)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Palette.paper)
             }
 
             ForEach(state.channelGroups) { group in
-                Section {
-                    ForEach(group.channels) { channel in
-                        Text(channel.name)
-                            .font(Typography.ui)
-                            .foregroundStyle(Palette.ink)
-                            .lineLimit(1)
-                            .tag(channel.id)
-                            .contextMenu {
-                                if group.source.kind == .rss {
-                                    Button("重命名…") {
-                                        renameText = group.source.name
-                                        renamingSource = group.source
-                                    }
-                                    Button("删除订阅", role: .destructive) {
-                                        deletingSource = group.source
-                                    }
-                                }
+                sidebarGroupHeader(group.source.name)
+
+                ForEach(group.channels) { channel in
+                    sidebarRow(
+                        title: channel.name,
+                        count: nil,
+                        isSelected: state.selectedChannelID == channel.id
+                    )
+                    .tag(channel.id)
+                    .contextMenu {
+                        if group.source.kind == .rss {
+                            Button("重命名…") {
+                                renameText = group.source.name
+                                renamingSource = group.source
                             }
+                            Button("删除订阅", role: .destructive) {
+                                deletingSource = group.source
+                            }
+                        }
                     }
-                } header: {
-                    Text(group.source.name)
-                        .font(Typography.eyebrow)
-                        .tracking(Metrics.eyebrowTracking)
-                        .textCase(.uppercase)
-                        .foregroundStyle(Palette.inkFaint)
+                    .listRowInsets(rowInsets)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Palette.paper)
                 }
             }
         }
@@ -116,6 +103,62 @@ struct SidebarView: View {
         } message: { source in
             Text("「\(source.name)」将不再刷新。已缓存的内容不会被删除。")
         }
+    }
+
+    /// 分组标题。
+    ///
+    /// 做成普通行而不是 `Section` header：`.sidebar` 样式下系统会把 header 当成
+    /// 选中单元的一部分，选中组内频道时会画上一道系统色描边。不设 `tag`，
+    /// 所以它自己也永远不会被选中。
+    private func sidebarGroupHeader(_ title: String) -> some View {
+        Text(title)
+            .font(Typography.eyebrow)
+            .tracking(Metrics.eyebrowTracking)
+            .textCase(.uppercase)
+            .foregroundStyle(Palette.inkFaint)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 15)
+            .padding(.bottom, 3)
+            .listRowInsets(EdgeInsets(top: 0, leading: 15, bottom: 0, trailing: 8))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Palette.paper)
+    }
+
+    /// 侧栏的一行。
+    ///
+    /// 选中态自己画：系统在 `.sidebar` 样式下不但颜色很重（深色近白、浅色近黑），
+    /// 还会把选中行**连同它所属分组的标题**一起染色。行背景铺满纸底色先把系统的
+    /// 那层遮掉，再用一条墨色薄雾表示选中。
+    private func sidebarRow(title: String, count: Int?, isSelected: Bool) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(Typography.ui)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 8)
+
+            if let count {
+                Text("\(count)")
+                    .font(Typography.uiSmall)
+                    .foregroundStyle(Palette.inkFaint)
+                    .monospacedDigit()
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background {
+            RoundedRectangle(cornerRadius: Metrics.radiusSmall, style: .continuous)
+                .fill(isSelected ? Palette.sidebarSelection : Color.clear)
+        }
+        .contentShape(Rectangle())
+    }
+
+    /// 行内边距。横向留出一点，让选中块的圆角不贴住侧栏边缘。
+    private var rowInsets: EdgeInsets {
+        EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8)
     }
 
     /// 入口后面的条数。为空时也显示 0，而不是留白。

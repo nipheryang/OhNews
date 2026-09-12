@@ -46,6 +46,9 @@ enum Palette {
     static var hoverWash: Color { ink.opacity(0.03) }
     /// 选中：同一条墨色薄雾加深到 6%。
     static var selectedWash: Color { ink.opacity(0.06) }
+    /// 侧栏选中。比列表行再实一点：侧栏是导航区，当前在哪要一眼看到，
+    /// 但仍不用系统那块实心色（深色下近白、浅色下近黑，与这套语言不搭）。
+    static var sidebarSelection: Color { ink.opacity(0.10) }
     /// 行内 code 底色（博客 `color-mix(in srgb, var(--ink) 7%, transparent)`）。
     static var codeWash: Color { ink.opacity(0.07) }
 
