@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Nipher
 // SPDX-License-Identifier: MIT
 
+import AppKit
 import Foundation
 import OhNewsKit
 import Observation
@@ -108,24 +109,9 @@ final class AppState {
     }
 
     /// 内置源与用户添加的订阅源。
-    ///
-    /// 这里带着一个诊断：这两个数组只在 `prepare()` 里赋值，如果它们从非空变成空，
-    /// 就说明有意外路径在重置状态——那是侧栏变空的直接原因。定位后可以移除。
-    var allSources: [NewsSource] = [] {
-        didSet {
-            if allSources.isEmpty, oldValue.isEmpty == false {
-                print("[OhNews] 诊断：allSources 从 \(oldValue.count) 项变成空")
-            }
-        }
-    }
+    var allSources: [NewsSource] = []
     /// 全部频道，顺序与源顺序一致。
-    var channels: [SourceChannel] = [] {
-        didSet {
-            if channels.isEmpty, oldValue.isEmpty == false {
-                print("[OhNews] 诊断：channels 从 \(oldValue.count) 项变成空")
-            }
-        }
-    }
+    var channels: [SourceChannel] = []
 
     var stories: [Story] = []
     var readIDs: Set<String> = []
@@ -159,6 +145,15 @@ final class AppState {
     /// 是否在打开正文后自动生成解读。
     private(set) var insightEnabled = true
 
+    /// 可用的新版本。nil 表示没有，或还没查到，或用户已关掉这一版的提示。
+    private(set) var availableUpdate: ReleaseInfo?
+
+    /// 手动检查的结果文案，供设置页展示。自动检查不写这里。
+    private(set) var updateCheckMessage: String?
+
+    /// 正在进行的检查。
+    @ObservationIgnored private var isCheckingForUpdates = false
+
     /// 评论缓存。同一条内容的评论会被摘要与讨论区两处需要，缓存避免取两遍。
     ///
     /// 不落盘：评论树体积大、时效性强，写进 `cache.json` 会让刚做完的
@@ -178,6 +173,7 @@ final class AppState {
     private let summaryService: SummaryService
     private let translationService: TranslationService
     private let insightService: InsightService
+    private let updateService = UpdateService()
     private let sourcesPersistence = SourcesPersistence()
     /// RSS 源按需创建并缓存；HN 的 provider 常驻。
     @ObservationIgnored private var rssProviders: [String: RSSSourceProvider] = [:]
@@ -190,6 +186,8 @@ final class AppState {
     private let listPreferences = ListPreferences()
     private let summaryPreferences = SummaryPreferences()
     private let insightPreferences = InsightPreferences()
+    /// 可写：检查时间与「不再提示」的版本都要落盘。
+    @ObservationIgnored private var updatePreferences = UpdatePreferences()
     /// 收藏与稍后读的存储。与缓存分开，缓存清空不影响这里。
     private let library = LibraryStore()
     /// 收藏内容的离线存档。
@@ -242,6 +240,8 @@ final class AppState {
         listLimit = listPreferences.listLimit
         summaryScope = summaryPreferences.scope
         insightEnabled = insightPreferences.isEnabled
+        // 版本检查放到最后，且不阻塞启动：它只是提示，没查成也不影响任何功能。
+        Task { await checkForUpdatesIfNeeded() }
         appearance = AppearancePreferences().appearance
         await refreshCacheSize()
         await refreshArchiveSize()
@@ -1020,6 +1020,70 @@ final class AppState {
         guard let story = selectedStory else { return }
         commentsCache[story.id] = nil
         await loadComments(for: story)
+    }
+
+    // MARK: - 版本检查
+
+    /// 本次运行是否已经查过版本。
+    ///
+    /// 不靠持久化的检查时间做这个判断：那个值要等写入生效，而 `prepare()` 可能
+    /// 被 SwiftUI 调用不止一次，两次调用之间可能都读到旧值，于是发两遍请求。
+    /// 这个标记是纯内存的，第一次调用就置位，之后一律跳过。
+    @ObservationIgnored private var hasCheckedUpdateThisLaunch = false
+
+    /// 启动后的自动检查。一次运行内只查一遍，且距离上次不够久就不发请求。
+    func checkForUpdatesIfNeeded() async {
+        guard hasCheckedUpdateThisLaunch == false else { return }
+        hasCheckedUpdateThisLaunch = true
+        guard updatePreferences.shouldCheck() else { return }
+        await runUpdateCheck(announcingFailure: false)
+    }
+
+    /// 用户主动检查：无论结果如何都给出文案。
+    func checkForUpdatesNow() async {
+        await runUpdateCheck(announcingFailure: true)
+    }
+
+    private func runUpdateCheck(announcingFailure: Bool) async {
+        // 同一时刻只查一次。视图重建会让 `prepare()` 再跑一遍，若每次都发请求，
+        // 既浪费也可能触发对端的频率限制。
+        guard isCheckingForUpdates == false else { return }
+        isCheckingForUpdates = true
+        defer { isCheckingForUpdates = false }
+
+        let result = await updateService.check()
+        updatePreferences.lastCheckAt = Date()
+
+        switch result {
+        case .newer(let info):
+            // 用户关掉过这一版就不再重复提示，直到出现更新的版本。
+            availableUpdate = updatePreferences.dismissedTag == info.tagName ? nil : info
+            updateCheckMessage = "有新版本：\(info.tagName)"
+
+        case .upToDate:
+            availableUpdate = nil
+            updateCheckMessage = "已是最新版本"
+
+        case .failed(let reason):
+            availableUpdate = nil
+            // 自动检查失败不打扰：网络不通、仓库暂时不可达都属正常，
+            // 没必要在阅读界面上提。用户手动点时才告诉他为什么没查成。
+            updateCheckMessage = announcingFailure ? "检查失败：\(reason)" : nil
+        }
+    }
+
+    /// 关掉更新提示。同一版本不再提示。
+    func dismissUpdate() {
+        if let tag = availableUpdate?.tagName {
+            updatePreferences.dismissedTag = tag
+        }
+        availableUpdate = nil
+    }
+
+    /// 打开新版本的发布页面。
+    func openUpdatePage() {
+        guard let url = availableUpdate?.pageURL else { return }
+        NSWorkspace.shared.open(url)
     }
 
     // MARK: - 正文解读

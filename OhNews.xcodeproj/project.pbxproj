@@ -25,6 +25,7 @@
 		5EB4B0FC4C26FC564D230A4A /* ReaderContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DEFC92A972089147C96262 /* ReaderContextMenu.swift */; };
 		5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664307FBDE3EB878CF62DCE /* InsightService.swift */; };
 		5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */; };
+		67DD7076F80CD108209B4462 /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117D07BD69AB225F729C0C8A /* UpdateService.swift */; };
 		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
 		912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */; };
 		91DB2C913378D4E8133D7635 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06BC9B6FF0A3B95F97A38EE /* AIProvider.swift */; };
@@ -46,6 +47,7 @@
 		06B1FAEBCC9A70143AA84890 /* OhNewsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OhNewsApp.swift; sourceTree = "<group>"; };
 		07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIProviderPreset+Display.swift"; sourceTree = "<group>"; };
 		106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		117D07BD69AB225F729C0C8A /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		2EBFE2C04F2F39882026718E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3664307FBDE3EB878CF62DCE /* InsightService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightService.swift; sourceTree = "<group>"; };
 		37C886291A0E1E5B6794617C /* SummaryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardView.swift; sourceTree = "<group>"; };
@@ -140,6 +142,7 @@
 				B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */,
 				87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */,
 				9D622AE7B84D3799C108448A /* TranslationService.swift */,
+				117D07BD69AB225F729C0C8A /* UpdateService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -314,6 +317,7 @@
 				AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */,
 				4574F832C0EFE272A9A21CE8 /* Theme.swift in Sources */,
 				A5CE2BC67631DB1331463C66 /* TranslationService.swift in Sources */,
+				67DD7076F80CD108209B4462 /* UpdateService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

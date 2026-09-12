@@ -217,12 +217,28 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("OhNews")
                         .font(.headline)
-                    Text("Hacker News 阅读器 · 版本 \(appVersion)")
+                    Text("新闻阅读器 · 版本 \(appVersion)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("MIT 开源 · © 2026 Nipher")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+
+                Button("检查更新") {
+                    Task { await state.checkForUpdatesNow() }
+                }
+
+                if let message = state.updateCheckMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("启动时会自动检查一次，有新版本会在列表顶部提示。当前安装包未经代码签名，更新需要手动下载安装。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Button("查看开源许可（MIT）") {

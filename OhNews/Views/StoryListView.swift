@@ -18,6 +18,10 @@ struct StoryListView: View {
                 noticeBar(notice)
             }
 
+            if let update = state.availableUpdate {
+                updateBar(update)
+            }
+
             if let entry = state.activeLibraryEntry {
                 libraryContent(for: entry)
             } else if state.stories.isEmpty {
@@ -38,6 +42,40 @@ struct StoryListView: View {
         .animation(reduceMotion ? nil : Motion.standard, value: state.transientNotice)
         .navigationTitle(navigationTitle)
         .toolbar { toolbarContent }
+    }
+
+    /// 有新版本时的提示条。可关闭；关掉后同一版本不再出现。
+    private func updateBar(_ info: ReleaseInfo) -> some View {
+        HStack(spacing: 12) {
+            Text("有新版本 \(info.tagName)")
+                .font(Typography.uiSmall)
+                .foregroundStyle(Palette.ink)
+
+            Spacer(minLength: 8)
+
+            Button("查看") { state.openUpdatePage() }
+                .buttonStyle(.plain)
+                .font(Typography.uiSmall)
+                .foregroundStyle(Palette.ink)
+
+            Button {
+                state.dismissUpdate()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Palette.inkFaint)
+            }
+            .buttonStyle(.plain)
+            .help("不再提示这个版本")
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.vertical, 9)
+        .background(Palette.surface)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Palette.line)
+                .frame(height: Metrics.hairline)
+        }
     }
 
     /// 轻提示条：一条发丝线分隔的等宽小字，不抢占内容区。
