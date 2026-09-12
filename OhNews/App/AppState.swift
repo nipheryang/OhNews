@@ -18,6 +18,26 @@ enum ReaderState: Equatable {
     case failed(String)
 }
 
+/// 讨论区的加载状态。
+enum CommentsState: Equatable {
+    case idle
+    case loading
+    case ready(StoryComments)
+    /// 这个来源没有评论（例如 RSS），界面不显示讨论区。
+    case unavailable
+    case failed(String)
+}
+
+/// 一次评论获取的结果。
+///
+/// 需要区分「取到了」「这个来源没有评论」和「请求失败」三种情况：
+/// 前者显示讨论区，中者什么都不显示，后者才给重试入口。
+private enum CommentsFetchResult {
+    case fetched(StoryComments)
+    case none
+    case failed(Error)
+}
+
 /// 侧栏分组：一个信息源及其频道。
 struct ChannelGroup: Identifiable, Hashable {
     let source: NewsSource
@@ -83,6 +103,19 @@ final class AppState {
 
     var readerState: ReaderState = .idle
     var config: AIProviderConfig
+
+    /// 讨论区的加载状态。
+    private(set) var commentsState: CommentsState = .idle
+
+    /// 评论缓存。同一条内容的评论会被摘要与讨论区两处需要，缓存避免取两遍。
+    ///
+    /// 不落盘：评论树体积大、时效性强，写进 `cache.json` 会让刚做完的
+    /// 「缓存大小可见可清理」立刻失去意义。
+    @ObservationIgnored private var commentsCache: [String: CommentsFetchResult] = [:]
+    /// 正在进行中的评论请求，用于去重（同一内容不并发取两次）。
+    @ObservationIgnored private var commentTasks: [String: Task<CommentsFetchResult, Never>] = [:]
+    private static let commentsCacheLimit = 20
+    private var commentsTask: Task<Void, Never>?
 
     private let hackerNews: HNSourceProvider
     private let cache: CacheStore
@@ -187,6 +220,8 @@ final class AppState {
         lastErrorMessage = nil
         articleTask?.cancel()
         articleStoryID = nil
+        commentsTask?.cancel()
+        commentsState = .idle
         readerState = .idle
 
         let cachedStories = await cache.cachedStories(forChannel: channelID, limit: listLimit)
@@ -456,7 +491,7 @@ final class AppState {
             summaries[story.id] = nil
         }
 
-        let comments = await fetchComments(for: story)
+        let comments = await commentsIfAvailable(for: story)
         if Task.isCancelled { return }
 
         guard let summary = await summaryService.summarize(
@@ -569,6 +604,10 @@ final class AppState {
         articleTask?.cancel()
         articleStoryID = story.id
         articleTask = Task { await self.loadArticle(for: story) }
+
+        // 讨论区与正文并行加载，互不阻塞。
+        commentsTask?.cancel()
+        commentsTask = Task { await self.loadComments(for: story) }
     }
 
     private func loadArticle(for story: Story) async {
@@ -616,9 +655,68 @@ final class AppState {
     }
 
     /// 取评论树。按条目所属源选择 provider；不支持评论的来源返回 nil。
-    private func fetchComments(for story: Story) async -> StoryComments? {
-        guard let provider = provider(for: story.sourceID) else { return nil }
-        return try? await provider.fetchComments(itemID: story.id)
+    private func fetchCommentsResult(for story: Story) async -> CommentsFetchResult {
+        if let cached = commentsCache[story.id] { return cached }
+        if let inFlight = commentTasks[story.id] { return await inFlight.value }
+
+        guard let provider = provider(for: story.sourceID) else { return .none }
+
+        let task = Task { () -> CommentsFetchResult in
+            do {
+                if let comments = try await provider.fetchComments(itemID: story.id) {
+                    return .fetched(comments)
+                }
+                return .none
+            } catch {
+                return .failed(error)
+            }
+        }
+        commentTasks[story.id] = task
+        let result = await task.value
+        commentTasks[story.id] = nil
+
+        storeComments(result, for: story.id)
+        return result
+    }
+
+    /// 内存缓存写入。超出上限时丢掉其中一项，只求控制总量，不做精确 LRU。
+    private func storeComments(_ result: CommentsFetchResult, for itemID: String) {
+        commentsCache[itemID] = result
+        if commentsCache.count > Self.commentsCacheLimit, let some = commentsCache.keys.first {
+            commentsCache[some] = nil
+        }
+    }
+
+    /// 摘要用：只关心评论内容，取不到就当没有（摘要本来就不依赖评论）。
+    private func commentsIfAvailable(for story: Story) async -> StoryComments? {
+        if case .fetched(let comments) = await fetchCommentsResult(for: story) {
+            return comments
+        }
+        return nil
+    }
+
+    /// 为讨论区加载评论。
+    private func loadComments(for story: Story) async {
+        commentsState = .loading
+
+        switch await fetchCommentsResult(for: story) {
+        case .fetched(let comments):
+            guard selectedStoryID == story.id, Task.isCancelled == false else { return }
+            commentsState = comments.topLevel.isEmpty ? .unavailable : .ready(comments)
+        case .none:
+            guard selectedStoryID == story.id else { return }
+            commentsState = .unavailable
+        case .failed:
+            guard selectedStoryID == story.id else { return }
+            commentsState = .failed("讨论区暂时取不到，正文不受影响。")
+        }
+    }
+
+    /// 手动重试讨论区。
+    func retryComments() async {
+        guard let story = selectedStory else { return }
+        commentsCache[story.id] = nil
+        await loadComments(for: story)
     }
 
     private static func message(for error: Error) -> String {

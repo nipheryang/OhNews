@@ -204,3 +204,123 @@ article > div[class*="promo"],
 article > div[class*="newsletter"] {
   display: none;
 }
+
+/* ---------- 降级提示 ---------- */
+
+/* 正文取不到时，提示与讨论区在同一份文档里，这里是提示部分。 */
+.reader-notice { margin-bottom: 0.5em; }
+.reader-notice h2 {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* ---------- 讨论区 ---------- */
+
+.comments {
+  margin-top: 3.5em;
+  padding-top: 2em;
+  border-top: 1px solid #e5e7eb;
+}
+
+.discussion-title {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+  font-size: 1.02em;
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* 缩进逐层递增；第 6 层起不再增加，避免深层讨论把正文挤成窄柱。
+   这里用 padding 而非 margin：嵌套的 ol 会累加，封顶那层必须回到 0。 */
+.comment-list[data-depth="2"],
+.comment-list[data-depth="3"],
+.comment-list[data-depth="4"],
+.comment-list[data-depth="5"] {
+  padding-left: 18px;
+}
+
+.comment-list[data-depth="6"] { padding-left: 0; }
+
+.comment { margin: 0; }
+
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding: 0.35em 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78em;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  cursor: pointer;
+  list-style: none;
+}
+
+/* 隐藏原生三角，换成自绘的，保证各系统版本观感一致 */
+.comment-head::-webkit-details-marker { display: none; }
+.comment-head::before {
+  content: "▸";
+  color: #9ca3af;
+  font-size: 0.9em;
+}
+details[open] > .comment-head::before { content: "▾"; }
+
+.comment-head:hover { color: #111827; }
+.comment-head:hover .comment-author { text-decoration: underline; }
+
+.comment-floor {
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.6em;
+}
+
+.comment-author {
+  color: #111827;
+  font-weight: 600;
+}
+
+.comment-time { color: #9ca3af; }
+
+.comment-body { margin: 0.1em 0 0.9em; }
+.comment-body > :first-child { margin-top: 0.3em; }
+
+.comment-deleted {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.discussion-omitted {
+  margin-top: 1.6em;
+  font-size: 0.85em;
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .comments { border-top-color: #1f2937; }
+  .comment-head { color: #9ca3af; }
+  .comment-head:hover { color: #f3f4f6; }
+  .comment-head::before { color: #6b7280; }
+  .comment-floor,
+  .comment-time { color: #6b7280; }
+  .comment-author { color: #f3f4f6; }
+  .comment-deleted { color: #6b7280; }
+  .discussion-omitted { color: #9ca3af; }
+}
+
+@media (prefers-contrast: more) {
+  .comment-author { color: #000000; }
+  .comment-head { color: #374151; }
+  .comments { border-top-color: #9ca3af; }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  .comment-author { color: #ffffff; }
+  .comment-head { color: #d1d5db; }
+  .comments { border-top-color: #4b5563; }
+}

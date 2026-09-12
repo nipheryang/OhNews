@@ -23,6 +23,9 @@ struct StoryDetailView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// 讨论区最多渲染多少条。热门帖的树可能上千条，超出部分在末尾说明。
+    private static let maxRenderedComments = 400
+
     var body: some View {
         Group {
             if let story = state.selectedStory {
@@ -175,13 +178,27 @@ struct StoryDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .article(let article):
-            ArticleWebView(html: article.html, baseURL: article.sourceURL ?? story.url)
+            ArticleWebView(
+                html: article.html,
+                baseURL: article.sourceURL ?? story.url,
+                discussionHTML: discussionHTML(for: story)
+            )
 
         case .selfPost(let html):
-            ArticleWebView(html: HTMLSanitizer.sanitize(html), baseURL: nil)
+            ArticleWebView(
+                html: HTMLSanitizer.sanitize(html),
+                baseURL: nil,
+                discussionHTML: discussionHTML(for: story)
+            )
 
         case .degraded(let level):
-            degradedView(story: story, level: level)
+            // 正文取不到时，讨论区往往正是用户想看的内容，所以降级也走同一渲染通道，
+            // 把提示与讨论放进同一份文档。
+            ArticleWebView(
+                html: noticeHTML(for: level, story: story),
+                baseURL: nil,
+                discussionHTML: discussionHTML(for: story)
+            )
 
         case .failed(let message):
             ContentUnavailableView {
@@ -196,20 +213,55 @@ struct StoryDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private func degradedView(story: Story, level: ReadingLevel) -> some View {
-        ContentUnavailableView {
-            Label(title(for: level), systemImage: "doc.questionmark")
-        } description: {
-            Text(description(for: level, story: story))
-        } actions: {
-            HStack {
-                if let url = story.url {
-                    Button("在浏览器中打开") { NSWorkspace.shared.open(url) }
-                }
-                Button("重新抓取") { Task { await state.reloadArticle(for: story) } }
-            }
+    /// 讨论区 HTML。没有评论时返回 nil，阅读器不会出现空的讨论段。
+    private func discussionHTML(for story: Story) -> String? {
+        guard case .ready(let comments) = state.commentsState,
+              comments.topLevel.isEmpty == false
+        else { return nil }
+
+        let result = CommentTreeBuilder.build(
+            comments,
+            options: CommentTreeBuilder.Options(
+                maxComments: Self.maxRenderedComments,
+                formatDate: RelativeTime.text(for:)
+            )
+        )
+
+        var parts: [String] = [
+            "<h2 class=\"discussion-title\">讨论 · \(comments.totalCount) 条</h2>",
+            result.html
+        ]
+        if result.omittedCount > 0 {
+            let link = HackerNewsSource.numericID(fromItemID: story.id).map {
+                "<a href=\"https://news.ycombinator.com/item?id=\($0)\">在 Hacker News 上查看完整讨论</a>"
+            } ?? "在 Hacker News 上查看完整讨论"
+            parts.append(
+                "<p class=\"discussion-omitted\">还有 \(result.omittedCount) 条未显示，\(link)。</p>"
+            )
         }
+        return parts.joined(separator: "\n")
+    }
+
+    /// 降级场景的提示，转成与讨论区同一份文档里的 HTML。
+    private func noticeHTML(for level: ReadingLevel, story: Story) -> String {
+        let heading = escapeHTML(title(for: level))
+        let body = paragraphs(description(for: level, story: story))
+        return "<div class=\"reader-notice\"><h2>\(heading)</h2>\(body)</div>"
+    }
+
+    private func paragraphs(_ text: String) -> String {
+        text.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.isEmpty == false }
+            .map { "<p>\(escapeHTML($0))</p>" }
+            .joined()
+    }
+
+    private func escapeHTML(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 
     private func title(for level: ReadingLevel) -> String {
@@ -251,6 +303,8 @@ struct StoryDetailView: View {
 struct ArticleWebView: NSViewRepresentable {
     let html: String
     let baseURL: URL?
+    /// 讨论区段落，为 nil 时不渲染。
+    var discussionHTML: String?
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -268,7 +322,12 @@ struct ArticleWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        let document = ReaderDocumentBuilder.build(html: html, style: ReaderStyle.css, baseURL: baseURL)
+        let document = ReaderDocumentBuilder.build(
+            html: html,
+            style: ReaderStyle.css,
+            baseURL: baseURL,
+            discussionHTML: discussionHTML
+        )
         guard context.coordinator.loadedDocument != document else { return }
         context.coordinator.loadedDocument = document
         webView.loadHTMLString(document, baseURL: baseURL)
