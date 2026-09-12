@@ -211,7 +211,7 @@ struct StoryDetailView: View {
             return "需要先在设置里启用 AI 才能翻译"
         }
         return switch state.translationState {
-        case .showingOriginal: "把标题、正文与讨论区翻译成中文"
+        case .showingOriginal: "把全文翻译成中文"
         case .translating: "点击取消翻译"
         case .showingTranslation: "切回原文"
         case .failed: "重新翻译"

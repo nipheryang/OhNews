@@ -89,7 +89,11 @@ public enum CommentTreeBuilder {
             guard items.isEmpty == false else { return "" }
 
             let level = min(depth, options.maxIndentLevel + 1)
-            return "<ol class=\"comment-list\" data-depth=\"\(level)\">\(items.joined())</ol>"
+            // 用 `div` 而不是 `ol`/`li`：讨论区会被整段送去做翻译切分，而切分器
+            // 用非贪婪正则配对 `<li>…</li>`；嵌套的列表会让 `</li>` 提前闭合、
+            // 后续配对连锁错位，绝大多数段落根本切不出来（表现为多数评论翻不了，
+            // 少数又被当成一整块连楼层号一起翻）。扁平的 `div` 不会参与那个配对。
+            return "<div class=\"comment-list\" data-depth=\"\(level)\">\(items.joined())</div>"
         }
 
         mutating func renderNode(_ node: CommentNode, floor floorNumber: Int, depth: Int) -> String {
@@ -102,7 +106,7 @@ public enum CommentTreeBuilder {
             let isOpen = depth == 1 && options.expandTopLevel
 
             return """
-            <li class="comment"><details\(isOpen ? " open" : "")>\
+            <div class="comment"><details\(isOpen ? " open" : "")>\
             <summary class="comment-head">\
             <span class="comment-floor">\(floorNumber)</span>\
             <span class="comment-author">\(author)</span>\
@@ -110,7 +114,7 @@ public enum CommentTreeBuilder {
             </summary>\
             <div class="comment-body">\(bodyHTML(for: node))</div>\
             \(children)\
-            </details></li>
+            </details></div>
             """
         }
 
@@ -119,11 +123,43 @@ public enum CommentTreeBuilder {
             guard let text = node.text, text.isEmpty == false else {
                 return "<p class=\"comment-deleted\">[已删除]</p>"
             }
-            return HTMLSanitizer.sanitize(text)
+            return CommentTreeBuilder.normalizeParagraphs(HTMLSanitizer.sanitize(text))
         }
     }
 
     // MARK: - 工具
+
+    /// 把 HN 的评论正文规范成配对的 `<p>…</p>`。
+    ///
+    /// HN 的评论以裸文本开头，段与段之间只用不带闭合的 `<p>` 分隔；
+    /// 而翻译切分器靠 `<p>…</p>` 成对来识别段落，不规范化的话绝大多数段落
+    /// 根本切不出来——表现就是「评论大部分没被翻译」。
+    ///
+    /// 段落里含代码块等块级元素时保持原样，它们本来也不参与翻译。
+    static func normalizeParagraphs(_ html: String) -> String {
+        let trimmed = html.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return html }
+        guard trimmed.contains("<p>") || containsBlockLevelTag(trimmed) == false else { return trimmed }
+
+        var out: [String] = []
+        for part in trimmed.components(separatedBy: "<p>") {
+            let text = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard text.isEmpty == false else { continue }
+            if containsBlockLevelTag(text) {
+                out.append(text)
+            } else {
+                out.append("<p>\(text)</p>")
+            }
+        }
+        return out.isEmpty ? trimmed : out.joined()
+    }
+
+    /// 段内含这些标签时不能再用 `<p>` 包裹（块级元素套在段落里不合法）。
+    private static func containsBlockLevelTag(_ html: String) -> Bool {
+        let lower = html.lowercased()
+        return ["<pre", "<table", "<figure", "<ul", "<ol", "<blockquote", "<h2", "<h3", "<h4"]
+            .contains { lower.contains($0) }
+    }
 
     static func escape(_ text: String) -> String {
         text

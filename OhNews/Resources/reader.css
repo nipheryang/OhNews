@@ -237,7 +237,8 @@ article > div[class*="newsletter"] {
 }
 
 /* 缩进逐层递增；第 6 层起不再增加，避免深层讨论把正文挤成窄柱。
-   这里用 padding 而非 margin：嵌套的 ol 会累加，封顶那层必须回到 0。 */
+   这里用 padding 而非 margin：嵌套的层级会累加，封顶那层必须回到 0。
+   结构用 div 而非 ol/li，原因见 CommentTreeBuilder。 */
 .comment-list[data-depth="2"],
 .comment-list[data-depth="3"],
 .comment-list[data-depth="4"],
