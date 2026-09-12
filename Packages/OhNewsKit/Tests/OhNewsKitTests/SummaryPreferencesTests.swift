@@ -13,10 +13,10 @@ struct SummaryPreferencesTests {
         return try #require(UserDefaults(suiteName: name))
     }
 
-    @Test("默认只生成最前面若干条")
-    func defaultsToLeadingItems() throws {
+    @Test("默认生成全部条目")
+    func defaultsToAllItems() throws {
         let preferences = SummaryPreferences(defaults: try makeDefaults())
-        #expect(preferences.scope == .leadingItems)
+        #expect(preferences.scope == .allItems)
     }
 
     @Test("保存后能读回所选范围")
@@ -36,7 +36,12 @@ struct SummaryPreferencesTests {
         defaults.set("something-else", forKey: "ai.summaryScope")
         let preferences = SummaryPreferences(defaults: defaults)
 
-        #expect(preferences.scope == .leadingItems)
+        #expect(preferences.scope == .allItems)
+    }
+
+    @Test("默认档就是全量")
+    func fallbackIsAllItems() {
+        #expect(SummaryGenerationScope.fallback == .allItems)
     }
 
     @Test("三种范围都有展示名")

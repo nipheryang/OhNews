@@ -94,7 +94,7 @@ final class AppState {
     private(set) var listLimit = ListPreferences.defaultLimit
 
     /// AI 摘要的生成范围，来自用户在设置里的选择。
-    private(set) var summaryScope: SummaryGenerationScope = .leadingItems
+    private(set) var summaryScope: SummaryGenerationScope = SummaryGenerationScope.fallback
 
     /// 缓存文件占用的字节数，供设置页展示。
     private(set) var cacheSizeBytes: Int64 = 0

@@ -16,7 +16,7 @@ struct SettingsView: View {
     @State private var apiKey = ""
     @State private var keyState: AIKeyState = .missing
     @State private var listLimit = ListPreferences.defaultLimit
-    @State private var summaryScope = SummaryGenerationScope.leadingItems
+    @State private var summaryScope = SummaryGenerationScope.fallback
     @State private var insightEnabled = true
     @State private var appearance = AppAppearance.system
     @State private var isConfirmingClearCache = false

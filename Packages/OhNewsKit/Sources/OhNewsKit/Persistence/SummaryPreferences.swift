@@ -12,6 +12,12 @@ public enum SummaryGenerationScope: String, CaseIterable, Codable, Sendable {
     /// 不自动生成，完全由用户在右键菜单里手动触发。
     case manual
 
+    /// 没设置过时采用的范围。
+    ///
+    /// 默认全量：只生成最前面若干条的话，往下滑看到的条目全都没有摘要，
+    /// 而摘要正是这个应用最常被用的东西。
+    public static let fallback: SummaryGenerationScope = .allItems
+
     public var displayName: String {
         switch self {
         case .leadingItems: "只生成最前面若干条"
@@ -42,7 +48,7 @@ public struct SummaryPreferences {
         get {
             guard let raw = defaults.string(forKey: Self.scopeKey),
                   let value = SummaryGenerationScope(rawValue: raw)
-            else { return .leadingItems }
+            else { return SummaryGenerationScope.fallback }
             return value
         }
         set {
