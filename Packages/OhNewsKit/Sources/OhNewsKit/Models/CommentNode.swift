@@ -67,4 +67,28 @@ public struct StoryComments: Codable, Hashable, Sendable {
 
     /// 递归统计的评论总数（含子评论）。
     public var totalCount: Int { CommentNode.count(in: topLevel) }
+
+    /// 按 HN 网页的排名顺序重排顶层评论。
+    ///
+    /// Algolia 的 `children` 按时间（id 递增）排列，HN 网页则按自己的排名排序。
+    /// 未出现在 `rankedIDs` 里的评论保持原有相对顺序，排在后面。
+    public func orderingTopLevel(by rankedIDs: [Int]) -> StoryComments {
+        guard rankedIDs.isEmpty == false, topLevel.isEmpty == false else { return self }
+
+        var remaining = topLevel
+        var ordered: [CommentNode] = []
+        for id in rankedIDs {
+            guard let index = remaining.firstIndex(where: { $0.id == id }) else { continue }
+            ordered.append(remaining.remove(at: index))
+        }
+        ordered.append(contentsOf: remaining)
+
+        return StoryComments(
+            storyID: storyID,
+            title: title,
+            author: author,
+            points: points,
+            topLevel: ordered
+        )
+    }
 }

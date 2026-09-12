@@ -50,6 +50,15 @@ actor HNClient {
         return try HNJSONParser.parseStoryComments(from: data)
     }
 
+    /// 顶层评论在 HN 网页上的排名顺序（Firebase 的 `kids`）。
+    ///
+    /// Algolia 返回的评论按时间排，网页上的排序只在这里拿得到。
+    func fetchTopLevelOrder(id: Int) async throws -> [Int] {
+        let url = Self.firebaseBase.appendingPathComponent("item/\(id).json")
+        let data = try await fetchData(url, channel: .item)
+        return try HNJSONParser.parseTopLevelOrder(from: data)
+    }
+
     // MARK: - 传输
 
     private func fetchData(_ url: URL, channel: NetworkThrottle.Channel) async throws -> Data {

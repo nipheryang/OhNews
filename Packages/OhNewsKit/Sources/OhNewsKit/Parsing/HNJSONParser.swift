@@ -26,6 +26,7 @@ public enum HNJSONParser {
         let text: String?
         let deleted: Bool?
         let dead: Bool?
+        let kids: [Int]?
     }
 
     /// Algolia `items/<id>` 的结构（递归）。
@@ -80,6 +81,22 @@ public enum HNJSONParser {
             type: ItemType(lenient: dto.type),
             text: dto.text
         )
+    }
+
+    /// 顶层评论在 HN 网页上的排名顺序。
+    ///
+    /// Firebase 的 `kids` 数组顺序就是网页上的排序：分数不对外公开，但 HN 按
+    /// 自己的排名写下这个数组，所以顺序本身已经表达了「哪几条最值得看」。
+    /// Algolia 返回的 children 是按时间排的，两者不同。
+    /// 拿不到（已删除、字段缺失）时返回空数组，调用方保持原顺序即可。
+    public static func parseTopLevelOrder(from data: Data) throws -> [Int] {
+        let dto: ItemDTO
+        do {
+            dto = try JSONDecoder().decode(ItemDTO.self, from: data)
+        } catch {
+            throw HNParseError.malformedJSON
+        }
+        return dto.kids ?? []
     }
 
     /// 一个 story 的完整评论树。缺少 id 时返回 `nil`。

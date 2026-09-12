@@ -72,6 +72,11 @@ final class AppState {
     static let summaryPrefetchLimit = SummaryPreferences.automaticLimit
     /// 讨论区最多渲染多少条。热门帖的树可能上千条，超出部分在末尾说明。
     static let maxRenderedComments = 400
+    /// 讨论区最多渲染多少条顶层评论。
+    ///
+    /// 热门帖可能有上千条评论，全量渲染既慢、翻译成本也高，而真正值得读的
+    /// 就是 HN 排名最前的那几条；其余在末尾给一个原文入口。
+    static let maxTopLevelComments = 10
     /// 同时进行的摘要请求数。
     private static let summaryConcurrency = 3
     /// 自动刷新间隔：4 小时。
@@ -704,6 +709,7 @@ final class AppState {
             comments,
             options: CommentTreeBuilder.Options(
                 maxComments: Self.maxRenderedComments,
+                maxTopLevel: Self.maxTopLevelComments,
                 formatDate: RelativeTime.text(for:)
             )
         )

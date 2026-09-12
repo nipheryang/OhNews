@@ -66,6 +66,13 @@ actor HNSourceProvider: NewsSourceProvider {
 
     func fetchComments(itemID: String) async throws -> StoryComments? {
         guard let number = HackerNewsSource.numericID(fromItemID: itemID) else { return nil }
-        return try await client.fetchStoryComments(id: number)
+        guard let comments = try await client.fetchStoryComments(id: number) else { return nil }
+
+        // Algolia 给的是时间顺序，HN 网页的排序在 Firebase 的 `kids` 里。
+        // 拿不到排序时保持原顺序，不影响可用性。
+        guard let order = try? await client.fetchTopLevelOrder(id: number),
+              order.isEmpty == false
+        else { return comments }
+        return comments.orderingTopLevel(by: order)
     }
 }
