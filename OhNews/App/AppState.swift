@@ -90,6 +90,9 @@ final class AppState {
     /// 缓存文件占用的字节数，供设置页展示。
     private(set) var cacheSizeBytes: Int64 = 0
 
+    /// 收藏存档占用的字节数，供设置页展示。
+    private(set) var archiveSizeBytes: Int64 = 0
+
     /// 侧栏当前选中的频道（如 `hn:top`、`rss:9a1f…`）。重启后沿用上次的选择。
     var selectedChannelID: String? {
         didSet { selectionPersistence.save(selectedChannelID) }
@@ -169,6 +172,8 @@ final class AppState {
     private let summaryPreferences = SummaryPreferences()
     /// 收藏与稍后读的存储。与缓存分开，缓存清空不影响这里。
     private let library = LibraryStore()
+    /// 收藏内容的离线存档。
+    private let archives = ArchiveStore()
     /// 冷启动后的第一次加载会联网刷新一次；之后切换频道只用缓存。
     private var shouldRefreshOnLaunch = true
     @ObservationIgnored private var autoRefreshTask: Task<Void, Never>?
@@ -217,6 +222,7 @@ final class AppState {
         summaryScope = summaryPreferences.scope
         appearance = AppearancePreferences().appearance
         await refreshCacheSize()
+        await refreshArchiveSize()
         // 启动时就要算出真实的 AI 状态。之前这里是空的，`aiConfiguration`
         // 停在初始值，于是密钥配置正确也会先报一条「未启用」。
         await refreshAIStatus()
@@ -594,8 +600,7 @@ final class AppState {
     }
 
     func refreshCacheSize() async {
-        cacheSizeBytes = await cache.cacheSizeInBytes()
-    }
+        cacheSizeBytes = await cache.cacheSizeInBytes()    }
 
     /// 清空内容缓存。订阅配置与各项偏好不受影响。
     func clearCache() async {
@@ -663,25 +668,29 @@ final class AppState {
     }
 
     func reloadArticle(for story: Story) async {
-        startArticleLoad(for: story)
+        // 手动重新抓取必须绕过存档，否则只是把存下来的那份再读一遍，
+        // 按钮等于没作用。
+        startArticleLoad(for: story, ignoringArchive: true)
     }
 
     func isRead(_ story: Story) -> Bool {
         readIDs.contains(story.id)
     }
 
-    private func startArticleLoad(for story: Story) {
+    private func startArticleLoad(for story: Story, ignoringArchive: Bool = false) {
         articleTask?.cancel()
         articleStoryID = story.id
-        articleTask = Task { await self.loadArticle(for: story) }
+        articleTask = Task { await self.loadArticle(for: story, ignoringArchive: ignoringArchive) }
 
         // 讨论区与正文并行加载，互不阻塞。
         commentsTask?.cancel()
         commentsTask = Task { await self.loadComments(for: story) }
 
-        // 换了内容，翻译状态回到原文。
+        // 换了内容，翻译状态回到原文；上一份存档带进来的讨论区也要清掉。
         translationTask?.cancel()
         translationState = .showingOriginal
+        latestTranslation = nil
+        archivedDiscussionHTML = nil
     }
 
     // MARK: - 翻译
@@ -768,6 +777,9 @@ final class AppState {
            let html = result.discussionHTML {
             return html
         }
+        // 打开的是存档时，讨论区就用存下来的那份：它已经是拼好的成品，
+        // 也不该为了重新拼一遍再去联网。
+        if let archivedDiscussionHTML { return archivedDiscussionHTML }
         return discussionHTML(for: selectedStory)
     }
 
@@ -776,6 +788,8 @@ final class AppState {
         switch translationState {
         case .showingTranslation:
             translationState = .showingOriginal
+            // 切回原文也要把「现在看的是原文」记进存档，下次打开才一致。
+            await refreshArchiveForSelected()
         case .translating:
             translationTask?.cancel()
             translationTask = nil
@@ -783,6 +797,12 @@ final class AppState {
         case .showingOriginal, .failed:
             await startTranslation()
         }
+    }
+
+    /// 把当前选中内容的存档刷新一遍（如果它被收藏过）。
+    private func refreshArchiveForSelected() async {
+        guard let story = selectedStory else { return }
+        await refreshArchiveIfSaved(for: story)
     }
 
     private func startTranslation() async {
@@ -826,7 +846,10 @@ final class AppState {
                     }
                 }
                 guard Task.isCancelled == false else { return }
+                self.latestTranslation = result
                 self.translationState = .showingTranslation(result)
+                // 刚翻完就落一份，免得收藏时手上没有译文。
+                await self.refreshArchiveIfSaved(for: story)
             } catch {
                 guard Task.isCancelled == false else { return }
                 self.translationState = .failed(Self.message(for: error))
@@ -834,10 +857,21 @@ final class AppState {
         }
     }
 
-    private func loadArticle(for story: Story) async {
+    private func loadArticle(for story: Story, ignoringArchive: Bool = false) async {
+        // 归档过的内容直接读本地存档：不联网、不等待。这同时保证正文里的
+        // 段落编号（`p-<n>`）与收藏时一模一样，段落收藏的跳转不会错位。
+        // 「重新抓取」显式跳过这一段。
+        if ignoringArchive == false,
+           let archive = await archives.archive(itemID: story.id) {
+            guard selectedStoryID == story.id, Task.isCancelled == false else { return }
+            applyArchivedBody(archive)
+            return
+        }
+
         // 条目自带正文时直接呈现，不需要抓取外链。
         if let html = story.text, html.isEmpty == false, story.url == nil {
             readerState = .selfPost(html: html)
+            await refreshArchiveIfSaved(for: story)
             return
         }
 
@@ -876,6 +910,9 @@ final class AppState {
         case .titleOnly:
             readerState = .degraded(.titleOnly)
         }
+
+        // 正文到了，如果这条已经被收藏、而当时只存下元数据，现在补上。
+        await refreshArchiveIfSaved(for: story)
     }
 
     /// 取评论树。按条目所属源选择 provider；不支持评论的来源返回 nil。
@@ -921,6 +958,13 @@ final class AppState {
 
     /// 为讨论区加载评论。
     private func loadComments(for story: Story) async {
+        // 存档里已经有那时的讨论区，直接用存下来的，不再联网。
+        if let archive = await archives.archive(itemID: story.id) {
+            guard selectedStoryID == story.id, Task.isCancelled == false else { return }
+            applyArchivedDiscussion(archive)
+            return
+        }
+
         commentsState = .loading
 
         switch await fetchCommentsResult(for: story) {
@@ -934,6 +978,8 @@ final class AppState {
             guard selectedStoryID == story.id else { return }
             commentsState = .failed("讨论区暂时取不到，正文不受影响。")
         }
+
+        await refreshArchiveIfSaved(for: story)
     }
 
     /// 手动重试讨论区。
@@ -993,6 +1039,12 @@ final class AppState {
             kind: .collection
         )
         await reloadLibrary()
+        // 收藏就存一份离线副本；取消收藏连副本一起删。
+        if saved {
+            await archiveForSave(story)
+        } else {
+            await archives.remove(itemID: story.id)
+        }
         return saved
     }
 
@@ -1004,7 +1056,35 @@ final class AppState {
             kind: .readLater
         )
         await reloadLibrary()
+        if saved {
+            await archiveForSave(story)
+        } else {
+            await archives.remove(itemID: story.id)
+        }
         return saved
+    }
+
+    /// 生成并写入存档。
+    ///
+    /// 正文还没就绪（例如从列表右键直接收藏）时写不出正文，先把已有材料存下；
+    /// 正文与讨论区到位后会各自再刷新一次。
+    private func archiveForSave(_ story: Story) async {
+        // 目标不是当前打开的内容时，手上没有它的正文，先存元数据与摘要，
+        // 等用户真打开它再补。
+        if let archive = makeArchive(for: story) {
+            await archives.save(archive)
+            return
+        }
+        await archives.save(
+            ArticleArchive(
+                itemID: story.id,
+                story: story,
+                archivedAt: Date(),
+                bodyKind: .degraded,
+                degradedLevel: .titleOnly,
+                summary: summaries[story.id]
+            )
+        )
     }
 
     /// 保存一段正文。返回 nil 表示不符合保存条件（空、过长、重复）。
@@ -1081,6 +1161,22 @@ final class AppState {
 
     var pendingScroll: PendingScroll?
 
+    /// 收藏存档占用的可读文本。
+    var archiveSizeText: String {
+        guard archiveSizeBytes > 0 else { return "无存档" }
+        return ByteCountFormatter.string(fromByteCount: archiveSizeBytes, countStyle: .file)
+    }
+
+    func refreshArchiveSize() async {
+        archiveSizeBytes = await archives.totalSizeInBytes()
+    }
+
+    /// 删除全部存档。收藏与稍后读的清单不动，只是下次打开要重新获取。
+    func clearArchives() async {
+        await archives.removeAll()
+        await refreshArchiveSize()
+    }
+
     /// 从段落收藏跳回原文的那一段。
     func openSavedPassage(_ passage: SavedPassage) async {
         let story = await cache.story(id: passage.itemID)
@@ -1094,6 +1190,118 @@ final class AppState {
             itemID: passage.itemID,
             paragraphIndex: passage.paragraphIndex
         )
+    }
+
+    /// 最近一次拿到的译文。
+    ///
+    /// 单独留一份（而不是只靠 `translationState`）：用户切回原文后，`translationState`
+    /// 里就没有译文了，但收藏时那份译文仍然要一起存进去。
+    private var latestTranslation: TranslationResult?
+
+    /// 从存档读出的讨论区 HTML。
+    ///
+    /// 存档里的讨论区是当时拼好的成品，不再重算，也不再联网。为 nil 表示
+    /// 当前内容没走存档，讨论区按常规流程取。
+    private var archivedDiscussionHTML: String?
+
+    /// 一篇内容的存档。
+    ///
+    /// 正文还没就绪时返回 nil（也从不会有失败态）：那种情况下仍会记下收藏，
+    /// 等正文或讨论区到位后再补写。
+    private func makeArchive(for story: Story) -> ArticleArchive? {
+        guard story.id == articleStoryID else { return nil }
+
+        let bodyKind: ArchivedBodyKind
+        var article: Article?
+        var selfPostHTML: String?
+        var degradedLevel: ReadingLevel?
+
+        switch readerState {
+        case .article(let value):
+            bodyKind = .article
+            article = value
+        case .selfPost(let html):
+            bodyKind = .selfPost
+            selfPostHTML = html
+        case .degraded(let level):
+            bodyKind = .degraded
+            degradedLevel = level
+        case .idle, .loading, .failed:
+            return nil
+        }
+
+        let translation = latestTranslation.map {
+            ArchivedTranslation(
+                title: $0.title,
+                articleHTML: $0.articleHTML,
+                discussionHTML: $0.discussionHTML
+            )
+        }
+
+        return ArticleArchive(
+            itemID: story.id,
+            story: story,
+            archivedAt: Date(),
+            bodyKind: bodyKind,
+            article: article,
+            selfPostHTML: selfPostHTML,
+            degradedLevel: degradedLevel,
+            discussionHTML: archivedDiscussionHTML ?? discussionHTML(for: story),
+            translation: translation,
+            showsTranslation: isShowingTranslation,
+            summary: summaries[story.id]
+        )
+    }
+
+    private var isShowingTranslation: Bool {
+        if case .showingTranslation = translationState { return true }
+        return false
+    }
+
+    /// 内容有变化（正文抓到、讨论区到达、翻译完成）时刷新存档。
+    ///
+    /// 只写已经收藏或加入稍后读的条目：没存的没必要占硬盘。
+    private func refreshArchiveIfSaved(for story: Story) async {
+        guard isCollected(story) || isInReadLater(story) else { return }
+        guard let archive = makeArchive(for: story) else { return }
+        await archives.save(archive)
+    }
+
+    /// 把存档里的正文与译文恢复到界面上。讨论区不在这里恢复（见 `loadComments`）。
+    private func applyArchivedBody(_ archive: ArticleArchive) {
+        readerState = switch archive.bodyKind {
+        case .article:
+            archive.article.map { ReaderState.article($0) } ?? .degraded(.titleOnly)
+        case .selfPost:
+            .selfPost(html: archive.selfPostHTML ?? "")
+        case .degraded:
+            .degraded(archive.degradedLevel ?? .titleOnly)
+        }
+
+        if let translation = archive.translation {
+            let result = TranslationResult(
+                title: translation.title,
+                articleHTML: translation.articleHTML,
+                discussionHTML: translation.discussionHTML
+            )
+            latestTranslation = result
+            translationState = archive.showsTranslation ? .showingTranslation(result) : .showingOriginal
+        } else {
+            latestTranslation = nil
+            translationState = .showingOriginal
+        }
+
+        if let summary = archive.summary {
+            summaries[archive.itemID] = summary
+        }
+    }
+
+    /// 把存档里的讨论区恢复到界面上。
+    private func applyArchivedDiscussion(_ archive: ArticleArchive) {
+        archivedDiscussionHTML = archive.discussionHTML
+        // 存档里没有讨论区，说明当时这个来源就没有（或没取到），
+        // 不该再联网试一次；显示什么由 `displayDiscussionHTML` 决定。
+        commentsState = .unavailable
     }
 
     /// 从收藏／稍后读列表打开一篇文章。

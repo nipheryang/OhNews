@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var summaryScope = SummaryGenerationScope.leadingItems
     @State private var appearance = AppAppearance.system
     @State private var isConfirmingClearCache = false
+    @State private var isConfirmingClearArchives = false
     @State private var status: StatusMessage?
     @State private var isTesting = false
     @State private var isLoaded = false
@@ -179,6 +180,24 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            Section("收藏存档") {
+                LabeledContent("占用") {
+                    Text(state.archiveSizeText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Button("删除全部存档", role: .destructive) {
+                    isConfirmingClearArchives = true
+                }
+                .disabled(state.archiveSizeBytes == 0)
+
+                Text("收藏与稍后读的内容会连正文、译文、讨论区一起存到本地，以后打开不再联网。删除后收藏还在，但下次打开需要重新获取。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("关于") {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("OhNews")
@@ -238,6 +257,18 @@ struct SettingsView: View {
         .task {
             load()
             await state.refreshCacheSize()
+            await state.refreshArchiveSize()
+        }
+        .confirmationDialog(
+            "删除全部存档？",
+            isPresented: $isConfirmingClearArchives
+        ) {
+            Button("删除", role: .destructive) {
+                Task { await state.clearArchives() }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("收藏与稍后读会保留，但它们的正文、译文与讨论区副本会被清空，下次打开需要重新获取（译文可能已失效）。")
         }
         .confirmationDialog(
             "删除全部缓存？",
