@@ -772,20 +772,24 @@ enum ReaderScript {
           // 因为上一步可能把某条高亮的 mark 拆掉了（那一条在正文里由外层代表）。
           for (var k = 0; k < placed.length; k++) {
             var want = placed[k];
-            var target = null;
+            var targets = [];
 
             var found = want.block.querySelectorAll('mark.ohnews-highlight');
             for (var m = 0; m < found.length; m++) {
-              if (found[m].getAttribute('data-ohnews-text') === want.text) { target = found[m]; }
+              if (found[m].getAttribute('data-ohnews-text') === want.text) { targets.push(found[m]); }
             }
-            if (!target &&
-                want.block.classList.contains('ohnews-highlight') &&
+            if (want.block.classList.contains('ohnews-highlight') &&
                 want.block.getAttribute('data-ohnews-text') === want.text) {
-              target = want.block;
+              targets.push(want.block);
             }
-            if (!target) { continue; }
 
-            attachHoverToolbar(target, want.text, want.index);
+            // 一段高亮可能被拆成几块：选中的文字跨过元素边界时（比如中间那个词
+            // 被 <span> 或 <code> 包着，末尾还带一个 &nbsp;），每一块都是一个 mark。
+            // 每块都挂一条工具条——只挂最后一块的话，鼠标放到前半句就只会亮、
+            // 不会弹菜单。
+            for (var t = 0; t < targets.length; t++) {
+              attachHoverToolbar(targets[t], want.text, want.index);
+            }
           }
 
           return document.querySelectorAll('mark.ohnews-highlight').length;
