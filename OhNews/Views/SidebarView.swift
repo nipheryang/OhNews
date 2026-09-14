@@ -71,6 +71,15 @@ struct SidebarView: View {
                 }
             }
         }
+
+        // 整列根视图的高度必须相对窗口而定。
+        //
+        // 不加这句，List 会按**全部条目的高度**索取空间，NavigationSplitView 把它
+        // 当成列高，三列一起被撑高、上下溢出窗口——表现就是侧栏前几行被标题栏盖住，
+        // 而且它不是滚动视图，滑不回来。与 2026-09-13 修过的中栏那一例同源，
+        // 侧栏当时漏了。（此处的 List 就是整列的根视图；中栏那种"List 外面还套着
+        // VStack"的情形不能这么加，会形成约束循环。）
+        .containerRelativeFrame(.vertical)
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(Palette.paper)
