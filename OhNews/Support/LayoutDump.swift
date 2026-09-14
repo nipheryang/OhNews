@@ -12,7 +12,10 @@ import SwiftUI
 /// frame／可视矩形／内容尺寸／内缩四组数字摆在一起才能定位，猜不出来。
 enum LayoutDump {
     static func log(_ tag: String) {
-        guard let window = NSApplication.shared.keyWindow,
+        // 与 `PaneHeightProbe` 同一个坑：应用不在最前时 keyWindow 是 nil，
+        // 这里会静默返回，诊断看起来“没触发”，其实是没取到窗口。
+        guard let window = NSApplication.shared.keyWindow
+            ?? NSApplication.shared.windows.first(where: { $0.isVisible }),
               let root = window.contentView else { return }
 
         let layout = window.contentLayoutRect
@@ -35,7 +38,8 @@ enum LayoutDump {
                 "%@",
                 "[布局诊断]  滚动视图#\(index) 于窗口=\(fmt(inWindow)) 可视矩形=\(fmt(visible)) "
                 + "文档=\(fmt(document)) 内缩上=\(f(insets.top)) 下=\(f(insets.bottom)) "
-                + "自动内缩=\(scroll.automaticallyAdjustsContentInsets)"
+                + "自动内缩=\(scroll.automaticallyAdjustsContentInsets) "
+                + "竖条=\(scroll.hasVerticalScroller) 样式=\(scroll.scrollerStyle == .overlay ? "overlay" : "legacy")"
             )
         }
         for sub in view.subviews {

@@ -58,15 +58,12 @@ struct RootView: View {
         .task { installSwipeGesture() }
         .task {
             await state.prepare()
-            // 滚动条：滑动才出现、停下就隐藏。系统偏好若为"始终"，只有落到
-            // AppKit 才能逐视图改（见 ScrollbarStyle）。
-            ScrollbarStyle.applyOverlay()
             await applyWindowChrome()
             installSwipeGesture()
-        }
-        .onChange(of: state.selectedChannelID) { _, _ in
-            // 列表会重建，新滚动视图要再设一次。
-            ScrollbarStyle.applyOverlay()
+            // 侧栏与列表栏不显示滚动条。必须由 AppKit 一层反复施加——
+            // 原因见 Scrollbars 的注释（SwiftUI 的 .scrollIndicators 在这些
+            // List 上不生效，而且每次重排还会把条装回来）。
+            Scrollbars.hideAppSideScrollers()
         }
         .task(id: state.selectedChannelID) {
             guard let channelID = state.selectedChannelID else { return }
@@ -81,8 +78,8 @@ struct RootView: View {
     /// 用本地监听器而不是给某个视图加手势，所以**鼠标在哪个位置都能触发**，
     /// 且不会被正文里的 `WKWebView` 抢走（它默认会拿这个手势做前进／后退）。
     ///
-    /// 这里只做转发：位移与速度全部交给 `PaneLayout`，它按帧写宽度（跟手），
-    /// 松手时用速度投影决定落点（惯性）。
+    /// 这里只做转发：手势识别在 `PaneSwipeMonitor`，收放由 `PaneLayout` 负责——
+    /// 手势只发一次指令，连续过程交给它的弹簧动画。
     private func installSwipeGesture() {
         // 手势只发一次指令；收起的连续过程由 `PaneLayout` 的弹簧动画完成。
         swipeMonitor.install { collapsing in

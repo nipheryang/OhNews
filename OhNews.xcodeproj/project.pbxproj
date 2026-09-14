@@ -12,7 +12,6 @@
 		17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3B44890862C4EAD57FCE612 /* KeychainStore.swift */; };
 		1C26B7C582981293F69AC37C /* SummaryCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C886291A0E1E5B6794617C /* SummaryCardView.swift */; };
 		1F8BECA3EA328BA13962A659 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EBFE2C04F2F39882026718E /* SettingsView.swift */; };
-		200B2F887FE24BA7FBAFA132 /* ScrollbarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977F8935842D495AF3F966B9 /* ScrollbarStyle.swift */; };
 		21E28EE509BED350BFD4956A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 641552FA43F6EFCDF3A225D5 /* AppState.swift */; };
 		2283E846E8E0993CAEE0782D /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 50212C0207876FC1311FC8C5 /* LICENSE */; };
 		22FA0405AC5F0F0C78B6CA71 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABDA25CEFC2E083F03B767AC /* WindowChrome.swift */; };
@@ -46,6 +45,7 @@
 		C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A534019F6349291DE9DB5B /* SidebarView.swift */; };
 		CA53689176C39B4E3C2531C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D2A4E4F740CA7C92115032A2 /* Assets.xcassets */; };
 		D3AC142A2FBC0D1625DA299B /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A206012A0B5B7A9EFEDF2260 /* RootView.swift */; };
+		E24F6384AD314A5E298A44C9 /* Scrollbars.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85659225F823FA292BEC5395 /* Scrollbars.swift */; };
 		EF8253813B32F6B580BC0336 /* ReaderInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4257191DB1B7E5279DEAA26 /* ReaderInteraction.swift */; };
 		F53774C439815AE928840C9B /* PaneSwipeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EF59348D3A74855071D0D81 /* PaneSwipeMonitor.swift */; };
 		F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68CA6670660742AAC2DAD3E9 /* ReaderView.swift */; };
@@ -75,9 +75,9 @@
 		76E2D3C2A11A71A11AB5C9F0 /* OhNews.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OhNews.entitlements; sourceTree = "<group>"; };
 		78756EC08D238F27332945B7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		78A534019F6349291DE9DB5B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		85659225F823FA292BEC5395 /* Scrollbars.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scrollbars.swift; sourceTree = "<group>"; };
 		87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryService.swift; sourceTree = "<group>"; };
 		93ECF568E6DE690BABCED4A9 /* LayoutDump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutDump.swift; sourceTree = "<group>"; };
-		977F8935842D495AF3F966B9 /* ScrollbarStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollbarStyle.swift; sourceTree = "<group>"; };
 		9D622AE7B84D3799C108448A /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
 		9E8F18C00B024979631A7D55 /* StoryRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryRowView.swift; sourceTree = "<group>"; };
 		A206012A0B5B7A9EFEDF2260 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -241,7 +241,7 @@
 				D278B494EE448707CAD47349 /* PaneHeightProbe.swift */,
 				6EF59348D3A74855071D0D81 /* PaneSwipeMonitor.swift */,
 				C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */,
-				977F8935842D495AF3F966B9 /* ScrollbarStyle.swift */,
+				85659225F823FA292BEC5395 /* Scrollbars.swift */,
 				E34B48E54B95714D0A84EBC7 /* Theme.swift */,
 				ABDA25CEFC2E083F03B767AC /* WindowChrome.swift */,
 			);
@@ -353,7 +353,7 @@
 				F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */,
 				5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */,
 				D3AC142A2FBC0D1625DA299B /* RootView.swift in Sources */,
-				200B2F887FE24BA7FBAFA132 /* ScrollbarStyle.swift in Sources */,
+				E24F6384AD314A5E298A44C9 /* Scrollbars.swift in Sources */,
 				1F8BECA3EA328BA13962A659 /* SettingsView.swift in Sources */,
 				C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */,
 				2F01C2D9691AB7A629ED975D /* StoryList+Display.swift in Sources */,

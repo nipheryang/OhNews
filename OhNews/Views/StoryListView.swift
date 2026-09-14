@@ -204,6 +204,9 @@ struct StoryListView: View {
                 .listRowBackground(Palette.paper)
             }
         }
+        // 必须加在 List 自己身上：加在外层容器上时环境值传不进来，
+        // SwiftUI 每次布局又会按默认偏好把滚动条装回来（实测中栏反复复发）。
+        .scrollIndicators(.hidden)
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
         .background(Palette.paper)
@@ -270,6 +273,9 @@ struct StoryListView: View {
                         .listRowBackground(Palette.paper)
                 }
             }
+            // 必须加在 List 自己身上：加在外层容器上时环境值传不进来，
+            // SwiftUI 每次布局又会按默认偏好把滚动条装回来（实测中栏反复复发）。
+            .scrollIndicators(.hidden)
             .listStyle(.inset)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
@@ -322,6 +328,9 @@ struct StoryListView: View {
                     .listRowBackground(Palette.paper)
                 }
             }
+            // 必须加在 List 自己身上：加在外层容器上时环境值传不进来，
+            // SwiftUI 每次布局又会按默认偏好把滚动条装回来（实测中栏反复复发）。
+            .scrollIndicators(.hidden)
             .listStyle(.inset)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
@@ -370,6 +379,9 @@ struct StoryListView: View {
                     passageRows(passages)
                 }
             }
+            // 必须加在 List 自己身上：加在外层容器上时环境值传不进来，
+            // SwiftUI 每次布局又会按默认偏好把滚动条装回来（实测中栏反复复发）。
+            .scrollIndicators(.hidden)
             .listStyle(.inset)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)

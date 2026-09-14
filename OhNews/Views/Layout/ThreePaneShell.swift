@@ -41,6 +41,11 @@ struct ThreePaneShell<SidebarPane: View, ListPane: View, DetailPane: View>: View
         HStack(spacing: 0) {
             if layout.showsSidebar {
                 sidebar()
+                    // 侧栏与列表栏都不显示滚动条（用户明确要求）。
+                    // `.scrollIndicators(.hidden)` 是环境值，会传给它内部的 List。
+                    // 注意：**不要**再用 AppKit 去改这些滚动条的样式——改
+                    // `scrollerStyle` 会重建滚动条，把这里的隐藏顶掉（踩过）。
+                    .scrollIndicators(.hidden)
                     .frame(width: layout.sidebarWidth)
                     // 先给内容让出工具栏那一段，再铺底色——底色因此铺满到窗口顶端，
                     // 而列表从工具栏下方开始。
