@@ -149,38 +149,73 @@ final class PaneLayout {
         var instant = Transaction()
         instant.disablesAnimations = true
 
+        guard visible else {
+            // 收起：直接让宽度弹簧收到 0，收完再把它移出视图树。
+            // 收起能看出动画，是因为当前宽度就是设定值，0 与它之间有真实变化。
+            animateWidth(target, to: 0) { [weak self] in
+                guard let self else { return }
+                withTransaction(instant) {
+                    switch target {
+                    case .sidebar:
+                        self.liveSidebarWidth = nil
+                        self.showsSidebar = false
+                    case .list:
+                        self.liveListWidth = nil
+                        self.showsList = false
+                    }
+                }
+            }
+            return
+        }
+
+        // 展开：必须**分两拍**，否则没有过渡。
+        //
+        // 第一拍：以 0 宽插进视图树，且这一拍不带任何动画。
+        // 第二拍：等第一拍渲染出去之后，再动画把宽度长到设定值。
+        //
+        // 之前两件事挤在同一次更新里，SwiftUI 把它们合并了——视图直接看到最终
+        // 宽度，于是"一下子就回来了"，宽度动画根本无从发生。用户报的正是这个。
         withTransaction(instant) {
             switch target {
             case .sidebar:
-                if visible { showsSidebar = true; liveSidebarWidth = 0 }
+                showsSidebar = true
+                liveSidebarWidth = 0
             case .list:
-                if visible { showsList = true; liveListWidth = 0 }
+                showsList = true
+                liveListWidth = 0
             }
         }
 
-        let finish: () -> Void = { [weak self] in
+        // 20ms：足够让上面那次插入提交并渲染一帧，肉眼无感。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
             guard let self else { return }
-            withTransaction(instant) {
-                switch target {
-                case .sidebar:
-                    self.liveSidebarWidth = nil
-                    self.showsSidebar = visible
-                case .list:
-                    self.liveListWidth = nil
-                    self.showsList = visible
+            animateWidth(target, to: storedWidth(target)) { [weak self] in
+                guard let self else { return }
+                withTransaction(instant) {
+                    switch target {
+                    case .sidebar:
+                        self.liveSidebarWidth = nil
+                    case .list:
+                        self.liveListWidth = nil
+                    }
                 }
             }
         }
+    }
 
+    private func storedWidth(_ target: Target) -> Double {
+        switch target {
+        case .sidebar: storedSidebarWidth
+        case .list: storedListWidth
+        }
+    }
+
+    private func animateWidth(_ target: Target, to value: Double, completion: @escaping () -> Void) {
         switch target {
         case .sidebar:
-            withAnimation(Motion.pane) {
-                liveSidebarWidth = visible ? storedSidebarWidth : 0
-            } completion: { finish() }
+            withAnimation(Motion.pane) { liveSidebarWidth = value } completion: { completion() }
         case .list:
-            withAnimation(Motion.pane) {
-                liveListWidth = visible ? storedListWidth : 0
-            } completion: { finish() }
+            withAnimation(Motion.pane) { liveListWidth = value } completion: { completion() }
         }
     }
 

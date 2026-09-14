@@ -42,9 +42,13 @@ struct RootView: View {
         // 被截断之后内容就画到工具栏底下。实测对照：放外面时栏高与工具栏之下的
         // 内容区对不上；放里面则一致。
         .frame(minWidth: Self.minimumWidth, minHeight: Self.minimumHeight)
-        // "桌面"底色：比正文那张纸略暗一档，投影才有落点。
-        // 正文自己是不透明的 paper 并带投影，于是它读起来浮在另外两栏之上。
-        .background(Color(nsColor: .underPageBackgroundColor).ignoresSafeArea())
+        // 外壳背后铺**纸色**，与三栏同色。
+        //
+        // 这里一度铺的是 underPageBackgroundColor（"桌面色"）：那是想让正文卡片的
+        // 投影有个落点。但投影落在左邻的列表栏上，根本不需要它；而它比纸略暗，
+        // 于是栏位收放的瞬间纸色移开、露出桌面色，就是用户看到的"闪一下变个颜色"。
+        // 同色之后，任何瞬间露出来的都还是纸色。
+        .background(Palette.paper.ignoresSafeArea())
         // 强调色就是墨色：整套语言是单色的，控件也应如此。
         .tint(Palette.accent)
         .preferredColorScheme(preferredScheme)
