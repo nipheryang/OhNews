@@ -146,59 +146,22 @@ final class PaneLayout {
     /// 不该有动画（否则会与宽度动画叠加，表现为展开时"咔"地一下直接到位——用户报的
     /// "恢复时没有过渡"就是这个），只有宽度的弹簧是动画。
     private func set(_ target: Target, visible: Bool) {
-        var instant = Transaction()
-        instant.disablesAnimations = true
-
-        guard visible else {
-            // 收起：直接让宽度弹簧收到 0，收完再把它移出视图树。
-            // 收起能看出动画，是因为当前宽度就是设定值，0 与它之间有真实变化。
-            animateWidth(target, to: 0) { [weak self] in
-                guard let self else { return }
-                withTransaction(instant) {
-                    switch target {
-                    case .sidebar:
-                        self.liveSidebarWidth = nil
-                        self.showsSidebar = false
-                    case .list:
-                        self.liveListWidth = nil
-                        self.showsList = false
-                    }
-                }
-            }
-            return
-        }
-
-        // 展开：必须**分两拍**，否则没有过渡。
+        // **宽度不参与动画**——这是这一段最关键的决定。
         //
-        // 第一拍：以 0 宽插进视图树，且这一拍不带任何动画。
-        // 第二拍：等第一拍渲染出去之后，再动画把宽度长到设定值。
+        // 正文栏里是 `WKWebView`，AppKit 视图跟不了 SwiftUI 的逐帧插值：宽度若在
+        // 动画中逐帧变化，WebKit 就在几个时刻各重排一次，表现为"先露出一点、再平移
+        // 一个工具栏高度、最后突然覆盖"。用户报的就是这个。
         //
-        // 之前两件事挤在同一次更新里，SwiftUI 把它们合并了——视图直接看到最终
-        // 宽度，于是"一下子就回来了"，宽度动画根本无从发生。用户报的正是这个。
-        withTransaction(instant) {
+        // 改成：布局一步到位（那一栏立刻进出视图树，正文栏立刻拿到最终宽度，只重排
+        // 一次），而"滑走"交给 `ThreePaneShell` 里的 `.transition(.move(edge:))`
+        // ——过渡会把即将离场的那一栏画在原位再平移出去。于是正文始终不动，
+        // 是两栏从它上方滑走，也就是"平移覆盖"。
+        withAnimation(Motion.pane) {
             switch target {
             case .sidebar:
-                showsSidebar = true
-                liveSidebarWidth = 0
+                showsSidebar = visible
             case .list:
-                showsList = true
-                liveListWidth = 0
-            }
-        }
-
-        // 20ms：足够让上面那次插入提交并渲染一帧，肉眼无感。
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
-            guard let self else { return }
-            animateWidth(target, to: storedWidth(target)) { [weak self] in
-                guard let self else { return }
-                withTransaction(instant) {
-                    switch target {
-                    case .sidebar:
-                        self.liveSidebarWidth = nil
-                    case .list:
-                        self.liveListWidth = nil
-                    }
-                }
+                showsList = visible
             }
         }
     }
