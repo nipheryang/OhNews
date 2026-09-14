@@ -11,12 +11,19 @@ public enum SourceKind: String, CaseIterable, Codable, Hashable, Sendable {
     case hackerNews
     /// RSS 2.0 或 Atom 1.0 订阅源。
     case rss
+    /// 用户主动收藏的单篇文章。
+    ///
+    /// 它不是一个「源」（不批量拉取、不在侧栏的订阅源分组里），但 `Story` 必须有。
+    /// 单独一类是为了让 AI 的措辞能区分开：说「一篇被收藏的文章」比说
+    /// 「一个订阅源」准确。
+    case savedPage
 
     /// 展示用名称。
     public var displayName: String {
         switch self {
         case .hackerNews: "Hacker News"
         case .rss: "RSS 订阅"
+        case .savedPage: "收藏的文章"
         }
     }
 
@@ -28,6 +35,7 @@ public enum SourceKind: String, CaseIterable, Codable, Hashable, Sendable {
         switch self {
         case .hackerNews: "hn"
         case .rss: "rss"
+        case .savedPage: "saved"
         }
     }
 

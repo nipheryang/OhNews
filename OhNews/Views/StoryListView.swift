@@ -206,24 +206,91 @@ struct StoryListView: View {
     /// 稍后读只收整篇，段落收在里面没有意义。
     @ViewBuilder
     private func libraryContent(for entry: LibraryEntry) -> some View {
+        if entry == .savedPages {
+            savedPagesContent(for: entry)
+        } else {
+            articleContent(for: entry)
+        }
+    }
+
+    /// 收藏夹：用户主动收进来的单篇。
+    ///
+    /// 与星标／稍后读分开渲染，是因为它们的数据源不同（`SavedPage` 而非
+    /// `SavedArticle`），而且这里没有「段落」那一区。
+    @ViewBuilder
+    private func savedPagesContent(for entry: LibraryEntry) -> some View {
+        let pages = state.activeSavedPages
+
+        if pages.isEmpty {
+            libraryEmptyState(entry)
+        } else {
+            List(selection: selection) {
+                ForEach(pages) { page in
+                    StoryRowView(
+                        story: page.story,
+                        isRead: state.isRead(page.story),
+                        isSelected: state.selectedStoryID == page.id,
+                        summary: state.summaries[page.id],
+                        isGeneratingSummary: state.isGeneratingSummary(for: page.story)
+                    )
+                    .tag(page.id)
+                    .contextMenu {
+                        Button("从收藏夹移除", role: .destructive) {
+                            Task { await state.removeSavedPage(id: page.id) }
+                        }
+                        Divider()
+                        Button("在浏览器中打开") {
+                            if let url = page.story.url {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(
+                        top: 0,
+                        leading: Metrics.gutter,
+                        bottom: 0,
+                        trailing: Metrics.gutter
+                    ))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Palette.paper)
+                }
+            }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Palette.paper)
+            .onChange(of: state.selectedStoryID) { _, newValue in
+                guard let newValue else { return }
+                Task { await state.selectByID(newValue) }
+            }
+        }
+    }
+
+    /// 入口为空时的提示。
+    private func libraryEmptyState(_ entry: LibraryEntry) -> some View {
+        VStack(spacing: 10) {
+            Text(entry.title)
+                .font(Typography.emptyStateTitle)
+                .foregroundStyle(Palette.ink)
+
+            Text(entry.emptyHint)
+                .font(Typography.meta)
+                .tracking(Metrics.metaTracking)
+                .foregroundStyle(Palette.inkFaint)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// 星标与稍后读的列表。
+    @ViewBuilder
+    private func articleContent(for entry: LibraryEntry) -> some View {
         let articles = state.activeLibraryItems
         let passages = entry == .collection ? state.passageItems : []
 
         if articles.isEmpty && passages.isEmpty {
-            VStack(spacing: 10) {
-                Text(entry.title)
-                    .font(Typography.emptyStateTitle)
-                    .foregroundStyle(Palette.ink)
-
-                Text(entry.emptyHint)
-                    .font(Typography.meta)
-                    .tracking(Metrics.metaTracking)
-                    .foregroundStyle(Palette.inkFaint)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 40)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            libraryEmptyState(entry)
         } else {
             List(selection: selection) {
                 if articles.isEmpty == false {

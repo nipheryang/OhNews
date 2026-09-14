@@ -37,8 +37,7 @@ public enum SourceIdentifier {
     }
 
     /// RSS 条目的 ID：feed 地址与条目 GUID（缺失时用链接）的联合哈希。
-    public static func rssItemID(feedURL: URL, guid: String) -> String {
-        let combined = "\(normalizedFeedKey(feedURL))|\(guid)"
+    public static func rssItemID(feedURL: URL, guid: String) -> String {        let combined = "\(normalizedFeedKey(feedURL))|\(guid)"
         return itemID(sourceID: rssSourceID(feedURL: feedURL), rawID: shortHash(combined))
     }
 

@@ -190,6 +190,8 @@ final class AppState {
     @ObservationIgnored private var updatePreferences = UpdatePreferences()
     /// 收藏与稍后读的存储。与缓存分开，缓存清空不影响这里。
     private let library = LibraryStore()
+    /// 收藏夹（主动收藏的单篇）。单独一个文件，同样不受清缓存影响。
+    private let savedPagesStore = SavedPagesStore()
     /// 收藏内容的离线存档。
     private let archives = ArchiveStore()
     /// 冷启动后的第一次加载会联网刷新一次；之后切换频道只用缓存。
@@ -278,6 +280,10 @@ final class AppState {
                 result.append(
                     SourceChannel(id: source.id, sourceID: source.id, name: source.name)
                 )
+            case .savedPage:
+                // 收藏的单篇不是一个源，不会出现在 `allSources` 里；
+                // 这里只是穷举，不应被执行。
+                break
             }
         }
         channels = result
@@ -1022,6 +1028,79 @@ final class AppState {
         await loadComments(for: story)
     }
 
+    // MARK: - 收藏夹
+
+    /// 把一个网址收进收藏夹。
+    ///
+    /// 与添加订阅不同：这里不要求它是 feed，而是要求能抽出正文——
+    /// 抽不出正文的地址收进来也没东西可读。两者失败的原因不一样，
+    /// 提示文案也应当分开。
+    func addSavedPage(urlText: String) async -> Result<Story, SourceInputError> {
+        let trimmed = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else {
+            return .failure(SourceInputError(message: "请输入网址。"))
+        }
+
+        let candidate = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
+        guard let url = URL(string: candidate),
+              let host = url.host,
+              host.contains(".")
+        else {
+            return .failure(SourceInputError(message: "这不是一个有效的网址。"))
+        }
+
+        // 用网址的哈希做 ID：同一个地址重复收藏不会变成两条。
+        let prefix = SourceKind.savedPage.identifierPrefix
+        let rawID = String(ContentHash.of(url.absoluteString).prefix(16))
+        let storyID = "\(prefix):\(rawID)"
+
+        if let existing = savedPages.first(where: { $0.id == storyID }) {
+            return .success(existing.story)
+        }
+
+        guard let article = await extractor.extract(from: url) else {
+            return .failure(SourceInputError(
+                message: "这个页面取不到正文，可能需要登录，或内容由脚本生成。"
+            ))
+        }
+
+        let extracted = article.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let story = Story(
+            id: storyID,
+            sourceID: prefix,
+            title: extracted.isEmpty ? host : extracted,
+            url: url,
+            score: nil,
+            author: host,
+            postedAt: Date(),
+            commentCount: nil,
+            type: .story,
+            text: nil
+        )
+
+        await savedPagesStore.add(SavedPage(story: story, savedAt: Date()))
+        // 正文立刻存下来。信息流的缓存可以被一键清空，自己收的文章不能跟着丢。
+        await archives.save(
+            ArticleArchive(
+                itemID: storyID,
+                story: story,
+                archivedAt: Date(),
+                bodyKind: .article,
+                article: article
+            )
+        )
+        await reloadLibrary()
+        showNotice("已收进收藏夹")
+        return .success(story)
+    }
+
+    /// 从收藏夹移除，连它的正文副本一起删。
+    func removeSavedPage(id: String) async {
+        await savedPagesStore.remove(id: id)
+        await archives.remove(itemID: id)
+        await reloadLibrary()
+    }
+
     // MARK: - 版本检查
 
     /// 本次运行是否已经查过版本。
@@ -1188,17 +1267,26 @@ final class AppState {
     /// 段落收藏，按保存时间倒序。
     private(set) var passageItems: [SavedPassage] = []
 
+    /// 收藏夹里的单篇，按收藏时间倒序。
+    private(set) var savedPages: [SavedPage] = []
+
+    /// 当前入口对应的单篇列表；停在别的入口或频道上时为空。
+    var activeSavedPages: [SavedPage] {
+        activeLibraryEntry == .savedPages ? savedPages : []
+    }
+
     /// 侧栏当前是不是停在收藏／稍后读入口上。
     var activeLibraryEntry: LibraryEntry? {
         LibraryEntry.matching(selectedChannelID)
     }
 
-    /// 当前入口对应的文章列表；停在频道上时为空。
+    /// 当前入口对应的文章列表；停在频道上或收藏夹时为空。
     var activeLibraryItems: [SavedArticle] {
         switch activeLibraryEntry {
         case .collection: collectionItems
         case .readLater: readLaterItems
-        case .none: []
+        // 收藏夹的内容是 `SavedPage`，不走这里。
+        case .savedPages, .none: []
         }
     }
 
@@ -1219,6 +1307,7 @@ final class AppState {
         collectionItems = await library.articles(.collection)
         readLaterItems = await library.articles(.readLater)
         passageItems = await library.allPassages()
+        savedPages = await savedPagesStore.all()
         await backfillMetadataIfNeeded()
     }
 
@@ -1568,6 +1657,10 @@ final class AppState {
         let saved = collectionItems + readLaterItems
         if let article = saved.first(where: { $0.id == id }) {
             await openSavedArticle(article)
+            return
+        }
+        if let page = savedPages.first(where: { $0.id == id }) {
+            await select(page.story)
             return
         }
         if let passage = passageItems.first(where: { $0.id == id }) {

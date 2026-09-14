@@ -74,6 +74,7 @@ public enum PromptBuilder {
         switch kind {
         case .hackerNews: "你是帮助中文读者判断 Hacker News 内容价值的技术编辑。"
         case .rss: "你是帮助中文读者快速判断文章价值的技术编辑。"
+        case .savedPage: "你是帮助中文读者快速判断一篇文章价值的技术编辑。"
         }
     }
 

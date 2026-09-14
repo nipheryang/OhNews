@@ -13,6 +13,7 @@ struct SidebarView: View {
     @Environment(AppState.self) private var state
 
     @State private var isAddingSource = false
+    @State private var isAddingPage = false
     @State private var renamingSource: NewsSource?
     @State private var renameText = ""
     @State private var deletingSource: NewsSource?
@@ -26,7 +27,9 @@ struct SidebarView: View {
                 sidebarRow(
                     title: entry.title,
                     count: count(for: entry),
-                    isSelected: state.selectedChannelID == entry.rawValue
+                    isSelected: state.selectedChannelID == entry.rawValue,
+                    action: entry.addActionTitle == nil ? nil : { isAddingPage = true },
+                    help: entry.addActionTitle
                 )
                 .tag(entry.rawValue)
                 .listRowInsets(rowInsets)
@@ -74,6 +77,9 @@ struct SidebarView: View {
         .navigationSplitViewColumnWidth(min: 188, ideal: 208, max: 260)
         .sheet(isPresented: $isAddingSource) {
             AddSourceView()
+        }
+        .sheet(isPresented: $isAddingPage) {
+            AddWebPageView()
         }
         .alert("重命名订阅", isPresented: renamingBinding) {
             TextField("名称", text: $renameText)
@@ -180,7 +186,13 @@ struct SidebarView: View {
     /// 选中态自己画：系统在 `.sidebar` 样式下不但颜色很重（深色近白、浅色近黑），
     /// 还会把选中行**连同它所属分组的标题**一起染色。行背景铺满纸底色先把系统的
     /// 那层遮掉，再用一条墨色薄雾表示选中。
-    private func sidebarRow(title: String, count: Int?, isSelected: Bool) -> some View {
+    private func sidebarRow(
+        title: String,
+        count: Int?,
+        isSelected: Bool,
+        action: (() -> Void)? = nil,
+        help: String? = nil
+    ) -> some View {
         HStack(spacing: 8) {
             Text(title)
                 .font(Typography.ui)
@@ -195,6 +207,17 @@ struct SidebarView: View {
                     .font(Typography.uiSmall)
                     .foregroundStyle(Palette.inkFaint)
                     .monospacedDigit()
+            }
+
+            // 添加入口贴在行右侧。只有收藏夹有，常驻就好。
+            if let action {
+                Button(action: action) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Palette.inkFaint)
+                }
+                .buttonStyle(.plain)
+                .help(help ?? "")
             }
         }
         .padding(.horizontal, 7)
@@ -220,6 +243,7 @@ struct SidebarView: View {
     private func count(for entry: LibraryEntry) -> Int {
         switch entry {
         case .collection: state.collectionItems.count
+        case .savedPages: state.savedPages.count
         case .readLater: state.readLaterItems.count
         }
     }

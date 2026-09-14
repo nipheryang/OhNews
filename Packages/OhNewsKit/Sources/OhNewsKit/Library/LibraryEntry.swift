@@ -3,12 +3,15 @@
 
 import Foundation
 
-/// 侧栏里除频道之外的固定入口：收藏与稍后读。
+/// 侧栏里除频道之外的固定入口：星标、收藏夹、稍后读。
 ///
 /// 用带 `library:` 前缀的固定标识充当列表选择值，与频道共用同一条选择通道，
 /// 但不会和任何源 ID 冲突（源 ID 形如 `hn:top`、`rss:8f3a…`）。
+///
+/// 顺序即侧栏里的显示顺序。
 public enum LibraryEntry: String, CaseIterable, Identifiable, Sendable {
     case collection = "library:collection"
+    case savedPages = "library:pages"
     case readLater = "library:readLater"
 
     public var id: String { rawValue }
@@ -16,6 +19,7 @@ public enum LibraryEntry: String, CaseIterable, Identifiable, Sendable {
     public var title: String {
         switch self {
         case .collection: "星标"
+        case .savedPages: "收藏夹"
         case .readLater: "稍后读"
         }
     }
@@ -23,6 +27,7 @@ public enum LibraryEntry: String, CaseIterable, Identifiable, Sendable {
     public var systemImage: String {
         switch self {
         case .collection: "star"
+        case .savedPages: "bookmark"
         case .readLater: "clock"
         }
     }
@@ -31,18 +36,22 @@ public enum LibraryEntry: String, CaseIterable, Identifiable, Sendable {
     public var emptyHint: String {
         switch self {
         case .collection: "在列表里右键条目，或在正文右上角点星标。"
+        case .savedPages: "点分组旁的加号，粘贴一个网址收进来。"
         case .readLater: "在列表里右键条目，或在正文右上角加入稍后读。"
         }
     }
 
-    public var kind: LibraryStore.Kind {
+    /// 是否有「加入」入口（分组标题旁边的加号）。
+    ///
+    /// 目前只有收藏夹需要：星标与稍后读由阅读时的动作产生，不靠手动添加。
+    public var addActionTitle: String? {
         switch self {
-        case .collection: .collection
-        case .readLater: .readLater
+        case .savedPages: "添加单篇文章"
+        case .collection, .readLater: nil
         }
     }
 
-    /// 把侧栏的选择值翻译成入口；不是这两个入口时返回 nil。
+    /// 把侧栏的选择值翻译成入口；不是这些入口时返回 nil。
     public static func matching(_ selectionID: String?) -> LibraryEntry? {
         guard let selectionID else { return nil }
         return LibraryEntry(rawValue: selectionID)

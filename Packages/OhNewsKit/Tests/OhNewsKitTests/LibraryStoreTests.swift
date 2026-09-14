@@ -313,9 +313,16 @@ struct LibraryStoreTests {
         #expect(LibraryEntry.matching("library:unknown") == nil)
     }
 
-    @Test("侧栏入口对应到正确的存储集合")
-    func entryMapsToKind() {
-        #expect(LibraryEntry.collection.kind == .collection)
-        #expect(LibraryEntry.readLater.kind == .readLater)
+    @Test("只有收藏夹有添加入口")
+    func onlySavedPagesHasAddAction() {
+        #expect(LibraryEntry.savedPages.addActionTitle != nil)
+        #expect(LibraryEntry.collection.addActionTitle == nil)
+        #expect(LibraryEntry.readLater.addActionTitle == nil)
+    }
+
+    @Test("侧栏入口的顺序就是显示顺序")
+    func entryOrderIsStable() {
+        // 星标在最前，收藏夹在稍后读之前。
+        #expect(LibraryEntry.allCases == [.collection, .savedPages, .readLater])
     }
 }
