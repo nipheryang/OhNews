@@ -40,6 +40,8 @@ final class ReaderInteractionController: NSObject {
 
     /// 当前文章已有的高亮。划选到已经高亮过的文字时，气泡要给的是「取消高亮」。
     private var highlights: () -> [ReaderHighlight] = { [] }
+    /// 左键按下的位置。用来区分「点一下」和「拖着划选」。
+    private var pressedAt: NSPoint?
     private var perform: (ReaderBubbleAction) -> Void = { _ in }
 
     func install(
@@ -68,9 +70,9 @@ final class ReaderInteractionController: NSObject {
         }
     }
 
-    /// 收走划选留下的气泡和选区。用过气泡之后调它。
-    func clearSelectionBubble(in webView: WKWebView) {
-        webView.evaluateJavaScript(ReaderScript.clearSelectionBubble) { _, _ in }
+    /// 收走划选留下的工具条和选区。用过它之后调它。
+    func clearSelectionToolbar(in webView: WKWebView) {
+        webView.evaluateJavaScript(ReaderScript.clearSelectionToolbar) { _, _ in }
         webView.evaluateJavaScript(ReaderScript.clearSelection) { _, _ in }
     }
 
@@ -84,6 +86,7 @@ final class ReaderInteractionController: NSObject {
 
         switch event.type {
         case .leftMouseDown:
+            pressedAt = point
             // 按下时就判，抬起时正文里的选区会被点击改掉。
             // 菜单的展开与收起由 CSS 悬停负责，这里只管"点了哪一条字条"。
             Task { @MainActor in
@@ -92,9 +95,20 @@ final class ReaderInteractionController: NSObject {
             }
 
         case .leftMouseUp:
-            // 选完才弹气泡。脚本自己会处理"没选中东西"和"点在自己身上"。
+            let pressed = pressedAt
+            pressedAt = nil
+            let isClick = pressed.map {
+                abs($0.x - point.x) < 3 && abs($0.y - point.y) < 3
+            } ?? false
+
+            // 选完才浮出工具条。脚本自己会处理"没选中东西"和"点在自己身上"。
             Task { @MainActor in
-                await Self.showSelectionBubble(at: css, in: webView, known: self.highlights())
+                await Self.showSelectionToolbar(
+                    at: css,
+                    in: webView,
+                    known: self.highlights(),
+                    isClick: isClick
+                )
             }
 
         default:
@@ -127,13 +141,19 @@ final class ReaderInteractionController: NSObject {
         return ReaderBubbleAction(kind: kind, text: payload.text, paragraphIndex: payload.index)
     }
 
-    private static func showSelectionBubble(
+    private static func showSelectionToolbar(
         at point: (x: Double, y: Double),
         in webView: WKWebView,
-        known: [ReaderHighlight]
+        known: [ReaderHighlight],
+        isClick: Bool
     ) async {
         let payload = known.map { ["index": $0.paragraphIndex, "text": $0.text] as [String: Any] }
-        let script = ReaderScript.showSelectionBubble(x: point.x, y: point.y, known: payload)
+        let script = ReaderScript.showSelectionToolbar(
+            x: point.x,
+            y: point.y,
+            known: payload,
+            isClick: isClick
+        )
         _ = try? await webView.evaluateJavaScript(script)
     }
 

@@ -756,17 +756,37 @@ enum ReaderScript {
         """
     }
 
-    /// 划选结束后在选区末尾弹一颗气泡。
+    /// 工具条上那颗「高亮」图标：一支斜置的马克笔，下面一道划痕。
+    ///
+    /// 用内联 SVG 而不是 SF Symbol——正文是网页，系统符号在这里用不了。
+    /// 划痕用高亮色，与正文里标出来的颜色是同一个，一眼对得上。
+    private static let markerIcon = """
+    <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false">
+      <g transform="rotate(-45 8 8)">
+        <rect x="5.9" y="2.3" width="4.2" height="6.9" rx="1.2" fill="currentColor"></rect>
+        <path d="M6.6 9.4 H9.4 L8.7 12.4 H7.3 Z" fill="currentColor" opacity="0.45"></path>
+      </g>
+      <path d="M2.6 14.3 H13.4" stroke="rgba(234, 179, 8, 0.95)" stroke-width="1.7"
+            stroke-linecap="round" fill="none"></path>
+    </svg>
+    """
+
+    /// 划选结束后在选区上方浮出一条工具条。
     ///
     /// 选区自己不会上报"我选好了"，所以由应用侧在抬起鼠标时调这里。
-    /// 气泡按**文档坐标**安放（不是视口坐标），这样它跟着正文一起滚。
+    /// 工具条按**文档坐标**安放（不是视口坐标），这样它跟着正文一起滚。
     ///
     /// `known` 是这篇文章已有的高亮（`[{"index": n, "text": "…"}]`）：
-    /// 选中的文字如果正是其中一条，气泡给的就不是"高亮"而是"取消高亮"——
-    /// 否则用户点下去会什么都发生不了（存储层会拒掉重复的那条）。
+    /// 选中的文字如果正是其中一条，按钮就显示按下态，再点是取消。
+    /// 否则同一个按钮点下去会被存储层拒掉（重复），等于点了没反应。
     ///
     /// 返回 JSON `{"text": …, "index": …}`，选不中东西时返回 null。
-    static func showSelectionBubble(x: Double, y: Double, known: [[String: Any]]) -> String {
+    static func showSelectionToolbar(
+        x: Double,
+        y: Double,
+        known: [[String: Any]],
+        isClick: Bool
+    ) -> String {
         let knownJSON = (try? JSONSerialization.data(withJSONObject: known))
             .flatMap { String(data: $0, encoding: .utf8) }
             ?? "[]"
@@ -775,23 +795,24 @@ enum ReaderScript {
         (function () {
           var known = \(knownJSON);
 
-          \(bubbleFactory)
-
-          function clearFloats() {
-            var old = document.querySelectorAll('.ohnews-float');
+          function clearToolbars() {
+            var old = document.querySelectorAll('.ohnews-toolbar');
             for (var i = 0; i < old.length; i++) {
               if (old[i].parentNode) { old[i].parentNode.removeChild(old[i]); }
             }
           }
 
-          // 点在气泡自己身上时不弹新的：那颗圆点就压在文字上，
-          // 点它不该被当成"选中了一小段"。
-          var hit = document.elementFromPoint(\(x), \(y));
-          if (hit && hit.closest && hit.closest('.ohnews-bubble, .ohnews-float')) {
-            return null;
+          // **点击**落在工具条或气泡上时不重建：那一下点的就是按钮或圆点。
+          // 拖动不在此列——划选结束的那一点常常正好压在某条高亮的圆点上，
+          // 那不是"点在气泡上"，用户是在选文字。
+          if (\(isClick ? "true" : "false")) {
+            var hit = document.elementFromPoint(\(x), \(y));
+            if (hit && hit.closest && hit.closest('.ohnews-toolbar, .ohnews-bubble')) {
+              return null;
+            }
           }
 
-          clearFloats();
+          clearToolbars();
 
           var selection = window.getSelection();
           if (!selection || selection.rangeCount === 0) { return null; }
@@ -801,14 +822,14 @@ enum ReaderScript {
 
           var range = selection.getRangeAt(0);
 
-          // 选区落在气泡自己身上时不弹（上面那一步只挡了"点在气泡上"）。
+          // 选区落在气泡或工具条自己身上时不弹。
           var anchor = range.startContainer;
           if (anchor && anchor.nodeType !== 1) { anchor = anchor.parentNode; }
-          if (anchor && anchor.closest && anchor.closest('.ohnews-bubble, .ohnews-float')) {
+          if (anchor && anchor.closest && anchor.closest('.ohnews-bubble, .ohnews-toolbar')) {
             return null;
           }
 
-          // 选区落在哪一段。拿不到就给 -1，气泡照样弹，只是跳不回去。
+          // 选区落在哪一段。拿不到就给 -1。
           var index = -1;
           var node = range.startContainer;
           if (node && node.nodeType !== 1) { node = node.parentNode; }
@@ -826,18 +847,48 @@ enum ReaderScript {
             if (known[k].text === text && known[k].index === index) { already = true; break; }
           }
 
-          // 气泡落在选区最后一行末尾。用文档坐标，跟着正文滚。
           var rects = range.getClientRects();
-          var last = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect();
+          if (rects.length === 0) { return null; }
+          var first = rects[0];
+          var last = rects[rects.length - 1];
+          var bounds = range.getBoundingClientRect();
 
-          var float = document.createElement('div');
-          float.className = 'ohnews-float ohnews-bubble-visible';
-          float.style.left = (last.right + window.scrollX) + 'px';
-          float.style.top = (last.bottom + window.scrollY) + 'px';
-          document.body.appendChild(float);
-          attachBubble(float, already
-            ? buildBubble(text, 'unhighlight', '取消高亮', index)
-            : buildBubble(text, 'highlight', '高亮选中文段', index));
+          var bar = document.createElement('div');
+          bar.className = 'ohnews-toolbar';
+
+          var button = document.createElement('span');
+          button.className = 'ohnews-toolbar-button';
+          button.setAttribute('data-ohnews-action', already ? 'unhighlight' : 'highlight');
+          button.setAttribute('data-ohnews-text', text);
+          button.setAttribute('data-ohnews-index', String(index));
+          button.setAttribute('title', already ? '取消高亮' : '高亮');
+          if (already) { button.setAttribute('data-ohnews-active', '1'); }
+          button.innerHTML = \(quoted(markerIcon));
+          bar.appendChild(button);
+
+          // 先入文档再量，否则量出来全是 0，也就摆不对位置。
+          document.body.appendChild(bar);
+          var barBox = bar.getBoundingClientRect();
+
+          // 横向：对着选区居中，再夹在正文的左右边界里，免得贴边被裁。
+          var page = document.body.getBoundingClientRect();
+          var margin = 8;
+          var left = bounds.left + window.scrollX + (bounds.width - barBox.width) / 2;
+          var minLeft = page.left + window.scrollX + margin;
+          var maxLeft = page.right + window.scrollX - barBox.width - margin;
+          if (maxLeft < minLeft) { maxLeft = minLeft; }
+          left = Math.max(minLeft, Math.min(left, maxLeft));
+
+          // 纵向：默认浮在选区上方；上面放不下就翻到选区下方。
+          var gap = 8;
+          var above = first.top - barBox.height - gap;
+          var top = above >= margin
+            ? above
+            : last.bottom + gap;
+          top += window.scrollY;
+
+          bar.style.left = Math.round(left) + 'px';
+          bar.style.top = Math.round(top) + 'px';
 
           return JSON.stringify({ text: text, index: index });
         })()
@@ -854,10 +905,10 @@ enum ReaderScript {
     })()
     """
 
-    /// 收走划选留下的那颗气泡。
-    static let clearSelectionBubble = """
+    /// 收走划选留下的工具条。
+    static let clearSelectionToolbar = """
     (function () {
-      var old = document.querySelectorAll('.ohnews-float');
+      var old = document.querySelectorAll('.ohnews-toolbar');
       for (var i = 0; i < old.length; i++) {
         if (old[i].parentNode) { old[i].parentNode.removeChild(old[i]); }
       }
@@ -865,10 +916,11 @@ enum ReaderScript {
     })()
     """
 
-    /// 这一点上有没有气泡里的字条。
+    /// 这一点上有没有可以点的东西。
     ///
-    /// 页面脚本关着，气泡点不动，只能由应用侧读文档判断点了哪里。
-    /// 菜单的展开/收起由 CSS 的悬停负责，应用只需要处理"点了哪一条"。
+    /// 页面脚本关着，气泡和工具条都点不动，只能由应用侧读文档判断点了哪里。
+    /// 认的是 `data-ohnews-action` 这个标记：气泡里的字条和工具条上的按钮
+    /// 都带着它，所以两边共用这一条路径，加功能时不必再改这里。
     /// 返回 JSON `{"action": …, "text": …, "index": …}`，没命中时返回 null。
     static func hitTestBubbleItem(x: Double, y: Double) -> String {
         """
@@ -876,7 +928,7 @@ enum ReaderScript {
           var el = document.elementFromPoint(\(x), \(y));
           if (!el || !el.closest) { return null; }
 
-          var item = el.closest('.ohnews-pop-item');
+          var item = el.closest('[data-ohnews-action]');
           if (!item) { return null; }
 
           var index = parseInt(item.getAttribute('data-ohnews-index'), 10);
@@ -1036,11 +1088,11 @@ struct ArticleWebView: NSViewRepresentable {
             interaction.uninstall()
         }
 
-        /// 票号前进过就收一次选区和气泡。
+        /// 票号前进过就收一次选区和工具条。
         func clearSelectionIfTicked(_ ticket: Int, in webView: WKWebView) {
             guard ticket != handledSelectionClearTicket else { return }
             handledSelectionClearTicket = ticket
-            interaction.clearSelectionBubble(in: webView)
+            interaction.clearSelectionToolbar(in: webView)
         }
 
         /// 文档加载完成：先给段落编号，标黄，再做挂起的跳转。

@@ -23,6 +23,11 @@ body {
   margin: 0 auto;
   padding: 32px 40px 96px;
   max-width: 720px;
+  /* 纸色写在正文里，而不是只靠外层应用画。
+     一是深浅色本来就该由这里决定，二是划选工具条要用玻璃材质，
+     backdrop-filter 模糊的是"背后画着的东西"——底透明时它无从下手。
+     两边用同一个值（Palette.paper），所以观感与之前一致。 */
+  background: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
     "Hiragino Sans GB", "Helvetica Neue", sans-serif;
   font-size: 17px;
@@ -150,7 +155,7 @@ th {
 
 /* ============================ 深浅模式 ============================ */
 @media (prefers-color-scheme: dark) {
-  body { color: #f3f4f6; }
+  body { color: #f3f4f6; background: #030712; }
 
   a {
     color: #f3f4f6;
@@ -368,16 +373,71 @@ mark.ohnews-highlight:hover,
   vertical-align: baseline;
 }
 
-/* 划选之后浮在选区末尾的那一颗。
+/* ---------- 划选工具条 ---------- */
 
-   它不挂在文字上（新选的文字还没有标记可挂），所以自己在正文里定位，
-   坐标由脚本按文档坐标算好写进 style。少了这条规则，元素会退回普通块级
-   排版、被放到文档末尾——脚本照样成功返回，圆点却落在可视区之外。 */
-.ohnews-float {
+/* 选中一段文字后，在它上方浮出来的一条横向工具条。
+
+   玻璃材质：半透明底 + 背景模糊 + 一圈内高光边。系统那层真正的液态玻璃
+   在网页里拿不到，但这三样加起来在深浅两种纸色上都读得出"玻璃"。
+   内高光分两道——一道描边、一道只在顶边——是玻璃边缘最常见的写法。 */
+.ohnews-toolbar {
+  /* 工具条自身不能被选中：应用吞不掉这一次点击（要点哪里得先问文档，
+     而答案是异步的），不禁掉的话，点一下按钮就会改动正文选区，
+     紧接着抬起鼠标那一步又会照着新选区重建一条工具条。 */
+  -webkit-user-select: none;
+  user-select: none;
   position: absolute;
-  width: 0;
-  height: 0;
-  z-index: 4;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  /* 横向多留一点：只有一个按钮时也不至于方成一块。
+     以后加功能就是往这条里并排添按钮。 */
+  padding: 5px 9px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba(0, 0, 0, 0.10),
+    0 10px 30px rgba(0, 0, 0, 0.16);
+}
+
+/* 图标按钮。现在只有「高亮」一个；以后加功能就是并排再放几个，
+   分组之间用 .ohnews-toolbar-sep 的细线隔开（参考图里就是这个排法）。 */
+.ohnews-toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: rgba(17, 24, 39, 0.86);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.ohnews-toolbar-button:hover {
+  background: rgba(17, 24, 39, 0.09);
+}
+
+/* 选中的文字本来就已经高亮：按钮显示按下态，再点一下是取消。
+   （存储层会拒掉重复的那条，同一个按钮不做成切换就只会"点了没反应"。） */
+.ohnews-toolbar-button[data-ohnews-active="1"] {
+  background: rgba(234, 179, 8, 0.32);
+  color: #6b3f00;
+}
+
+.ohnews-toolbar-button[data-ohnews-active="1"]:hover {
+  background: rgba(234, 179, 8, 0.45);
+}
+
+.ohnews-toolbar-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: rgba(17, 24, 39, 0.14);
 }
 
 /* 圆点和菜单是**同一个元素**：收着是圆点，鼠标落上去就长成圆角菜单。
@@ -421,10 +481,9 @@ mark.ohnews-highlight:hover,
     opacity 140ms ease;
 }
 
-/* 悬停在整句高亮上时露出圆点。划选出来的那一颗直接常显。 */
+/* 悬停在整句高亮上时露出圆点。 */
 mark.ohnews-highlight:hover .ohnews-pop,
-.ohnews-highlight:hover .ohnews-pop,
-.ohnews-bubble-visible .ohnews-pop {
+.ohnews-highlight:hover .ohnews-pop {
   opacity: 1;
 }
 
@@ -494,6 +553,36 @@ mark.ohnews-highlight.ohnews-highlight-flash,
   mark.ohnews-highlight:hover,
   .ohnews-highlight:hover {
     background-color: rgba(234, 179, 8, 0.42);
+  }
+
+  .ohnews-toolbar {
+    background: rgba(22, 26, 34, 0.6);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 1px 3px rgba(0, 0, 0, 0.35),
+      0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  .ohnews-toolbar-button {
+    color: rgba(243, 244, 246, 0.88);
+  }
+
+  .ohnews-toolbar-button:hover {
+    background: rgba(243, 244, 246, 0.12);
+  }
+
+  .ohnews-toolbar-button[data-ohnews-active="1"] {
+    background: rgba(234, 179, 8, 0.3);
+    color: #fde68a;
+  }
+
+  .ohnews-toolbar-button[data-ohnews-active="1"]:hover {
+    background: rgba(234, 179, 8, 0.45);
+  }
+
+  .ohnews-toolbar-sep {
+    background: rgba(243, 244, 246, 0.18);
   }
 
   .ohnews-pop {
