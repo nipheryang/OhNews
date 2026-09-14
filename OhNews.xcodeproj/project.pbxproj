@@ -32,7 +32,7 @@
 		A15286E403FD3CF62438DDC0 /* AddSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */; };
 		A5CE2BC67631DB1331463C66 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D622AE7B84D3799C108448A /* TranslationService.swift */; };
 		AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */; };
-		BE1349A85C5BFFE024525385 /* InsightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3128CCEF47ADFEB57F54FBE /* InsightCardView.swift */; };
+		ADF213A7273BCDAE579991A4 /* InsightPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66DE410FC72AE1D874BA29B1 /* InsightPanel.swift */; };
 		BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E13AC35833EEA13732D6CB1 /* HNClient.swift */; };
 		C1008DF3D541E92E27B471B2 /* ConfigPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */; };
 		C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A534019F6349291DE9DB5B /* SidebarView.swift */; };
@@ -58,6 +58,7 @@
 		53259EE86760DCF2553BAED2 /* StoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryListView.swift; sourceTree = "<group>"; };
 		5EE8418AB4705672131EE240 /* OhNewsKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = OhNewsKit; path = Packages/OhNewsKit; sourceTree = SOURCE_ROOT; };
 		641552FA43F6EFCDF3A225D5 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		66DE410FC72AE1D874BA29B1 /* InsightPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightPanel.swift; sourceTree = "<group>"; };
 		68CA6670660742AAC2DAD3E9 /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
 		69CDCCFFB99532C96D2C77F7 /* OhNews.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OhNews.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7472CA1FF53BEB6E2BD2F243 /* StoryList+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StoryList+Display.swift"; sourceTree = "<group>"; };
@@ -74,7 +75,6 @@
 		B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSSourceProvider.swift; sourceTree = "<group>"; };
 		C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
-		C3128CCEF47ADFEB57F54FBE /* InsightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightCardView.swift; sourceTree = "<group>"; };
 		C4B03317112A6733873F1C3D /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		C770821155A5A9BA690913C0 /* HNSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNSourceProvider.swift; sourceTree = "<group>"; };
 		D2A4E4F740CA7C92115032A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -189,7 +189,7 @@
 				525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */,
 				AFFF3EBEB425A5D5A6B20EBF /* AddWebPageView.swift */,
 				106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */,
-				C3128CCEF47ADFEB57F54FBE /* InsightCardView.swift */,
+				66DE410FC72AE1D874BA29B1 /* InsightPanel.swift */,
 				E4257191DB1B7E5279DEAA26 /* ReaderInteraction.swift */,
 				68CA6670660742AAC2DAD3E9 /* ReaderView.swift */,
 				A206012A0B5B7A9EFEDF2260 /* RootView.swift */,
@@ -303,7 +303,7 @@
 				234018F44394AAE24869D306 /* EmptyStateView.swift in Sources */,
 				BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */,
 				2A90B992D01843A7C573A9EF /* HNSourceProvider.swift in Sources */,
-				BE1349A85C5BFFE024525385 /* InsightCardView.swift in Sources */,
+				ADF213A7273BCDAE579991A4 /* InsightPanel.swift in Sources */,
 				5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */,
 				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,

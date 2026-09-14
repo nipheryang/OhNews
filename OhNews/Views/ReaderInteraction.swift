@@ -4,14 +4,19 @@
 import AppKit
 import WebKit
 
-/// 气泡菜单里的一条动作。
-struct ReaderBubbleAction: Equatable {
-    /// 字条对应哪一种动作，与脚本里的 `data-ohnews-action` 一一对应。
+/// 正文里被点中的一条动作。
+///
+/// 名字不带「气泡」：高亮工具条上的按钮、解读面板上的「重新生成」都走这里，
+/// 它们共用的是一条路径——应用侧读 `data-ohnews-action` 再分发。
+struct ReaderAction: Equatable {
+    /// 对应哪一种动作，与脚本里的 `data-ohnews-action` 一一对应。
     enum Kind: String, Equatable {
         /// 把选中的这段文字标成高亮。
         case highlight
         /// 取消这一条高亮。
         case unhighlight
+        /// 让模型重读正文与讨论区（解读面板上的「重新生成」）。
+        case regenerateInsight
     }
 
     let kind: Kind
@@ -42,12 +47,12 @@ final class ReaderInteractionController: NSObject {
     private var highlights: () -> [ReaderHighlight] = { [] }
     /// 左键按下的位置。用来区分「点一下」和「拖着划选」。
     private var pressedAt: NSPoint?
-    private var perform: (ReaderBubbleAction) -> Void = { _ in }
+    private var perform: (ReaderAction) -> Void = { _ in }
 
     func install(
         in webView: WKWebView,
         highlights: @escaping () -> [ReaderHighlight],
-        perform: @escaping (ReaderBubbleAction) -> Void
+        perform: @escaping (ReaderAction) -> Void
     ) {
         self.webView = webView
         self.highlights = highlights
@@ -130,15 +135,15 @@ final class ReaderInteractionController: NSObject {
     private static func bubbleItem(
         at point: (x: Double, y: Double),
         in webView: WKWebView
-    ) async -> ReaderBubbleAction? {
+    ) async -> ReaderAction? {
         let script = ReaderScript.hitTestBubbleItem(x: point.x, y: point.y)
         guard let raw = try? await webView.evaluateJavaScript(script),
               let payload = PayloadBox.decode(raw),
-              let kind = ReaderBubbleAction.Kind(rawValue: payload.action),
+              let kind = ReaderAction.Kind(rawValue: payload.action),
               payload.text.isEmpty == false
         else { return nil }
 
-        return ReaderBubbleAction(kind: kind, text: payload.text, paragraphIndex: payload.index)
+        return ReaderAction(kind: kind, text: payload.text, paragraphIndex: payload.index)
     }
 
     private static func showSelectionToolbar(

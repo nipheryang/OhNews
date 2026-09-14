@@ -172,27 +172,18 @@ struct ReaderDocumentBuilderTests {
         #expect(document.contains("https://example.com"))
     }
 
-    @Test func omitsTopInsetByDefault() {
+    @Test func reservesAnEmptySlotForTheInsight() {
+        // 解读面板的位置固定在正文之前留空，内容由应用侧稍后填进去：
+        // 拼进文档就等于重建整篇，会丢掉阅读位置。
         let document = ReaderDocumentBuilder.build(html: "<p>x</p>", style: "p{}")
+        #expect(document.contains("<div id=\"ohnews-insight\"></div>"))
         #expect(document.contains("padding-top") == false)
     }
 
-    @Test func injectsTopInset() {
-        let document = ReaderDocumentBuilder.build(
-            html: "<p>x</p>",
-            style: "p{}",
-            topInset: 236
-        )
-        #expect(document.contains("body { padding-top: 236px !important; }"))
-    }
-
-    @Test func ignoresZeroTopInset() {
-        let document = ReaderDocumentBuilder.build(
-            html: "<p>x</p>",
-            style: "p{}",
-            topInset: 0
-        )
-        #expect(document.contains("padding-top") == false)
+    @Test func escapesTextForHTML() {
+        // 解读是模型给的文字，必须转义后拼——否则 `<` 会破坏结构。
+        let escaped = ReaderDocumentBuilder.escapeText("a < b & c > d \"e\"")
+        #expect(escaped == "a &lt; b &amp; c &gt; d \"e\"")
     }
 
     @Test func omitsFontSizeAtDefaultScale() {
@@ -210,15 +201,12 @@ struct ReaderDocumentBuilderTests {
         #expect(document.contains("font-size: 25.5px !important"))
     }
 
-    @Test func combinesFontSizeWithTopInsetInOneRule() {
+    @Test func writesTheFontSizeOverrideAsOneRule() {
         let document = ReaderDocumentBuilder.build(
             html: "<p>x</p>",
             style: "p{}",
-            topInset: 236,
             fontScale: 1.2
         )
-        // 分成两条规则会互相盖掉，必须合在一条里。
-        #expect(document.contains("padding-top: 236px !important"))
         #expect(document.contains("font-size: 20.4px !important"))
         #expect(document.components(separatedBy: "body {").count == 2)
     }

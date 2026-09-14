@@ -34,13 +34,9 @@ struct StoryDetailView: View {
                     header(for: story)
                     hairline
                     readerNoticeBar
-                    // 解读是浮层（overlay），不是流式的一块：正文在它后面滑过，
-                    // 文字经过下边缘时被玻璃遮住。正文自身的顶部留白由 `topInset`
-                    // 交给文档，这样开头不会被面板永远挡住。
+                    // 解读面板不在这里：它是正文文档里的一段，因此随正文一起滚，
+                    // 而不是钉在阅读区顶部（见 InsightPanel）。
                     content(for: story)
-                        .overlay(alignment: .top) {
-                            insight(for: story)
-                        }
                 }
             } else {
                 emptyState
@@ -58,17 +54,6 @@ struct StoryDetailView: View {
             value: state.readerState
         )
         .animation(reduceMotion ? nil : Motion.standard, value: state.transientNotice)
-    }
-
-    /// 正文之上的 AI 解读。没有可显示的解读时不占任何位置。
-    @ViewBuilder
-    private func insight(for story: Story) -> some View {
-        if state.insightState != .unavailable {
-            InsightCardView(state: state.insightState) {
-                Task { await state.regenerateInsight() }
-            }
-            .animation(reduceMotion ? nil : Motion.standard, value: state.insightState)
-        }
     }
 
     /// 阅读区自己的轻提示。
@@ -262,15 +247,12 @@ struct StoryDetailView: View {
         let target = state.pendingScroll?.itemID == story.id
             ? state.pendingScroll?.highlight
             : nil
-        // 顶部浮层占掉多少，正文就让出多少。解读不可用时不留白。
-        let inset = state.insightState == .unavailable ? 0 : InsightCardView.height
-
         return ArticleWebView(
             html: html,
             baseURL: baseURL,
             discussionHTML: state.displayDiscussionHTML,
             scrollTarget: target,
-            topInset: inset,
+            insightHTML: InsightPanel.html(for: state.insightState),
             highlights: state.highlights(for: story),
             fontScale: state.readerFontScale,
             performBubbleAction: { action in
@@ -950,6 +932,30 @@ enum ReaderScript {
     })()
     """
 
+    /// 把解读面板填进文档里预留的空容器。
+    ///
+    /// 面板在文档流里，长高会把下面的正文一起往下推。读者正看的那一段不能因此
+    /// 跳走：记下填之前容器的高度，填完之后按高度差把滚动位置补回来。
+    /// 已经在最顶上（滚动量为 0）时不补——那时面板本来就该出现在正文之前。
+    static func setInsightHTML(_ html: String) -> String {
+        """
+        (function () {
+          var slot = document.getElementById('ohnews-insight');
+          if (!slot) { return false; }
+
+          var before = slot.getBoundingClientRect().height;
+          slot.innerHTML = \(quoted(html));
+          var after = slot.getBoundingClientRect().height;
+
+          var delta = after - before;
+          if (delta !== 0 && window.scrollY > 0) {
+            window.scrollTo(0, window.scrollY + delta);
+          }
+          return Math.round(delta);
+        })()
+        """
+    }
+
     /// 收走划选留下的那一条工具条。
     ///
     /// 只认 `.ohnews-toolbar-selection`：高亮里的悬停工具条同样带 `.ohnews-toolbar`，
@@ -1046,14 +1052,14 @@ struct ArticleWebView: NSViewRepresentable {
     var discussionHTML: String?
     /// 需要滚动到的段落。用后由 `AppState` 清掉，避免下次重新渲染又跳。
     var scrollTarget: ReaderHighlight?
-    /// 正文顶部预留的高度，让正文从顶部浮层下边缘开始。
-    var topInset: CGFloat = 0
+    /// 正文顶部那块 AI 解读面板的 HTML。空字符串表示这块不占位置。
+    var insightHTML: String = ""
     /// 要标黄的高亮（段落号 + 选中的原文）。
     var highlights: [ReaderHighlight] = []
     /// 正文字号倍数。
     var fontScale: Double = 1.0
     /// 气泡菜单里点了某一项。高亮与取消高亮都从这里出去。
-    var performBubbleAction: (ReaderBubbleAction) -> Void = { _ in }
+    var performBubbleAction: (ReaderAction) -> Void = { _ in }
     /// 票号变了就请在正文里收一下选区和划选气泡。
     var selectionClearTicket: Int = 0
 
@@ -1076,6 +1082,7 @@ struct ArticleWebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.performBubbleAction = performBubbleAction
         context.coordinator.highlights = highlights
+        context.coordinator.applyInsight(insightHTML, in: webView)
         context.coordinator.clearSelectionIfTicked(selectionClearTicket, in: webView)
 
         let document = ReaderDocumentBuilder.build(
@@ -1083,7 +1090,6 @@ struct ArticleWebView: NSViewRepresentable {
             style: ReaderStyle.css,
             baseURL: baseURL,
             discussionHTML: discussionHTML,
-            topInset: topInset,
             fontScale: fontScale
         )
         guard context.coordinator.loadedDocument != document else {
@@ -1097,6 +1103,8 @@ struct ArticleWebView: NSViewRepresentable {
         context.coordinator.appliedScrollTarget = nil
         // 标记随文档一起没了，清掉记录让 didFinish 重新打一遍。
         context.coordinator.appliedHighlights = []
+        // 新文档里那个容器是空的，要让下一次把面板重新填进去。
+        context.coordinator.invalidateInsight()
         context.coordinator.pendingScrollTarget = scrollTarget
         webView.loadHTMLString(document, baseURL: baseURL)
     }
@@ -1118,9 +1126,11 @@ struct ArticleWebView: NSViewRepresentable {
         /// 已经打上的高亮，用来避免重复跑脚本。
         var appliedHighlights: [ReaderHighlight] = []
         /// 气泡菜单被点中时执行什么。
-        var performBubbleAction: (ReaderBubbleAction) -> Void = { _ in }
+        var performBubbleAction: (ReaderAction) -> Void = { _ in }
         /// 已经处理到哪一张票。
         private var handledSelectionClearTicket = 0
+        /// 已经填进文档的解读面板。没变就不必再写一次（写一次会动滚动位置）。
+        private var appliedInsightHTML: String?
 
         private let interaction = ReaderInteractionController()
 
@@ -1134,6 +1144,21 @@ struct ArticleWebView: NSViewRepresentable {
 
         func uninstallInteraction() {
             interaction.uninstall()
+        }
+
+        /// 文档换了，之前填进去的面板跟着没了，记下这件事。
+        func invalidateInsight() {
+            appliedInsightHTML = nil
+        }
+
+        /// 把解读面板填进文档里预留的空容器。
+        ///
+        /// 面板在文档流里，撑高会把下面的正文往下推——所以脚本会按高度差
+        /// 把滚动位置补回来，读者正看的那一段不会跳走。
+        func applyInsight(_ html: String, in webView: WKWebView) {
+            guard html != appliedInsightHTML else { return }
+            appliedInsightHTML = html
+            webView.evaluateJavaScript(ReaderScript.setInsightHTML(html)) { _, _ in }
         }
 
         /// 票号前进过就收一次选区和工具条。

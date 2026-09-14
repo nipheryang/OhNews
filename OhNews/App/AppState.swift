@@ -1459,7 +1459,7 @@ final class AppState {
     }
 
     /// 气泡菜单里点了某一项。正文里发起的操作都从这里出去。
-    func performBubbleAction(_ action: ReaderBubbleAction, for story: Story) async {
+    func performBubbleAction(_ action: ReaderAction, for story: Story) async {
         switch action.kind {
         case .highlight:
             await savePassage(
@@ -1470,6 +1470,9 @@ final class AppState {
 
         case .unhighlight:
             await removeHighlight(text: action.text, for: story)
+
+        case .regenerateInsight:
+            await regenerateInsight()
         }
 
         // 用过就把气泡和选区一起收掉。蓝色的选中块压在刚变黄的文字上，

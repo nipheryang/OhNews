@@ -22,8 +22,6 @@ public enum ReaderDocumentBuilder {
     }
 
     /// - Parameter discussionHTML: 讨论区段落，已经包含标题与评论树；为 nil 时不渲染。
-    /// - Parameter topInset: 正文顶部预留的高度。阅读器顶部浮着一块固定高度的面板时，
-    ///   用它把正文推开，让内容从面板下边缘开始——滚动时文字就会从面板后面穿过。
     /// - Parameter fontScale: 正文字号倍数。CSS 里除基准外的字号多用 `em`，
     ///   改这一处就能整体缩放；少数写死的 `rem` 不跟着变（它们只是注释时间这类小字）。
     public static func build(
@@ -31,7 +29,6 @@ public enum ReaderDocumentBuilder {
         style: String,
         baseURL: URL? = nil,
         discussionHTML: String? = nil,
-        topInset: CGFloat = 0,
         fontScale: Double = 1.0
     ) -> String {
         var head = """
@@ -45,14 +42,7 @@ public enum ReaderDocumentBuilder {
 
         head += "\n<style>\n\(style)\n</style>"
 
-        // 字号与留白挤在一条规则里：它们都是 `body` 上的覆盖值，分两条
-        // 会互相盖掉，后写的那条赢。
         var overrides: [String] = []
-        if topInset > 0 {
-            // 用 padding 而不是 margin：留白要算在 `body` 自己的高度里，
-            // 否则最后一段容易滑不到面板下方。
-            overrides.append("padding-top: \(Int(topInset))px !important")
-        }
         if fontScale != 1.0 {
             let size = ReaderPreferences.fontSize(for: fontScale)
             // 保留一位小数，整数时不要写成 `17.0px`。
@@ -68,6 +58,9 @@ public enum ReaderDocumentBuilder {
         // 讨论区接在正文之后：读完正文接着看讨论，比另开面板更符合阅读顺序。
         let discussion = discussionHTML.map { "\n<section class=\"comments\">\n\($0)\n</section>" } ?? ""
 
+        // 解读面板的位置先留一个空容器，内容随后由应用侧脚本填进去。
+        // 不在这里直接拼面板，是因为解读总是晚于正文到位——拼进文档就等于重建
+        // 整篇、丢掉阅读位置。留空容器，稍后原地填充即可。
         return """
         <!DOCTYPE html>
         <html lang="zh">
@@ -75,12 +68,24 @@ public enum ReaderDocumentBuilder {
         \(head)
         </head>
         <body>
+        <div id="ohnews-insight"></div>
         <article>
         \(html)
         </article>\(discussion)
         </body>
         </html>
         """
+    }
+
+    /// 把一段纯文本放进 HTML 里。
+    ///
+    /// 解读的文字是模型给的，必须转义后再拼——它可能带着 `<`、`&`，
+    /// 直接拼进去会破坏结构，甚至变成可执行的标记。
+    public static func escapeText(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 
     private static func escapeAttribute(_ value: String) -> String {
