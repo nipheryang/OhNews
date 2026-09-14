@@ -57,7 +57,98 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        Form {
+        NavigationStack {
+            List {
+                ForEach(SettingsPage.allCases) { page in
+                    NavigationLink(value: page) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(page.title)
+                            Text(page.summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("设置")
+            .navigationDestination(for: SettingsPage.self) { page in
+                Form {
+                    switch page {
+                    case .ai: aiSections
+                    case .reading: readingSections
+                    case .data: dataSections
+                    case .about: aboutSections
+                    }
+                }
+                .formStyle(.grouped)
+                .navigationTitle(page.title)
+            }
+        }
+        .frame(width: 540)
+        .frame(minHeight: 560)
+        .preferredColorScheme(preferredScheme)
+        .task {
+            load()
+        }
+        .alert("清空回收站？", isPresented: $isConfirmingEmptyTrash) {
+            Button("清空", role: .destructive) { Task { await state.emptyTrash() } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("回收站里的条目会连同离线存档一起删除，之后无法找回。")
+        }
+        .alert("删除全部离线存档？", isPresented: $isConfirmingClearArchives) {
+            Button("删除", role: .destructive) { Task { await state.clearArchives() } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("星标、稍后读与收藏夹会保留，但它们的正文、译文与讨论区副本会被清空，下次打开需要重新获取（译文可能已失效）。")
+        }
+        .alert("删除缓存？", isPresented: $isConfirmingClearCache) {
+            Button("删除", role: .destructive) { Task { await state.clearCache() } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("已缓存的内容、已读记录与 AI 摘要会被清空，下次打开会重新抓取。订阅配置会保留。")
+        }
+    }
+
+    private var presetHint: String {
+        config.preset.hint
+    }
+    @ViewBuilder
+    private var keyHint: some View {
+        switch keyState {
+        case .present:
+            Text("已保存在系统钥匙串；留空并保存会删除已存的密钥。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .missing:
+            Text("密钥只写入系统钥匙串，不会进入配置文件或日志。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .unreadable(let reason):
+            Label(reason, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+    private var summaryScopeHint: String {
+        switch summaryScope {
+        case .leadingItems:
+            "自动为列表最前面 \(SummaryPreferences.automaticLimit) 条生成摘要；其余条目可在列表里右键按需生成。"
+        case .allItems:
+            "自动为列表中所有条目生成摘要。列表条数越多，AI 调用成本越高。"
+        case .manual:
+            "不自动生成。在列表里右键任意条目，选择「生成 AI 摘要」。"
+        }
+    }
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
+    }
+
+    // MARK: - 四个分组的内容
+
+    @ViewBuilder
+    private var aiSections: some View {
             Section {
                 Toggle("启用 AI 摘要", isOn: $config.isEnabled)
             } header: {
@@ -181,6 +272,10 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+    }
+
+    @ViewBuilder
+    private var readingSections: some View {
             Section("阅读") {
                 // 在设置里看不到正文，所以配一行预览。字号只影响正文，
                 // 列表的密度是版式的一部分，不跟着变。
@@ -243,6 +338,10 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+    }
+
+    @ViewBuilder
+    private var dataSections: some View {
             Section("离线存档") {
                 LabeledContent("占用") {
                     Text(state.archiveSizeText)
@@ -310,6 +409,10 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+    }
+
+    @ViewBuilder
+    private var aboutSections: some View {
             Section("关于") {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("OhNews")
@@ -347,97 +450,32 @@ struct SettingsView: View {
                 }
             }
 
-        }
-        .formStyle(.grouped)
-        .frame(width: 540)
-        .frame(minHeight: 520)
-        .preferredColorScheme(preferredScheme)
-        .task {
-            load()
-            await state.refreshCacheSize()
-            await state.refreshArchiveSize()
-        }
-        .confirmationDialog(
-            "清空回收站？",
-            isPresented: $isConfirmingEmptyTrash,
-            actions: {
-                Button("清空", role: .destructive) {
-                    Task { await state.emptyTrash() }
-                }
-                Button("取消", role: .cancel) {}
-            },
-            message: {
-                Text("回收站里的条目会连同离线存档一起删除，之后无法找回。")
+    }
+
+    private enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
+        case ai, reading, data, about
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .ai: "AI"
+            case .reading: "阅读与外观"
+            case .data: "本地数据"
+            case .about: "关于"
             }
-        )
+        }
 
-        .confirmationDialog(
-            "删除全部存档？",
-            isPresented: $isConfirmingClearArchives
-        ) {
-            Button("删除", role: .destructive) {
-                Task { await state.clearArchives() }
+        /// 一级列表里那行小字：iOS 设置的做法，先把当前状态说清楚，再决定进不进去。
+        var summary: String {
+            switch self {
+            case .ai: "供应商、密钥、模型，以及摘要与正文解读"
+            case .reading: "正文字号、列表条数、主题"
+            case .data: "离线存档、缓存、回收站"
+            case .about: "版本、更新、开源许可"
             }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("星标、稍后读与收藏夹会保留，但它们的正文、译文与讨论区副本会被清空，下次打开需要重新获取（译文可能已失效）。")
-        }
-        .confirmationDialog(
-            "删除全部缓存？",
-            isPresented: $isConfirmingClearCache
-        ) {
-            Button("删除", role: .destructive) {
-                Task { await state.clearCache() }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("已缓存的内容、已读记录与 AI 摘要会被清空，下次打开会重新抓取。订阅配置会保留。")
         }
     }
-
-    private var summaryScopeHint: String {
-        switch summaryScope {
-        case .leadingItems:
-            "自动为列表最前面 \(SummaryPreferences.automaticLimit) 条生成摘要；其余条目可在列表里右键按需生成。"
-        case .allItems:
-            "自动为列表中所有条目生成摘要。列表条数越多，AI 调用成本越高。"
-        case .manual:
-            "不自动生成。在列表里右键任意条目，选择「生成 AI 摘要」。"
-        }
-    }
-
-    private var presetHint: String {
-        config.preset.hint
-    }
-
-    /// 密钥状态说明。
-    ///
-    /// 关键是区分「没存过」与「存了但读不到」：后者常见于重新构建后应用签名变化、
-    /// 钥匙串授权失效。以前两种都显示「还没有保存密钥」，用户会以为自己的密钥丢了。
-    @ViewBuilder
-    private var keyHint: some View {
-        switch keyState {
-        case .present:
-            Text("已保存在系统钥匙串；留空并保存会删除已存的密钥。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        case .missing:
-            Text("密钥只写入系统钥匙串，不会进入配置文件或日志。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        case .unreadable(let reason):
-            Label(reason, systemImage: "exclamationmark.triangle")
-                .font(.caption)
-                .foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// 版本号来自 app bundle，避免与工程里的 `MARKETING_VERSION` 漂移。
-    private var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
-    }
-
     private func load() {
         guard isLoaded == false else { return }
         config = state.config
