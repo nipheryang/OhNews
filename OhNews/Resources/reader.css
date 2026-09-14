@@ -373,35 +373,26 @@ details[open] > .comment-head::before { content: "▾"; }
        ② 顶边一道亮线 + 一层从上压下来的柔光（光源在上方）；
        ③ 与纸色**略有差别**的底色（带一点冷调），让它看着是"一层东西"；
        ④ 投影——低、软、宽。材质感的一半来自影子。 */
-  background:
-    /* ② 光泽：光源在左上方时的柔光。压在底色之上、文字之下，
-          写在 background 层里而不是用 ::after 盖——盖上去会把眉标冲淡。
+  /* 没有任何光效：没有柔光渐变、没有顶边亮线。
+     用户明确不要"边缘发光"那种东西——真玻璃上你看到的是它的边和影子，
+     不是它表面在发光。
 
-          它同时承担了"看得出是玻璃"这件事：底色已经很淡了，
-          全靠这层从左上到右下的明暗变化，才不像一块平色。 */
-    radial-gradient(130% 80% at 10% -12%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 62%),
-    linear-gradient(168deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 50%),
-    /* ③ 底色：只比纸色凉一点点。
-
-          这里一度写成偏灰的 rgba(243,246,250,.66)，边界是清楚了，
-          但整块读起来像一张浮起来的灰卡片，不是毛玻璃。
-          毛玻璃的"雾"应当几乎融进纸里，靠边缘与光泽去交代它是一层东西。
-          0.55 的不透明度也贴近系统那些 ultraThin 材质的浓度。 */
-    rgba(248, 250, 252, 0.55);
-  -webkit-backdrop-filter: blur(30px) saturate(150%);
-  backdrop-filter: blur(30px) saturate(150%);
+     于是这块玻璃只剩三样东西：
+       ① 一层尽量透明的底色（比纸色凉一丝，只是让它有个"面"）；
+       ② 一圈极淡的**暗**发丝线——是暗线，不是亮线，暗线不发光；
+       ③ 一层贴地的柔影。
+     再加 `backdrop-filter` 的模糊。模糊在这里其实无事可做（背后永远是纸色），
+     留着是为了"正文从后面滑过"的那种场合，以及语义上的正确。 */
+  background: rgba(249, 250, 252, 0.42);
+  -webkit-backdrop-filter: blur(34px) saturate(130%);
+  backdrop-filter: blur(34px) saturate(130%);
   box-shadow:
-    /* ② 顶边的亮线 */
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    /* ① 一圈极淡的暗发丝线：白底上的分界只能靠暗线，但要比上一版轻 */
-    inset 0 0 0 1px rgba(15, 23, 42, 0.04),
-    /* 底边一点几乎看不见的暗 */
-    inset 0 -1px 0 rgba(15, 23, 42, 0.02),
-    /* ④ 投影：压低、收窄。上一版三层大阴影把面板推得太高，
-          毛玻璃应当贴在纸面上，只是"有一层"。 */
-    0 1px 1px rgba(15, 23, 42, 0.03),
-    0 6px 16px -6px rgba(15, 23, 42, 0.07),
-    0 16px 32px -16px rgba(15, 23, 42, 0.06);
+    /* ② 只留一圈暗线。白底上靠它交代边界，而不是靠光 */
+    inset 0 0 0 1px rgba(15, 23, 42, 0.035),
+    /* ③ 影子：一道贴地 + 两层收窄。不抬高，只是"有一层" */
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 8px 20px -8px rgba(15, 23, 42, 0.07),
+    0 18px 36px -20px rgba(15, 23, 42, 0.05);
 }
 
 .ohnews-insight-head {
@@ -732,23 +723,23 @@ mark.ohnews-highlight.ohnews-highlight-flash,
     background-color: rgba(var(--ohnews-highlight-rgb), 0.42);
   }
 
-  /* 深色下玻璃读得出来，是因为亮边在暗底上对比明显——所以这里反过来做：
-     描边用亮线，光泽压得更亮，底色比纸色略浅一点（像被提亮了一层）。
-     与亮色同一套思路：底色淡、光泽轻、投影压得住。 */
+  /* 深色与亮色同一套，只有一处方向相反要说清楚：
+
+     上一版这里用了一圈**白色**描边和一条白色顶线（"亮边在暗底上对比明显"），
+     用户看到的就是"边缘有光效"，明确要求去掉。深色下改成**暗线**——
+     比纸色更暗的一圈，同样能交代边界，但它不发光。
+
+     底色也只是极淡地提一点（0.045 的白），够让这块面从深色纸里分出来，
+     不再是"被照亮的一层"。 */
   .ohnews-insight {
-    background:
-      radial-gradient(130% 80% at 10% -12%, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0) 64%),
-      linear-gradient(168deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 50%),
-      rgba(30, 35, 44, 0.5);
-    -webkit-backdrop-filter: blur(30px) saturate(150%) brightness(1.05);
-    backdrop-filter: blur(30px) saturate(150%) brightness(1.05);
+    background: rgba(255, 255, 255, 0.045);
+    -webkit-backdrop-filter: blur(34px) saturate(130%);
+    backdrop-filter: blur(34px) saturate(130%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.13),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.07),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.32),
       0 1px 2px rgba(0, 0, 0, 0.3),
-      0 10px 24px -10px rgba(0, 0, 0, 0.4),
-      0 20px 40px -20px rgba(0, 0, 0, 0.3);
+      0 10px 24px -10px rgba(0, 0, 0, 0.42),
+      0 20px 40px -20px rgba(0, 0, 0, 0.28);
   }
 
   .ohnews-insight-eyebrow,
