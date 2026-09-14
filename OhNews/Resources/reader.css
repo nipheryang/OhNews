@@ -582,7 +582,12 @@ mark.ohnews-highlight:hover,
 .ohnews-bubble .ohnews-toolbar {
   opacity: 0;
   visibility: hidden;
-  transition: opacity 120ms ease, visibility 0s linear 120ms;
+  /* 隐藏**延迟 400ms**，显示不延迟。
+     这一段是"宽限期"：鼠标从句子移向工具条要花时间，途中会短暂离开高亮范围。
+     原先只留 120ms，于是长句、或工具条离鼠标较远时，鼠标还没走到它就收了——
+     用户报的正是这个。400ms 足够从容走过去，又短到不显得黏。
+     （工具条下沿另有一块透明"桥"接住缝隙，两者一起保证移过去的路上不会闪。） */
+  transition: opacity 140ms ease, visibility 0s linear 400ms;
 }
 
 mark.ohnews-highlight:hover .ohnews-bubble .ohnews-toolbar,
