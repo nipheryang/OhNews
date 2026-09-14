@@ -155,6 +155,11 @@ final class AppState {
 
     /// 正文解读的状态。
     private(set) var insightState: InsightState = .unavailable
+    /// 阅读器里那份正文属于哪一条；正文还没落定时为 nil。
+    ///
+    /// 两个用处：别拿上一条的正文去生成解读；以及正文确定取不到时
+    /// （付费墙、只登得进去的站），把一直在转的面板收掉。
+    private var articleBodyStoryID: String?
 
     /// 是否在打开正文后自动生成解读。
     private(set) var insightEnabled = true
@@ -758,10 +763,23 @@ final class AppState {
         archivedDiscussionHTML = nil
 
         // 解读也跟着换。
+        //
+        // 这里直接进「生成中」，而不是「没有解读」：面板要在正文开始加载的
+        // 那一刻就站在原地，动效在原地跑。等正文与讨论区都到齐才让它出现，
+        // 读者看到的是内容"闪"出来，而不是一开始就有一块正在生成的面板。
+        //
+        // AI 没配好就照旧不占位置——那种情况下它永远不会来，留个空盒子更糟。
         insightTask?.cancel()
         insightTask = nil
         insightItemID = nil
-        insightState = .unavailable
+        insightState = canGenerateInsight ? .generating : .unavailable
+    }
+
+    /// 有没有可能生成解读：开关开着，且 AI 配好了。
+    ///
+    /// 只用于决定面板要不要提前站位。真正能不能生成由拿到正文后见分晓。
+    private var canGenerateInsight: Bool {
+        insightEnabled && aiConfiguration == .ready
     }
 
     // MARK: - 翻译
@@ -929,6 +947,19 @@ final class AppState {
     }
 
     private func loadArticle(for story: Story, ignoringArchive: Bool = false) async {
+        // 正文落定之前，阅读器里留着的还是上一条的内容。
+        articleBodyStoryID = nil
+        await loadArticleBody(for: story, ignoringArchive: ignoringArchive)
+
+        guard selectedStoryID == story.id, Task.isCancelled == false else { return }
+        articleBodyStoryID = story.id
+        // 正文落定（哪怕是"取不到"）之后再看一次能不能生成解读。
+        // 入口收在这里，`loadArticleBody` 的半途返回才不会漏掉这一步——
+        // 付费墙这类站正文取不到，面板不能一直转。
+        await generateInsightIfReady(for: story)
+    }
+
+    private func loadArticleBody(for story: Story, ignoringArchive: Bool) async {
         // 归档过的内容直接读本地存档：不联网、不等待。这同时保证正文里的
         // 段落编号（`p-<n>`）与标记高亮时一模一样，高亮的跳转与标黄不会错位。
         // 「重新抓取」显式跳过这一段。
@@ -984,8 +1015,6 @@ final class AppState {
 
         // 正文到了，如果这条已经被收藏、而当时只存下元数据，现在补上。
         await refreshArchiveIfSaved(for: story)
-        // 正文就位，看看能不能开始生成解读。
-        await generateInsightIfReady(for: story)
     }
 
     /// 取评论树。按条目所属源选择 provider；不支持评论的来源返回 nil。
@@ -1313,7 +1342,14 @@ final class AppState {
         // 已经有了就别再跑一遍（存档带进来的解读也走这条）：
         // 即便缓存能命中，中间那次状态切换也会让界面闪一下。
         if case .ready = insightState { return }
-        guard let articleHTML = insightArticleHTML else { return }
+        guard let articleHTML = insightArticleHTML else {
+            // 正文还没落定就先等——不能因为讨论区先到就把面板收掉。
+            guard articleBodyStoryID == selectedStoryID else { return }
+            // 正文落定了却没有内容（付费墙、只登得进去的站）：这份解读没有原料，
+            // 面板不能一直转。收掉不占位，比留个转个不停的盒子诚实。
+            insightState = .unavailable
+            return
+        }
         // 讨论区还在加载就先等：这份解读有一半是讲评论的，早生成会得到一份
         // 没有讨论区的结果，之后还得再生成一次。
         guard commentsState != .loading else { return }
@@ -1378,7 +1414,12 @@ final class AppState {
     ///
     /// 用原文而不是译文：解读本身就是中文，不必先翻一遍，也不依赖翻译是否完成。
     private var insightArticleHTML: String? {
-        switch readerState {
+        // 正文必须属于当前这一条。换文章时 `readerState` 还留着上一条的内容，
+        // 只认它会把上一条的正文当成这一条的——讨论区先到的时候就会发生。
+        guard articleBodyStoryID == selectedStoryID else { return nil }
+        // 前面那句 guard 一加，这个 switch 就不再是函数体里唯一的表达式，
+        // 隐式返回随之失效——必须写 return。
+        return switch readerState {
         case .article(let article):
             article.html.isEmpty ? nil : article.html
         case .selfPost(let html):

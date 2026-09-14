@@ -1082,6 +1082,7 @@ struct ArticleWebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.performBubbleAction = performBubbleAction
         context.coordinator.highlights = highlights
+        context.coordinator.insightHTML = insightHTML
         context.coordinator.applyInsight(insightHTML, in: webView)
         context.coordinator.clearSelectionIfTicked(selectionClearTicket, in: webView)
 
@@ -1131,6 +1132,8 @@ struct ArticleWebView: NSViewRepresentable {
         private var handledSelectionClearTicket = 0
         /// 已经填进文档的解读面板。没变就不必再写一次（写一次会动滚动位置）。
         private var appliedInsightHTML: String?
+        /// 当前该填进文档的面板 HTML。文档加载完成时要靠它重填。
+        var insightHTML: String = ""
 
         private let interaction = ReaderInteractionController()
 
@@ -1155,8 +1158,11 @@ struct ArticleWebView: NSViewRepresentable {
         ///
         /// 面板在文档流里，撑高会把下面的正文往下推——所以脚本会按高度差
         /// 把滚动位置补回来，读者正看的那一段不会跳走。
-        func applyInsight(_ html: String, in webView: WKWebView) {
-            guard html != appliedInsightHTML else { return }
+        ///
+        /// - Parameter force: 新文档里那个容器是空的，必须在 `didFinish` 里重填一次
+        ///   （那里绕开去重）。平时的调用要去重，否则状态每变一次就把面板重写一遍。
+        func applyInsight(_ html: String, in webView: WKWebView, force: Bool = false) {
+            guard force || html != appliedInsightHTML else { return }
             appliedInsightHTML = html
             webView.evaluateJavaScript(ReaderScript.setInsightHTML(html)) { _, _ in }
         }
@@ -1170,6 +1176,14 @@ struct ArticleWebView: NSViewRepresentable {
 
         /// 文档加载完成：先给段落编号，标黄，再做挂起的跳转。
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // 面板要在这里填回去。
+            //
+            // `updateNSView` 那次调用跑在 `loadHTMLString` 之前，推给的是上一份文档；
+            // 新文档里的容器是空的。少了这一句，读者要等到解读生成完、状态再变一次
+            // 才看得见面板——表现就是内容"闪"出来，而不是一开始就有一块正在生成的盒子。
+            // 放在最前面：面板会把正文往下推，先定下文档高度再处理跳转。
+            applyInsight(insightHTML, in: webView, force: true)
+
             webView.evaluateJavaScript(ReaderScript.tagParagraphs) { _, _ in
                 // 编号出来了才找得到段落，标记必须排在后面。
                 self.applyHighlights(self.highlights, in: webView, force: true)
