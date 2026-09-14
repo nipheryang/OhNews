@@ -241,7 +241,7 @@ struct StoryDetailView: View {
             discussionHTML: state.displayDiscussionHTML,
             scrollTarget: target,
             topInset: inset,
-            highlightedParagraphs: state.highlightedParagraphs(for: story),
+            highlights: state.highlights(for: story),
             fontScale: state.readerFontScale,
             contextMenuItems: { readerContextMenu(for: story) }
         )
@@ -524,6 +524,14 @@ private struct TranslationGlyph: View {
 /// 阅读视图关闭了页面脚本，但应用侧 `evaluateJavaScript` 不受这个开关限制：
 /// 用它注入段落编号、读取选区。选区读取需要连同所在段落的编号一起拿到，
 /// 所以两段脚本都写成自执行函数并返回一个值。
+/// 一条高亮：段落序号 + 当时选中的原文。
+///
+/// 光有段落号只能整段上色，而要标的是选中那一截，所以连文字一起带上。
+struct ReaderHighlight: Equatable, Sendable {
+    let paragraphIndex: Int
+    let text: String
+}
+
 enum ReaderScript {
     /// 给正文的块级元素按 DOM 顺序挂上 `p-<序号>`。
     ///
@@ -563,28 +571,89 @@ enum ReaderScript {
     })()
     """
 
-    /// 给高亮的段落打上标记类，其余段落先清掉。
+    /// 在段落里定位选中的那段文字，只把它包起来。
     ///
-    /// 只加 class 不动节点结构：段落号 `p-<序号>` 是按 DOM 顺序生成的，
-    /// 包裹一层元素会让序号错位，之前的跳转就指到别处了。
-    static func markHighlights(_ indexes: [Int]) -> String {
-        let list = indexes.map(String.init).joined(separator: ",")
+    /// 先拆掉上一次的标记并合并文本节点——不还原就直接再标，
+    /// 第二次会在被拆碎的节点里找不全原文。
+    ///
+    /// 找不到原文（文章重新抓取过、选中的是跨节点的片段）时整段上色：
+    /// 宁可标大了，也比让它默默消失强。
+    static func markHighlights(_ highlights: [ReaderHighlight]) -> String {
+        let payload = highlights.map { ["index": $0.paragraphIndex, "text": $0.text] as [String: Any] }
+        let json = (try? JSONSerialization.data(withJSONObject: payload))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            ?? "[]"
+
         return """
         (function () {
-          var marked = document.querySelectorAll('.ohnews-highlight');
-          for (var i = 0; i < marked.length; i++) {
-            marked[i].classList.remove('ohnews-highlight');
-          }
-          var wanted = [\(list)];
-          var count = 0;
-          for (var j = 0; j < wanted.length; j++) {
-            var block = document.getElementById('p-' + wanted[j]);
-            if (block) {
-              block.classList.add('ohnews-highlight');
-              count++;
+          var wanted = \(json);
+
+          function unwrapAll() {
+            var old = document.querySelectorAll('mark.ohnews-highlight, .ohnews-highlight');
+            for (var i = 0; i < old.length; i++) {
+              var el = old[i];
+              var parent = el.parentNode;
+              if (!parent) { continue; }
+              if (el.tagName === 'MARK') {
+                while (el.firstChild) { parent.insertBefore(el.firstChild, el); }
+                parent.removeChild(el);
+              } else {
+                el.classList.remove('ohnews-highlight');
+              }
+              parent.normalize();
             }
           }
-          return count;
+
+          // 把 [from, to) 这一段文字包进 mark，可能跨多个文本节点。
+          function wrapRange(block, needle) {
+            var texts = [];
+            var walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null);
+            var node;
+            while ((node = walker.nextNode())) { texts.push(node); }
+
+            var starts = [];
+            var full = '';
+            for (var i = 0; i < texts.length; i++) {
+              starts.push(full.length);
+              full += texts[i].nodeValue;
+            }
+
+            var at = full.indexOf(needle);
+            if (at < 0) { return false; }
+            var end = at + needle.length;
+
+            // 从后往前切：splitText 会把后面的节点挪位，倒着处理才不会乱。
+            for (var k = texts.length - 1; k >= 0; k--) {
+              var from = starts[k];
+              var to = from + texts[k].nodeValue.length;
+              var lo = Math.max(at, from);
+              var hi = Math.min(end, to);
+              if (lo >= hi) { continue; }
+
+              var piece = texts[k].splitText(lo - from);
+              piece.splitText(hi - lo);
+
+              var mark = document.createElement('mark');
+              mark.className = 'ohnews-highlight';
+              piece.parentNode.insertBefore(mark, piece);
+              mark.appendChild(piece);
+            }
+            return true;
+          }
+
+          unwrapAll();
+
+          var whole = 0;
+          for (var j = 0; j < wanted.length; j++) {
+            var item = wanted[j];
+            var block = document.getElementById('p-' + item.index);
+            if (!block) { continue; }
+            if (!wrapRange(block, item.text)) {
+              block.classList.add('ohnews-highlight');
+              whole++;
+            }
+          }
+          return whole;
         })()
         """
     }
@@ -627,8 +696,8 @@ struct ArticleWebView: NSViewRepresentable {
     var scrollTarget: Int?
     /// 正文顶部预留的高度，让正文从顶部浮层下边缘开始。
     var topInset: CGFloat = 0
-    /// 需要标黄的段落编号（高亮）。
-    var highlightedParagraphs: [Int] = []
+    /// 要标黄的高亮（段落号 + 选中的原文）。
+    var highlights: [ReaderHighlight] = []
     /// 正文字号倍数。
     var fontScale: Double = 1.0
     /// 正文右键菜单里的项。返回空数组时，正文里右键什么也不发生。
@@ -664,7 +733,7 @@ struct ArticleWebView: NSViewRepresentable {
         )
         guard context.coordinator.loadedDocument != document else {
             // 文档没变。高亮是后加的标记，不需要重新加载整篇就能更新。
-            context.coordinator.applyHighlights(highlightedParagraphs, in: webView)
+            context.coordinator.applyHighlights(highlights, in: webView)
             context.coordinator.scrollIfNeeded(in: webView, target: scrollTarget)
             return
         }
@@ -673,7 +742,7 @@ struct ArticleWebView: NSViewRepresentable {
         context.coordinator.appliedScrollTarget = nil
         // 标记随文档一起没了，清掉记录让 didFinish 重新打一遍。
         context.coordinator.appliedHighlights = []
-        context.coordinator.highlightedParagraphs = highlightedParagraphs
+        context.coordinator.highlights = highlights
         context.coordinator.pendingScrollTarget = scrollTarget
         webView.loadHTMLString(document, baseURL: baseURL)
     }
@@ -690,10 +759,10 @@ struct ArticleWebView: NSViewRepresentable {
         var pendingScrollTarget: Int?
         /// 已经跳过的位置，用来避免重复触发。
         var appliedScrollTarget: Int?
-        /// 当前要标黄的段落。文档重载后由 `didFinish` 重新打一遍。
-        var highlightedParagraphs: [Int] = []
+        /// 当前要高亮的文段。文档重载后由 `didFinish` 重新打一遍。
+        var highlights: [ReaderHighlight] = []
         /// 已经打上的高亮，用来避免重复跑脚本。
-        var appliedHighlights: [Int] = []
+        var appliedHighlights: [ReaderHighlight] = []
 
         private let contextMenu = ReaderContextMenuController()
 
@@ -716,24 +785,24 @@ struct ArticleWebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             webView.evaluateJavaScript(ReaderScript.tagParagraphs) { _, _ in
                 // 编号出来了才找得到段落，标记必须排在后面。
-                self.applyHighlights(self.highlightedParagraphs, in: webView, force: true)
+                self.applyHighlights(self.highlights, in: webView, force: true)
                 guard let target = self.pendingScrollTarget else { return }
                 self.pendingScrollTarget = nil
                 self.scrollIfNeeded(in: webView, target: target)
             }
         }
 
-        /// 给高亮段落打标记。重复调用无副作用，脚本自己会先清旧的。
+        /// 给高亮打标记。重复调用无副作用，脚本自己会先拆掉旧的。
         func applyHighlights(
-            _ indexes: [Int],
+            _ marks: [ReaderHighlight],
             in webView: WKWebView,
             force: Bool = false
         ) {
-            let sorted = indexes.sorted()
-            highlightedParagraphs = sorted
-            guard force || sorted != appliedHighlights else { return }
-            appliedHighlights = sorted
-            webView.evaluateJavaScript(ReaderScript.markHighlights(sorted)) { _, _ in }
+            let ordered = marks.sorted { $0.paragraphIndex < $1.paragraphIndex }
+            highlights = ordered
+            guard force || ordered != appliedHighlights else { return }
+            appliedHighlights = ordered
+            webView.evaluateJavaScript(ReaderScript.markHighlights(ordered)) { _, _ in }
         }
 
         func scrollIfNeeded(in webView: WKWebView, target: Int?) {

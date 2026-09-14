@@ -1442,15 +1442,15 @@ final class AppState {
         return saved
     }
 
-    /// 当前文章里被高亮的段落编号，交给阅读器标黄。
+    /// 当前文章里的高亮，交给阅读器标黄。
     ///
     /// 编号按 DOM 顺序生成，只在一次渲染内有效；所以换了文章、或者重新渲染过
-    /// 正文之后，编号会重新算。只认得下段落的那些高亮（序号为 -1 的丢掉），
-    /// 宁可不高亮也不标到别的段上。
-    func highlightedParagraphs(for story: Story) -> [Int] {
+    /// 正文之后，编号会重新算。没定位到段落的高亮（序号为 -1）丢掉——
+    /// 标到别的段上比不标更糟。
+    func highlights(for story: Story) -> [ReaderHighlight] {
         passageItems
             .filter { $0.itemID == story.id && $0.paragraphIndex >= 0 }
-            .map(\.paragraphIndex)
+            .map { ReaderHighlight(paragraphIndex: $0.paragraphIndex, text: $0.text) }
     }
 
     // MARK: - 轻提示
