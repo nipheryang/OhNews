@@ -386,6 +386,29 @@ details[open] > .comment-head::before { content: "▾"; }
   padding: 0 20px 18px;
 }
 
+/* 滚动条收成一根细条。面板是玻璃盒子，系统那条不管粗细都压在玻璃边缘上，显脏；
+   杂志风里该出现的"线"只有发丝线一种。
+
+   代价要写下来：一旦设了 ::-webkit-scrollbar，WebKit 就放弃 overlay 行为，
+   这条会一直占住 5px 宽度（系统默认那种是滚动时才浮出来、不占位）。
+   面板内边距留了 20px，占这 5px 不影响阅读，换来的是它不再跟系统外观跑。 */
+.ohnews-insight-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ohnews-insight-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ohnews-insight-body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: rgba(17, 24, 39, 0.16);
+}
+
+.ohnews-insight-body::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(17, 24, 39, 0.32);
+}
+
 .ohnews-insight-eyebrow {
   font-size: 12px;
   letter-spacing: 1.6px;
@@ -405,6 +428,14 @@ details[open] > .comment-head::before { content: "▾"; }
 
 .ohnews-insight-action:hover {
   color: #111827;
+}
+
+/* 生成中的状态字。占「重新生成」那一格，但不是可点元素：不给指针、也不给 hover，
+   否则会被读成"可以点一下催它"。 */
+.ohnews-insight-status {
+  margin-left: auto;
+  font-size: 13px;
+  color: #9ca3af;
 }
 
 .ohnews-insight p {
@@ -442,6 +473,44 @@ details[open] > .comment-head::before { content: "▾"; }
   font-size: 14px;
   line-height: 1.7;
   color: #4b5563;
+}
+
+/* 生成中：几根发丝线占住解读将要在的位置，一条柔光从左扫到右。
+
+   为什么不用转圈或三点跳动：面板是纸的一部分，转圈是屏幕的东西。
+   线高与间距照着正文行高定，长度逐条递减——像一段正在排的字，
+   而不是一排等长的进度条。柔光走 background-position，不动布局、不重绘文字。 */
+.ohnews-insight-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 3px 0 4px;
+}
+
+.ohnews-insight-skeleton span {
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  background-color: rgba(17, 24, 39, 0.07);
+  background-image: linear-gradient(
+    90deg,
+    rgba(17, 24, 39, 0) 0%,
+    rgba(17, 24, 39, 0.13) 50%,
+    rgba(17, 24, 39, 0) 100%
+  );
+  background-size: 42% 100%;
+  background-repeat: no-repeat;
+  animation: ohnews-insight-shimmer 1.9s ease-in-out infinite;
+}
+
+.ohnews-insight-skeleton span:nth-child(1) { width: 100%; }
+.ohnews-insight-skeleton span:nth-child(2) { width: 88%; }
+.ohnews-insight-skeleton span:nth-child(3) { width: 74%; animation-delay: -0.16s; }
+.ohnews-insight-skeleton span:nth-child(4) { width: 52%; animation-delay: -0.32s; }
+
+@keyframes ohnews-insight-shimmer {
+  0% { background-position: -50% 0; }
+  100% { background-position: 150% 0; }
 }
 
 /* ---------- 高亮 ---------- */
@@ -649,6 +718,28 @@ mark.ohnews-highlight.ohnews-highlight-flash,
     color: #9ca3af;
   }
 
+  .ohnews-insight-status {
+    color: #6b7280;
+  }
+
+  .ohnews-insight-body::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .ohnews-insight-body::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .ohnews-insight-skeleton span {
+    background-color: rgba(255, 255, 255, 0.08);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.13) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  }
+
   .ohnews-toolbar {
     background: rgba(22, 26, 34, 0.6);
     box-shadow:
@@ -704,5 +795,11 @@ mark.ohnews-highlight.ohnews-highlight-flash,
   mark.ohnews-highlight.ohnews-highlight-flash,
   .ohnews-highlight.ohnews-highlight-flash {
     animation: none;
+  }
+
+  /* 扫光停掉，线留着——"正在生成"这件事靠线本身与状态字已经说清楚了。 */
+  .ohnews-insight-skeleton span {
+    animation: none;
+    background-image: none;
   }
 }

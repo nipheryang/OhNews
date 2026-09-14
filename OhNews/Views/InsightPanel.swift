@@ -20,10 +20,19 @@ enum InsightPanel {
             return ""
 
         case .generating:
-            return shell(body: #"<p class="ohnews-insight-note">正在读正文与评论区…</p>"#)
+            // 生成中不留白：几根发丝线占住解读将要在的位置，一条柔光从左扫到右。
+            // 线的条数与间距照着解读的样子定，等解读到位时下方内容挪动很小。
+            return shell(
+                body: """
+                <div class="ohnews-insight-skeleton">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+                """,
+                trailing: #"<span class="ohnews-insight-status">正在精读正文与讨论区…</span>"#
+            )
 
         case .ready(let insight):
-            return shell(body: content(for: insight), showsRegenerate: true)
+            return shell(body: content(for: insight), trailing: regenerate)
 
         case .failed(let message):
             return shell(body: """
@@ -36,23 +45,23 @@ enum InsightPanel {
 
     // MARK: - 组装
 
-    private static func shell(body: String, showsRegenerate: Bool = false) -> String {
-        // 「重新生成」是页面上的可点元素，命中判定与高亮工具条共用一条路径
-        // （应用侧认 data-ohnews-action）。
-        let action = showsRegenerate
-            ? """
-              <span class="ohnews-insight-action" data-ohnews-action="regenerateInsight" \
-              title="忽略缓存，让模型重新读一遍">重新生成</span>
-              """
-            : ""
+    /// 「重新生成」是页面上的可点元素，命中判定与高亮工具条共用一条路径
+    /// （应用侧认 `data-ohnews-action`）。
+    private static let regenerate = """
+    <span class="ohnews-insight-action" data-ohnews-action="regenerateInsight" \
+    title="忽略缓存，让模型重新读一遍">重新生成</span>
+    """
 
+    /// - Parameter trailing: 眉标右侧那一格：生成中是状态字，解读到位后是「重新生成」。
+    ///   读取中与失败时留空。
+    private static func shell(body: String, trailing: String = "") -> String {
         // 内容单独包一层：面板是个上限固定的盒子，只有这一层滚，
         // 眉标与「重新生成」钉在顶上——滚到底也要找得到那个按钮。
         return """
         <div class="ohnews-insight">
           <div class="ohnews-insight-head">
             <span class="ohnews-insight-eyebrow">AI 解读</span>
-            \(action)
+            \(trailing)
           </div>
           <div class="ohnews-insight-body">
           \(body)
