@@ -194,4 +194,41 @@ struct ReaderDocumentBuilderTests {
         )
         #expect(document.contains("padding-top") == false)
     }
+
+    @Test func omitsFontSizeAtDefaultScale() {
+        let document = ReaderDocumentBuilder.build(html: "<p>x</p>", style: "p{}")
+        #expect(document.contains("font-size") == false)
+    }
+
+    @Test func injectsFontSize() {
+        let document = ReaderDocumentBuilder.build(
+            html: "<p>x</p>",
+            style: "p{}",
+            fontScale: 1.5
+        )
+        // 17 × 1.5 = 25.5，非整数时保留一位小数。
+        #expect(document.contains("font-size: 25.5px !important"))
+    }
+
+    @Test func combinesFontSizeWithTopInsetInOneRule() {
+        let document = ReaderDocumentBuilder.build(
+            html: "<p>x</p>",
+            style: "p{}",
+            topInset: 236,
+            fontScale: 1.2
+        )
+        // 分成两条规则会互相盖掉，必须合在一条里。
+        #expect(document.contains("padding-top: 236px !important"))
+        #expect(document.contains("font-size: 20.4px !important"))
+        #expect(document.components(separatedBy: "body {").count == 2)
+    }
+
+    @Test func writesFontSizeWithoutDecimalPointWhenWhole() {
+        let document = ReaderDocumentBuilder.build(
+            html: "<p>x</p>",
+            style: "p{}",
+            fontScale: 20.0 / ReaderPreferences.baseFontSize
+        )
+        #expect(document.contains("font-size: 20px !important"))
+    }
 }

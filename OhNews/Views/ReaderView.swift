@@ -242,6 +242,7 @@ struct StoryDetailView: View {
             scrollTarget: target,
             topInset: inset,
             highlightedParagraphs: state.highlightedParagraphs(for: story),
+            fontScale: state.readerFontScale,
             contextMenuItems: { readerContextMenu(for: story) }
         )
     }
@@ -628,6 +629,8 @@ struct ArticleWebView: NSViewRepresentable {
     var topInset: CGFloat = 0
     /// 需要标黄的段落编号（高亮）。
     var highlightedParagraphs: [Int] = []
+    /// 正文字号倍数。
+    var fontScale: Double = 1.0
     /// 正文右键菜单里的项。返回空数组时，正文里右键什么也不发生。
     var contextMenuItems: () -> [ReaderContextMenuItem] = { [] }
 
@@ -656,7 +659,8 @@ struct ArticleWebView: NSViewRepresentable {
             style: ReaderStyle.css,
             baseURL: baseURL,
             discussionHTML: discussionHTML,
-            topInset: topInset
+            topInset: topInset,
+            fontScale: fontScale
         )
         guard context.coordinator.loadedDocument != document else {
             // 文档没变。高亮是后加的标记，不需要重新加载整篇就能更新。

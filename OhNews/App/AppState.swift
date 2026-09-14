@@ -130,6 +130,20 @@ final class AppState {
     /// 当前外观。
     private(set) var appearance: AppAppearance = .system
 
+    /// 正文字号倍数。
+    ///
+    /// 改了就直接重渲染正文（`ArticleWebView` 会因文档变化而重载），
+    /// 代价是丢掉当前滚动位置，所以它适合调一次定下来。
+    private(set) var readerFontScale = ReaderPreferences.defaultScale
+
+    func setReaderFontScale(_ scale: Double) {
+        guard scale != readerFontScale else { return }
+        var preferences = ReaderPreferences()
+        preferences.fontScale = scale
+        // 用写回去的值：偏好会做范围钳制，可能与传进来的一致，也可能不一致。
+        readerFontScale = preferences.fontScale
+    }
+
     var readerState: ReaderState = .idle
     var config: AIProviderConfig
 
@@ -211,6 +225,8 @@ final class AppState {
         self.summaryService = SummaryService(cache: cache, config: config)
         self.translationService = TranslationService(cache: cache, config: config)
         self.insightService = InsightService(cache: cache, config: config)
+        // 存过的字号在这里读回来。
+        self.readerFontScale = ReaderPreferences().fontScale
     }
 
     // MARK: - 频道

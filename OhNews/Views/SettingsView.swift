@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var summaryScope = SummaryGenerationScope.fallback
     @State private var insightEnabled = true
     @State private var appearance = AppAppearance.system
+    @State private var readerFontScale = ReaderPreferences.defaultScale
     @State private var isConfirmingClearCache = false
     @State private var isConfirmingClearArchives = false
     @State private var status: StatusMessage?
@@ -153,6 +154,35 @@ struct SettingsView: View {
                 }
 
                 Text("主窗口工具栏上也有一个按钮，可以一键在深色与浅色之间切换。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("阅读") {
+                // 在设置里看不到正文，所以配一行预览。字号只影响正文，
+                // 列表的密度是版式的一部分，不跟着变。
+                Text("这一段的字号就是正文的字号。")
+                    .font(.system(size: state.readerFontScale * 17))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack {
+                    Text("正文字号")
+                    Slider(
+                        value: $readerFontScale,
+                        in: ReaderPreferences.minimumScale...ReaderPreferences.maximumScale
+                    )
+                    Text("\(Int((readerFontScale * 100).rounded()))%")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .trailing)
+                }
+                .onChange(of: readerFontScale) { _, newValue in
+                    state.setReaderFontScale(newValue)
+                }
+
+                Text("只影响正文，列表不变。拖动时会重新渲染正文，当前滚动位置会回到开头。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -364,6 +394,7 @@ struct SettingsView: View {
         summaryScope = SummaryPreferences().scope
         insightEnabled = InsightPreferences().isEnabled
         appearance = state.appearance
+        readerFontScale = state.readerFontScale
         loadStoredKey()
         isLoaded = true
     }
