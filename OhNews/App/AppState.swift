@@ -1415,11 +1415,11 @@ final class AppState {
     func savePassage(text: String, paragraphIndex: Int, for story: Story) async -> SavedPassage? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else {
-            showNotice("没有选中文字")
+            showNotice("没有选中文字", in: .reader)
             return nil
         }
         guard trimmed.count <= LibraryStore.maxPassageLength else {
-            showNotice("选中的内容超过 \(LibraryStore.maxPassageLength) 字，没有高亮")
+            showNotice("选中的内容超过 \(LibraryStore.maxPassageLength) 字，没有高亮", in: .reader)
             return nil
         }
 
@@ -1433,13 +1433,27 @@ final class AppState {
             )
         )
         guard let saved else {
-            showNotice("这一段已经高亮过了")
+            showNotice("这一段已经高亮过了", in: .reader)
             return nil
         }
 
         await reloadLibrary()
-        showNotice("已高亮这一段")
+        showNotice("已高亮这一段", in: .reader)
         return saved
+    }
+
+    /// 取消一条高亮。
+    ///
+    /// 按「文章 + 原文」找，而不是按内部 id：从正文里点那条高亮时，
+    /// 页面只给得出文字和段落号，给不出 id。
+    func removeHighlight(text: String, for story: Story) async {
+        let removed = await library.removePassage(itemID: story.id, text: text)
+        guard removed > 0 else {
+            showNotice("这条高亮已经不在了", in: .reader)
+            return
+        }
+        await reloadLibrary()
+        showNotice("已取消高亮", in: .reader)
     }
 
     /// 当前文章里的高亮，交给阅读器标黄。
@@ -1455,14 +1469,28 @@ final class AppState {
 
     // MARK: - 轻提示
 
-    /// 一次性的轻提示，例如「已收藏这一段」。几秒后自己消失。
+    /// 一次性的轻提示，例如「已高亮这一段」。几秒后自己消失。
     private(set) var transientNotice: String?
+
+    /// 提示显示在哪一栏。
+    ///
+    /// 一栏一个位置：提示要出现在用户正看着的地方。在正文里操作却在列表顶部
+    /// 冒出提示，用户多半不会注意到——他的视线还在正文上。
+    enum NoticePlacement {
+        /// 中栏列表顶部。清单类操作（收藏、订阅）走这里。
+        case list
+        /// 右侧阅读区顶部。正文里发起的操作（高亮、取消高亮）走这里。
+        case reader
+    }
+
+    private(set) var noticePlacement: NoticePlacement = .list
 
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
 
     /// 提示会替换上一条，并把计时重新开始——连续操作时不会提前消失。
-    func showNotice(_ text: String) {
+    func showNotice(_ text: String, in placement: NoticePlacement = .list) {
         transientNotice = text
+        noticePlacement = placement
         noticeTask?.cancel()
         noticeTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2.6))

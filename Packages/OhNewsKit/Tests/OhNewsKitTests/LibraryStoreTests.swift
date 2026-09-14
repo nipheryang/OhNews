@@ -330,4 +330,46 @@ struct LibraryStoreTests {
     func highlightKeepsLegacyIdentifier() {
         #expect(LibraryEntry.highlight.rawValue == "library:passage")
     }
+
+    @Test("按文章和原文取消高亮")
+    func removePassageByText() async {
+        let (store, _) = makeStore()
+        await store.addPassage(passage("第一句", paragraph: 0))
+        await store.addPassage(passage("第二句", paragraph: 1))
+
+        // 正文里点那条高亮时只拿得到文字，所以这条路要能删掉。
+        #expect(await store.removePassage(itemID: "hn:1", text: "第二句") == 1)
+        #expect(await store.passages(itemID: "hn:1").map(\.text) == ["第一句"])
+    }
+
+    @Test("取消高亮时首尾空白不影响匹配")
+    func removePassageTrimsInput() async {
+        let (store, _) = makeStore()
+        await store.addPassage(passage("已经去空白的句子"))
+
+        #expect(await store.removePassage(itemID: "hn:1", text: "  已经去空白的句子\n") == 1)
+        #expect(await store.passages(itemID: "hn:1").isEmpty)
+    }
+
+    @Test("取消高亮只删自己这篇文章里的那条")
+    func removePassageStaysWithinArticle() async {
+        let (store, _) = makeStore()
+        await store.addPassage(passage("同一句话", itemID: "hn:1"))
+        await store.addPassage(passage("同一句话", itemID: "hn:2"))
+
+        #expect(await store.removePassage(itemID: "hn:1", text: "同一句话") == 1)
+        #expect(await store.passages(itemID: "hn:1").isEmpty)
+        #expect(await store.passages(itemID: "hn:2").count == 1)
+    }
+
+    @Test("没有匹配的高亮时不写盘也不报错")
+    func removeMissingPassageIsNoop() async {
+        let (store, _) = makeStore()
+        await store.addPassage(passage("留着的一句"))
+
+        #expect(await store.removePassage(itemID: "hn:1", text: "不存在的一句") == 0)
+        // 空白输入不该被当成"删掉全部空文字"。
+        #expect(await store.removePassage(itemID: "hn:1", text: "   ") == 0)
+        #expect(await store.passages(itemID: "hn:1").count == 1)
+    }
 }

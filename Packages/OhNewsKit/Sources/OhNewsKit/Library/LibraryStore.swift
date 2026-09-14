@@ -228,6 +228,22 @@ public actor LibraryStore {
         save()
     }
 
+    /// 按「文章 + 原文」删一条高亮。返回删掉了几条（正常是 0 或 1）。
+    ///
+    /// 正文里点那条高亮时只拿得到文字和段落号，拿不到内部 id，所以要有这条路。
+    /// 文字按原样比较：存进去时已经去掉过首尾空白，读出来也去掉再比。
+    @discardableResult
+    public func removePassage(itemID: String, text: String) -> Int {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return 0 }
+
+        let before = snapshot.passages.count
+        snapshot.passages.removeAll { $0.itemID == itemID && $0.text == trimmed }
+        let removed = before - snapshot.passages.count
+        if removed > 0 { save() }
+        return removed
+    }
+
     // MARK: - 内部
 
     private func list(for kind: Kind) -> [SavedArticle] {

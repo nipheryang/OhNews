@@ -33,6 +33,7 @@ struct StoryDetailView: View {
                 VStack(spacing: 0) {
                     header(for: story)
                     hairline
+                    readerNoticeBar
                     // 解读是浮层（overlay），不是流式的一块：正文在它后面滑过，
                     // 文字经过下边缘时被玻璃遮住。正文自身的顶部留白由 `topInset`
                     // 交给文档，这样开头不会被面板永远挡住。
@@ -56,6 +57,7 @@ struct StoryDetailView: View {
             reduceMotion ? nil : Motion.standard,
             value: state.readerState
         )
+        .animation(reduceMotion ? nil : Motion.standard, value: state.transientNotice)
     }
 
     /// 正文之上的 AI 解读。没有可显示的解读时不占任何位置。
@@ -66,6 +68,34 @@ struct StoryDetailView: View {
                 Task { await state.regenerateInsight() }
             }
             .animation(reduceMotion ? nil : Motion.standard, value: state.insightState)
+        }
+    }
+
+    /// 阅读区自己的轻提示。
+    ///
+    /// 正文里发起的操作（高亮、取消高亮）结果提示在这里，与列表顶部那条同款：
+    /// 用户的目光还在正文上，提示要在他的视线范围内。
+    ///
+    /// 它是流式的一块，出现时会把正文压下去一点。选这个而不是浮层，是因为
+    /// 浮层要盖住顶部几行字，而这几行往往正是用户刚操作过的地方。
+    @ViewBuilder
+    private var readerNoticeBar: some View {
+        if let notice = state.transientNotice, state.noticePlacement == .reader {
+            HStack(spacing: 8) {
+                Text(notice)
+                    .font(Typography.uiSmall)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, Metrics.gutter)
+            .padding(.vertical, 9)
+            .background(Palette.surface)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Palette.line)
+                    .frame(height: Metrics.hairline)
+            }
+            .transition(.opacity)
         }
     }
 
@@ -243,7 +273,8 @@ struct StoryDetailView: View {
             topInset: inset,
             highlights: state.highlights(for: story),
             fontScale: state.readerFontScale,
-            contextMenuItems: { readerContextMenu(for: story) }
+            contextMenuItems: { readerContextMenu(for: story) },
+            highlightMenuItems: { hit in highlightMenu(for: story, hit: hit) }
         )
     }
 
@@ -253,7 +284,8 @@ struct StoryDetailView: View {
     /// 不需要动事件处理那一层。数组为空时正文里右键不会弹任何菜单。
     private func readerContextMenu(for story: Story) -> [ReaderContextMenuItem] {
         [
-            ReaderContextMenuItem(title: "高亮选中内容") { selection in
+            ReaderContextMenuItem(title: "高亮选中内容") { target in
+                guard case .selection(let selection) = target else { return }
                 Task {
                     await state.savePassage(
                         text: selection.text,
@@ -261,6 +293,18 @@ struct StoryDetailView: View {
                         for: story
                     )
                 }
+            }
+        ]
+    }
+
+    /// 点在高亮上的菜单内容。
+    ///
+    /// 高亮是可逆的：标错了要能撤掉。这里只放"取消高亮"，
+    /// 以后要加（复制、加笔记）就往数组里添。
+    private func highlightMenu(for story: Story, hit: ReaderHighlight) -> [ReaderContextMenuItem] {
+        [
+            ReaderContextMenuItem(title: "取消高亮") { _ in
+                Task { await state.removeHighlight(text: hit.text, for: story) }
             }
         ]
     }
@@ -599,6 +643,8 @@ enum ReaderScript {
                 parent.removeChild(el);
               } else {
                 el.classList.remove('ohnews-highlight');
+                // 整段上色时原文存在块自己身上，也要清掉。
+                el.removeAttribute('data-ohnews-text');
               }
               parent.normalize();
             }
@@ -635,6 +681,7 @@ enum ReaderScript {
 
               var mark = document.createElement('mark');
               mark.className = 'ohnews-highlight';
+              mark.setAttribute('data-ohnews-text', needle);
               piece.parentNode.insertBefore(mark, piece);
               mark.appendChild(piece);
             }
@@ -650,6 +697,7 @@ enum ReaderScript {
             if (!block) { continue; }
             if (!wrapRange(block, item.text)) {
               block.classList.add('ohnews-highlight');
+              block.setAttribute('data-ohnews-text', item.text);
               whole++;
             }
           }
@@ -658,23 +706,62 @@ enum ReaderScript {
         """
     }
 
-    /// 把某一段滚到视野中央，并用一条临时轮廓标出来。
-    /// 轮廓自己会消失，不需要另一段脚本来清。
+    /// 把某一段滚到视野中央，并让这一段里的高亮闪一下。
+    ///
+    /// 以前这里给整段描一圈轮廓当落点提示，但它读起来像"选中了这一整段"——
+    /// 用户只是从高亮列表跳过来，并没有选任何东西。现在改成只闪高亮本身，
+    /// 与「悬停在高亮上」用的是同一套视觉语言。
     static func scrollToParagraph(_ index: Int) -> String {
         """
         (function () {
           var block = document.getElementById('p-\(index)');
           if (!block) { return false; }
           block.scrollIntoView({ block: 'center', behavior: 'auto' });
-          var previous = block.style.outline;
-          var previousOffset = block.style.outlineOffset;
-          block.style.outline = '2px solid rgba(127, 127, 127, 0.55)';
-          block.style.outlineOffset = '6px';
-          window.setTimeout(function () {
-            block.style.outline = previous;
-            block.style.outlineOffset = previousOffset;
-          }, 1600);
+
+          function flash(el) {
+            el.classList.remove('ohnews-highlight-flash');
+            // 读一次布局，强制重排：否则同一个元素连着闪两次不会重放动画。
+            void el.offsetWidth;
+            el.classList.add('ohnews-highlight-flash');
+          }
+
+          // 优先闪这一段的那些高亮；整段上色的情形，块自己就是高亮。
+          var marks = block.querySelectorAll('mark.ohnews-highlight');
+          if (marks.length > 0) {
+            for (var i = 0; i < marks.length; i++) { flash(marks[i]); }
+          } else if (block.classList.contains('ohnews-highlight')) {
+            flash(block);
+          }
           return true;
+        })()
+        """
+    }
+
+    /// 命中检测：屏幕坐标上是不是落在一条高亮里。
+    ///
+    /// 页面脚本是关着的，正文里点不到东西，所以点击只能由应用侧来判：
+    /// 把 AppKit 的坐标转成 CSS 视口坐标，交给 `elementFromPoint` 找。
+    /// 返回的 JSON 与 `readSelection` 同形，两处共用一套解码。
+    static func hitTestHighlight(x: Double, y: Double) -> String {
+        """
+        (function () {
+          var el = document.elementFromPoint(\(x), \(y));
+          if (!el || !el.closest) { return null; }
+
+          var mark = el.closest('mark.ohnews-highlight, .ohnews-highlight');
+          if (!mark) { return null; }
+
+          var block = mark.closest('[id^="p-"]');
+          var index = -1;
+          if (block && block.id) {
+            var parsed = parseInt(block.id.substring(2), 10);
+            if (!isNaN(parsed)) { index = parsed; }
+          }
+
+          // 优先用标记时写下的原文：整段上色的情形，元素里的文字是整段，
+          // 拿它去比对就找不到对应的那条高亮了。
+          var text = mark.getAttribute('data-ohnews-text') || mark.textContent || '';
+          return JSON.stringify({ text: text, index: index });
         })()
         """
     }
@@ -702,6 +789,8 @@ struct ArticleWebView: NSViewRepresentable {
     var fontScale: Double = 1.0
     /// 正文右键菜单里的项。返回空数组时，正文里右键什么也不发生。
     var contextMenuItems: () -> [ReaderContextMenuItem] = { [] }
+    /// 点在高亮上时的菜单项。返回空数组时，点高亮什么也不发生。
+    var highlightMenuItems: (ReaderHighlight) -> [ReaderContextMenuItem] = { _ in [] }
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -716,12 +805,19 @@ struct ArticleWebView: NSViewRepresentable {
         webView.underPageBackgroundColor = .clear
         webView.allowsMagnification = true
         // 在事件分发前接管右键，WebKit 的系统菜单就不会再出来。
-        context.coordinator.installContextMenu(in: webView, items: contextMenuItems)
+        context.coordinator.installContextMenu(
+            in: webView,
+            items: contextMenuItems,
+            highlightItems: highlightMenuItems
+        )
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.updateContextMenu(items: contextMenuItems)
+        context.coordinator.updateContextMenu(
+            items: contextMenuItems,
+            highlightItems: highlightMenuItems
+        )
 
         let document = ReaderDocumentBuilder.build(
             html: html,
@@ -768,13 +864,17 @@ struct ArticleWebView: NSViewRepresentable {
 
         func installContextMenu(
             in webView: WKWebView,
-            items: @escaping () -> [ReaderContextMenuItem]
+            items: @escaping () -> [ReaderContextMenuItem],
+            highlightItems: @escaping (ReaderHighlight) -> [ReaderContextMenuItem]
         ) {
-            contextMenu.install(in: webView, items: items)
+            contextMenu.install(in: webView, items: items, highlightItems: highlightItems)
         }
 
-        func updateContextMenu(items: @escaping () -> [ReaderContextMenuItem]) {
-            contextMenu.update(items: items)
+        func updateContextMenu(
+            items: @escaping () -> [ReaderContextMenuItem],
+            highlightItems: @escaping (ReaderHighlight) -> [ReaderContextMenuItem]
+        ) {
+            contextMenu.update(items: items, highlightItems: highlightItems)
         }
 
         func uninstallContextMenu() {
@@ -805,10 +905,16 @@ struct ArticleWebView: NSViewRepresentable {
             webView.evaluateJavaScript(ReaderScript.markHighlights(ordered)) { _, _ in }
         }
 
+        /// 跳到最后一次请求的段落。
+        ///
+        /// 只有脚本确认找到了那一段，才记下"跳过了"：正文还在加载时这一段并不存在，
+        /// 那时就记账的话，等正文真的到了也不会再跳——用户点了高亮却停在文章开头。
         func scrollIfNeeded(in webView: WKWebView, target: Int?) {
             guard let target, target != appliedScrollTarget else { return }
-            appliedScrollTarget = target
-            webView.evaluateJavaScript(ReaderScript.scrollToParagraph(target)) { _, _ in }
+            webView.evaluateJavaScript(ReaderScript.scrollToParagraph(target)) { result, _ in
+                guard (result as? Bool) == true else { return }
+                self.appliedScrollTarget = target
+            }
         }
 
         func webView(

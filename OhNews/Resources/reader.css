@@ -338,10 +338,45 @@ mark.ohnews-highlight,
   padding: 0;
 }
 
+/* 悬停：高亮是可以再点开操作的，所以要看得出来。
+   靠加浓底色和一圈柔和外光做出"浮起来"的感觉——不用 transform，
+   行内元素带它需要改成 inline-block，那会改变换行位置、让正文重排。 */
+mark.ohnews-highlight:hover,
+.ohnews-highlight:hover {
+  background-color: rgba(234, 179, 8, 0.62);
+  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2), 0 1px 3px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+}
+
+/* 从高亮列表跳回正文时的落点反馈：让这句话亮一下，然后退回常态。
+
+   以前这里给整段加一圈 outline，读起来像"选中了这一整段"，
+   而用户只是从清单跳过来，并没有选任何东西。改成只让高亮本身闪。 */
+@keyframes ohnews-highlight-flash {
+  0% {
+    background-color: rgba(234, 179, 8, 0.95);
+    box-shadow: 0 0 0 5px rgba(234, 179, 8, 0.32);
+  }
+  100% {
+    background-color: rgba(234, 179, 8, 0.34);
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+  }
+}
+
+mark.ohnews-highlight.ohnews-highlight-flash,
+.ohnews-highlight.ohnews-highlight-flash {
+  animation: ohnews-highlight-flash 1.5s ease-out 1;
+}
+
 @media (prefers-color-scheme: dark) {
   mark.ohnews-highlight,
   .ohnews-highlight {
     background-color: rgba(234, 179, 8, 0.24);
+  }
+
+  mark.ohnews-highlight:hover,
+  .ohnews-highlight:hover {
+    background-color: rgba(234, 179, 8, 0.5);
   }
 }
 
@@ -349,5 +384,10 @@ mark.ohnews-highlight,
   mark.ohnews-highlight,
   .ohnews-highlight {
     background-color: rgba(234, 179, 8, 0.5);
+  }
+
+  mark.ohnews-highlight:hover,
+  .ohnews-highlight:hover {
+    background-color: rgba(234, 179, 8, 0.75);
   }
 }

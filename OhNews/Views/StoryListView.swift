@@ -14,7 +14,9 @@ struct StoryListView: View {
         VStack(spacing: 0) {
             banner
 
-            if let notice = state.transientNotice {
+            // 提示落在哪一栏，取决于操作发生在哪一栏：正文里高亮，
+            // 提示就该在阅读区出现，而不是跑到列表顶上。
+            if let notice = state.transientNotice, state.noticePlacement == .list {
                 noticeBar(notice)
             }
 
