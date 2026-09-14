@@ -4,20 +4,6 @@
 import AppKit
 import WebKit
 
-/// 气泡上被点中的零件。
-struct ReaderBubbleHit: Equatable {
-    /// 点到的是哪一部分。
-    enum Target: String, Equatable {
-        /// 那颗圆点：展开菜单。
-        case dot
-        /// 菜单里的一条：执行动作。
-        case item
-    }
-
-    let target: Target
-    let action: ReaderBubbleAction
-}
-
 /// 气泡菜单里的一条动作。
 struct ReaderBubbleAction: Equatable {
     /// 字条对应哪一种动作，与脚本里的 `data-ohnews-action` 一一对应。
@@ -99,23 +85,10 @@ final class ReaderInteractionController: NSObject {
         switch event.type {
         case .leftMouseDown:
             // 按下时就判，抬起时正文里的选区会被点击改掉。
+            // 菜单的展开与收起由 CSS 悬停负责，这里只管"点了哪一条字条"。
             Task { @MainActor in
-                guard let hit = await Self.bubbleHit(at: css, in: webView) else {
-                    // 点在别处：把开着的菜单收掉，和点空白处一样。
-                    await Self.run(ReaderScript.closeBubbleMenus, in: webView)
-                    return
-                }
-
-                switch hit.target {
-                case .item:
-                    self.perform(hit.action)
-                case .dot:
-                    let script = ReaderScript.openBubbleMenu(
-                        text: hit.action.text,
-                        index: hit.action.paragraphIndex
-                    )
-                    await Self.run(script, in: webView)
-                }
+                guard let action = await Self.bubbleItem(at: css, in: webView) else { return }
+                self.perform(action)
             }
 
         case .leftMouseUp:
@@ -140,26 +113,18 @@ final class ReaderInteractionController: NSObject {
         return (Double(point.x) / scale, Double(topDownY) / scale)
     }
 
-    private static func bubbleHit(
+    private static func bubbleItem(
         at point: (x: Double, y: Double),
         in webView: WKWebView
-    ) async -> ReaderBubbleHit? {
-        let script = ReaderScript.hitTestBubble(x: point.x, y: point.y)
+    ) async -> ReaderBubbleAction? {
+        let script = ReaderScript.hitTestBubbleItem(x: point.x, y: point.y)
         guard let raw = try? await webView.evaluateJavaScript(script),
               let payload = PayloadBox.decode(raw),
-              let target = ReaderBubbleHit.Target(rawValue: payload.target),
               let kind = ReaderBubbleAction.Kind(rawValue: payload.action),
               payload.text.isEmpty == false
         else { return nil }
 
-        return ReaderBubbleHit(
-            target: target,
-            action: ReaderBubbleAction(kind: kind, text: payload.text, paragraphIndex: payload.index)
-        )
-    }
-
-    private static func run(_ script: String, in webView: WKWebView) async {
-        _ = try? await webView.evaluateJavaScript(script)
+        return ReaderBubbleAction(kind: kind, text: payload.text, paragraphIndex: payload.index)
     }
 
     private static func showSelectionBubble(
@@ -174,7 +139,6 @@ final class ReaderInteractionController: NSObject {
 
     /// 两段脚本返回同一个形状，共用一套解码。
     private struct PayloadBox: Decodable {
-        let target: String
         let action: String
         let text: String
         let index: Int

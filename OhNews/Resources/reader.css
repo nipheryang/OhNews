@@ -354,8 +354,13 @@ mark.ohnews-highlight:hover,
 
 /* 气泡挂在被高亮文字的末尾。它是一个零尺寸的锚点：宽高都是 0，
    既不占宽度也不占行高，所以不会改变换行，也不会把行撑开。
-   圆点的左边缘与高亮文字的右边缘恰好相接（实测间距为 0）。 */
+   圆点的右边缘与高亮文字的右边缘齐平（实测间距为 0）。 */
 .ohnews-bubble {
+  /* 菜单上的字不该能被选中。应用不吞点击事件（判断命中是异步的，
+     吞不掉），所以要是不禁掉选中，点一下字条就会把"取消高亮"这几个字
+     并进正文的选区——下一个气泡里带的就成了这段夹杂的文本。 */
+  -webkit-user-select: none;
+  user-select: none;
   position: relative;
   display: inline-block;
   width: 0;
@@ -375,75 +380,88 @@ mark.ohnews-highlight:hover,
   z-index: 4;
 }
 
-/* 静止态：一颗小圆点。悬停在整句高亮上时才露出来。
+/* 圆点和菜单是**同一个元素**：收着是圆点，鼠标落上去就长成圆角菜单。
 
-   点它才展开菜单——不是悬停展开。悬停展开看起来更省事，但指针一落到圆点上
-   菜单就已经铺开在指针底下，那一下点击立刻落在菜单项上：用户只是想看看，
-   却已经取消了高亮。展开必须是另一步。 */
-.ohnews-dot {
+   宽、高、圆角、内边距、底色一起过渡，形状是一路插值过去的，所以看起来
+   是圆点化成了菜单，而不是"一块小的放大成大的"。形状走 linear：要的就是
+   一路均匀地化开，中途忽然加速会让"变形"读成"弹出"。
+
+   锚点钉在圆点那里：右边缘固定在文字右侧 11px、上边缘固定在基线上方 12px
+   （正好是圆点占的那一格），盒子只向左、向下长——菜单从圆点那里冒出来。
+   向左长是因为正文右边紧挨着阅读区边界，往右会被裁掉；向下长是因为
+   悬停必须一直落在盒子上，盒子一旦离开指针，菜单就会自己合上。
+   代价是菜单压住下一行的开头，这个方向比压住用户正指着的那句话好。
+
+   展开后的尺寸由脚本量出字条再写进 --ohnews-pop-w / -h：菜单宽度跟着
+   文字走，以后添功能不必回来改这里。 */
+.ohnews-pop {
   position: absolute;
-  left: 0;
-  bottom: 1px;
+  right: -11px;
+  top: -12px;
+  z-index: 3;
+  box-sizing: border-box;
   width: 11px;
   height: 11px;
+  /* 展开后这圈内边距是给指针留的落脚处：鼠标停在圆点上时，
+     它落在内边距里，而不是落在某一条字条上——否则"移过去"就等于选好了，
+     一按就执行。14px 让指针离字条还有 8px 以上的余量。 */
+  padding: 0;
+  overflow: hidden;
   border-radius: 50%;
   background: rgba(234, 179, 8, 0.95);
   box-shadow: 0 0 0 2px #ffffff, 0 1px 4px rgba(0, 0, 0, 0.3);
   opacity: 0;
-  transform: scale(0.5);
-  transform-origin: 0 100%;
-  transition: opacity 110ms ease, transform 110ms ease;
-  cursor: pointer;
+  transition:
+    width 300ms linear,
+    height 300ms linear,
+    padding 300ms linear,
+    border-radius 300ms linear,
+    background-color 200ms ease,
+    box-shadow 200ms ease,
+    opacity 140ms ease;
 }
 
-mark.ohnews-highlight:hover .ohnews-dot,
-.ohnews-highlight:hover .ohnews-dot,
-.ohnews-bubble-visible .ohnews-dot {
+/* 悬停在整句高亮上时露出圆点。划选出来的那一颗直接常显。 */
+mark.ohnews-highlight:hover .ohnews-pop,
+.ohnews-highlight:hover .ohnews-pop,
+.ohnews-bubble-visible .ohnews-pop {
   opacity: 1;
-  transform: scale(1);
 }
 
-/* 展开态：圆角竖向菜单。
+/* 鼠标落到圆点上就展开。
 
-   往左上方长：正文右边就是阅读区边界，往右探出去会被裁掉，所以右边缘
-   只比高亮末尾多出 2px。底边停在 1.25em（约 21px）处，正好在文字上方，
-   不压住用户刚指过的那句话。以后菜单项变多，这里只是把竖向排下去。 */
-.ohnews-menu {
-  position: absolute;
-  right: -2px;
-  bottom: 1.25em;
-  z-index: 3;
-  display: none;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 4px;
+   展开态自己也算「悬停」，所以指针停在菜单里不会收回去；
+   指针要离开整个元素才会合上。 */
+.ohnews-pop:hover {
+  width: var(--ohnews-pop-w, 96px);
+  height: var(--ohnews-pop-h, 58px);
+  padding: 14px;
   border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 0 0 1px #e5e7eb, 0 8px 22px rgba(0, 0, 0, 0.18);
-  white-space: nowrap;
 }
 
-.ohnews-open .ohnews-menu {
-  display: flex;
-}
-
-.ohnews-open .ohnews-dot {
-  opacity: 0;
-  transform: scale(0.5);
-}
-
-.ohnews-menu-item {
+/* 字条等形状基本稳定后才淡入：变形还在进行时文字就浮出来的话，
+   看着像被挤出来，而不是菜单长开了。 */
+.ohnews-pop-item {
   display: block;
-  padding: 5px 12px;
+  padding: 5px 10px;
   border-radius: 7px;
   font-size: 13px;
   line-height: 1.5;
   letter-spacing: 0;
   color: #111827;
+  white-space: nowrap;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease 200ms;
 }
 
-.ohnews-menu-item:hover {
+.ohnews-pop:hover .ohnews-pop-item {
+  opacity: 1;
+}
+
+.ohnews-pop-item:hover {
   background: rgba(17, 24, 39, 0.07);
 }
 
@@ -478,20 +496,20 @@ mark.ohnews-highlight.ohnews-highlight-flash,
     background-color: rgba(234, 179, 8, 0.42);
   }
 
-  .ohnews-dot {
+  .ohnews-pop {
     box-shadow: 0 0 0 2px #030712, 0 1px 4px rgba(0, 0, 0, 0.55);
   }
 
-  .ohnews-menu {
+  .ohnews-pop:hover {
     background: #111827;
     box-shadow: 0 0 0 1px #1f2937, 0 8px 22px rgba(0, 0, 0, 0.55);
   }
 
-  .ohnews-menu-item {
+  .ohnews-pop-item {
     color: #f3f4f6;
   }
 
-  .ohnews-menu-item:hover {
+  .ohnews-pop-item:hover {
     background: rgba(243, 244, 246, 0.09);
   }
 }
@@ -509,7 +527,8 @@ mark.ohnews-highlight.ohnews-highlight-flash,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ohnews-dot {
+  .ohnews-pop,
+  .ohnews-pop-item {
     transition: none;
   }
 

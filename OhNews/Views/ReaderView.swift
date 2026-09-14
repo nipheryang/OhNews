@@ -578,35 +578,54 @@ enum ReaderScript {
     /// 气泡的构造函数。标记高亮与划选后弹气泡两处都要用，
     /// 所以拼成一段共用的脚本片段，各自放在自己的 IIFE 里。
     private static let bubbleFactory = """
-      // 一条高亮在文末挂一颗气泡；菜单项要带上是哪条高亮由它操作。
-      // 气泡菜单一次只开一个：两个菜单同时挂着，用户分不清哪个属于哪句。
-      function closeBubbleMenus() {
-        var open = document.querySelectorAll('.ohnews-open');
-        for (var i = 0; i < open.length; i++) {
-          open[i].classList.remove('ohnews-open');
+      // 展开后的尺寸要按字条量出来：菜单宽度跟着文字走，以后添功能不必
+      // 回来改样式表。量的时候盒子还收着（11x11、overflow: hidden），
+      // 但字条设了 nowrap，用 Range 量到的仍是它自己那一行的宽高。
+      function sizePop(pop) {
+        var items = pop.querySelectorAll('.ohnews-pop-item');
+        var range = document.createRange();
+        var widest = 0;
+        var total = 0;
+        for (var i = 0; i < items.length; i++) {
+          // 宽度只能用 Range 量：字条被收起的盒子限宽，offsetWidth 会跟着变小。
+          range.selectNodeContents(items[i]);
+          widest = Math.max(widest, range.getBoundingClientRect().width);
+          // 高度相反：字条不换行，offsetHeight 就是它真实的高度。
+          total += items[i].offsetHeight || 0;
         }
+        // 宽度：Range 量到的是文字，两边还要各加字条的 10 与气泡的 14。
+        // 高度：offsetHeight 已经把字条自己的内边距算进去了，只补气泡的上下各 14。
+        pop.style.setProperty('--ohnews-pop-w', Math.ceil(widest) + 48 + 'px');
+        pop.style.setProperty('--ohnews-pop-h', Math.ceil(total) + 28 + 'px');
       }
 
+      // 挂气泡，然后量展开尺寸。
+      //
+      // 量尺寸必须排在**插进文档之后**：还没入文档的元素量出来全是 0，
+      // 菜单会长成"一圈边框"那么小，字条也永远不出现。
+      function attachBubble(host, bubble) {
+        host.appendChild(bubble);
+        sizePop(bubble.querySelector('.ohnews-pop'));
+      }
+
+      // 圆点与菜单是同一个元素：收着是圆点，悬停时长成圆角菜单。
+      // 一条字条对应一个动作，以后加功能就是往里多塞几个。
       function buildBubble(text, action, label, index) {
         var bubble = document.createElement('span');
         bubble.className = 'ohnews-bubble';
 
-        var dot = document.createElement('span');
-        dot.className = 'ohnews-dot';
-        bubble.appendChild(dot);
-
-        var menu = document.createElement('span');
-        menu.className = 'ohnews-menu';
+        var pop = document.createElement('span');
+        pop.className = 'ohnews-pop';
 
         var item = document.createElement('span');
-        item.className = 'ohnews-menu-item';
+        item.className = 'ohnews-pop-item';
         item.setAttribute('data-ohnews-action', action);
         item.setAttribute('data-ohnews-text', text);
         item.setAttribute('data-ohnews-index', String(index));
         item.textContent = label;
-        menu.appendChild(item);
+        pop.appendChild(item);
 
-        bubble.appendChild(menu);
+        bubble.appendChild(pop);
         return bubble;
       }
     """
@@ -708,13 +727,14 @@ enum ReaderScript {
             var marks = wrapRange(block, item.text);
             if (marks) {
               // 只给这条高亮的最后一段挂气泡，一颗就够。
-              marks[marks.length - 1].appendChild(
+              attachBubble(
+                marks[marks.length - 1],
                 buildBubble(item.text, 'unhighlight', '取消高亮', item.index)
               );
             } else {
               block.classList.add('ohnews-highlight');
               block.setAttribute('data-ohnews-text', item.text);
-              block.appendChild(buildBubble(item.text, 'unhighlight', '取消高亮', item.index));
+              attachBubble(block, buildBubble(item.text, 'unhighlight', '取消高亮', item.index));
             }
           }
 
@@ -772,7 +792,6 @@ enum ReaderScript {
           }
 
           clearFloats();
-          closeBubbleMenus();
 
           var selection = window.getSelection();
           if (!selection || selection.rangeCount === 0) { return null; }
@@ -781,6 +800,13 @@ enum ReaderScript {
           if (text.length === 0) { return null; }
 
           var range = selection.getRangeAt(0);
+
+          // 选区落在气泡自己身上时不弹（上面那一步只挡了"点在气泡上"）。
+          var anchor = range.startContainer;
+          if (anchor && anchor.nodeType !== 1) { anchor = anchor.parentNode; }
+          if (anchor && anchor.closest && anchor.closest('.ohnews-bubble, .ohnews-float')) {
+            return null;
+          }
 
           // 选区落在哪一段。拿不到就给 -1，气泡照样弹，只是跳不回去。
           var index = -1;
@@ -808,10 +834,10 @@ enum ReaderScript {
           float.className = 'ohnews-float ohnews-bubble-visible';
           float.style.left = (last.right + window.scrollX) + 'px';
           float.style.top = (last.bottom + window.scrollY) + 'px';
-          float.appendChild(already
+          document.body.appendChild(float);
+          attachBubble(float, already
             ? buildBubble(text, 'unhighlight', '取消高亮', index)
             : buildBubble(text, 'highlight', '高亮选中文段', index));
-          document.body.appendChild(float);
 
           return JSON.stringify({ text: text, index: index });
         })()
@@ -839,76 +865,26 @@ enum ReaderScript {
     })()
     """
 
-    /// 这一点上有没有气泡的零件。
+    /// 这一点上有没有气泡里的字条。
     ///
     /// 页面脚本关着，气泡点不动，只能由应用侧读文档判断点了哪里。
-    /// 点在**圆点**上要展开菜单，点在**菜单项**上要执行动作，两件事分开。
-    /// 返回 JSON `{"target": …, "action": …, "text": …, "index": …}`。
-    static func hitTestBubble(x: Double, y: Double) -> String {
+    /// 菜单的展开/收起由 CSS 的悬停负责，应用只需要处理"点了哪一条"。
+    /// 返回 JSON `{"action": …, "text": …, "index": …}`，没命中时返回 null。
+    static func hitTestBubbleItem(x: Double, y: Double) -> String {
         """
         (function () {
           var el = document.elementFromPoint(\(x), \(y));
           if (!el || !el.closest) { return null; }
 
-          function describe(bubble, target) {
-            var item = bubble ? bubble.querySelector('.ohnews-menu-item') : null;
-            if (!item) { return null; }
-            var index = parseInt(item.getAttribute('data-ohnews-index'), 10);
-            return JSON.stringify({
-              target: target,
-              action: item.getAttribute('data-ohnews-action') || '',
-              text: item.getAttribute('data-ohnews-text') || '',
-              index: isNaN(index) ? -1 : index
-            });
-          }
+          var item = el.closest('.ohnews-pop-item');
+          if (!item) { return null; }
 
-          var item = el.closest('.ohnews-menu-item');
-          if (item) {
-            return describe(item.closest('.ohnews-bubble, .ohnews-float'), 'item');
-          }
-
-          var dot = el.closest('.ohnews-dot');
-          if (dot) {
-            return describe(dot.closest('.ohnews-bubble, .ohnews-float'), 'dot');
-          }
-
-          return null;
-        })()
-        """
-    }
-
-    /// 展开某一条高亮的气泡菜单，顺手把别的都收起来。
-    ///
-    /// 靠「原文 + 段落号」找回是哪一颗气泡：这两样在气泡上是唯一的。
-    static func openBubbleMenu(text: String, index: Int) -> String {
-        """
-        (function () {
-          \(bubbleFactory)
-
-          closeBubbleMenus();
-
-          var items = document.querySelectorAll('.ohnews-menu-item');
-          for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var itemIndex = parseInt(item.getAttribute('data-ohnews-index'), 10);
-            if (item.getAttribute('data-ohnews-text') !== \(quoted(text))) { continue; }
-            if ((isNaN(itemIndex) ? -1 : itemIndex) !== \(index)) { continue; }
-            var bubble = item.closest('.ohnews-bubble, .ohnews-float');
-            if (bubble) { bubble.classList.add('ohnews-open'); return true; }
-          }
-          return false;
-        })()
-        """
-    }
-
-    /// 收起所有气泡菜单。
-    static var closeBubbleMenus: String {
-        """
-        (function () {
-          \(bubbleFactory)
-
-          closeBubbleMenus();
-          return true;
+          var index = parseInt(item.getAttribute('data-ohnews-index'), 10);
+          return JSON.stringify({
+            action: item.getAttribute('data-ohnews-action') || '',
+            text: item.getAttribute('data-ohnews-text') || '',
+            index: isNaN(index) ? -1 : index
+          });
         })()
         """
     }
