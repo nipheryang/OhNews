@@ -832,8 +832,9 @@ enum ReaderScript {
         (function () {
           var known = \(knownJSON);
 
-          function clearToolbars() {
-            var old = document.querySelectorAll('.ohnews-toolbar');
+          // 只收划选那一条，不碰高亮里挂着的悬停工具条。
+          function clearSelectionBar() {
+            var old = document.querySelectorAll('.ohnews-toolbar-selection');
             for (var i = 0; i < old.length; i++) {
               if (old[i].parentNode) { old[i].parentNode.removeChild(old[i]); }
             }
@@ -849,7 +850,7 @@ enum ReaderScript {
             }
           }
 
-          clearToolbars();
+          clearSelectionBar();
 
           var selection = window.getSelection();
           if (!selection || selection.rangeCount === 0) { return null; }
@@ -891,7 +892,10 @@ enum ReaderScript {
           var bounds = range.getBoundingClientRect();
 
           var bar = document.createElement('div');
-          bar.className = 'ohnews-toolbar';
+          // 带上专属类：清理时只认它。
+          // 高亮里的那些悬停工具条也是 .ohnews-toolbar——按类名清会把它们一起删掉，
+          // 而它们只有文章重新加载才会重建，于是"划过一次之后所有高亮都弹不出菜单"。
+          bar.className = 'ohnews-toolbar ohnews-toolbar-selection';
 
           var button = document.createElement('span');
           button.className = 'ohnews-toolbar-button';
@@ -942,10 +946,13 @@ enum ReaderScript {
     })()
     """
 
-    /// 收走划选留下的工具条。
+    /// 收走划选留下的那一条工具条。
+    ///
+    /// 只认 `.ohnews-toolbar-selection`：高亮里的悬停工具条同样带 `.ohnews-toolbar`，
+    /// 按那个类名清会把它们全删掉，那之后悬停就不再弹菜单了。
     static let clearSelectionToolbar = """
     (function () {
-      var old = document.querySelectorAll('.ohnews-toolbar');
+      var old = document.querySelectorAll('.ohnews-toolbar-selection');
       for (var i = 0; i < old.length; i++) {
         if (old[i].parentNode) { old[i].parentNode.removeChild(old[i]); }
       }
