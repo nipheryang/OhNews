@@ -46,13 +46,17 @@ enum InsightPanel {
               """
             : ""
 
+        // 内容单独包一层：面板是个上限固定的盒子，只有这一层滚，
+        // 眉标与「重新生成」钉在顶上——滚到底也要找得到那个按钮。
         return """
         <div class="ohnews-insight">
           <div class="ohnews-insight-head">
             <span class="ohnews-insight-eyebrow">AI 解读</span>
             \(action)
           </div>
+          <div class="ohnews-insight-body">
           \(body)
+          </div>
         </div>
         """
     }

@@ -140,6 +140,17 @@ struct ArticleInsightTests {
         #expect(pair.system.contains("discussion_trends"))
     }
 
+    @Test("提示词把长度上限写死，避免模型长篇大论")
+    func promptCapsTheLength() {
+        // 面板是上限固定的盒子，内容越短越好。上限写在提示词里，
+        // 这条断言把它钉住——以后想放宽得先改这里的数字。
+        let system = InsightPromptBuilder.systemPrompt()
+        #expect(system.contains("不超过 50 字"))
+        #expect(system.contains("最多 3 条"))
+        #expect(system.contains("不超过 18 字"))
+        #expect(system.contains("最多 2 条"))
+    }
+
     @Test("没取到正文时明确告知模型，而不是留空")
     func tellsModelWhenArticleMissing() {
         let pair = InsightPromptBuilder.build(

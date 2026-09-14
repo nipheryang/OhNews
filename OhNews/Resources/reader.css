@@ -339,15 +339,26 @@ details[open] > .comment-head::before { content: "▾"; }
 /* ---------- 正文顶部的 AI 解读 ---------- */
 
 /* 面板是**正文的一部分**，随正文一起滚，不是浮在阅读区顶上的固定浮层。
-   所以它不需要固定高度，也不需要给正文让出 padding——它占多高就是多高，
-   读者往下翻时它自然滑走。
+
+   但它本身是个**上限固定的盒子**：解读再长也不让它把正文一直往下推，
+   超出的部分在框内滚（见下面的 .ohnews-insight-body）。上下都封住，
+   所以读者一眼就能看见正文从哪儿开始。
 
    材质是玻璃：半透明底 + 背景模糊 + 两道内高光。要说清楚的是，面板在文档流里，
    身后通常只有纸色，模糊并没有多少可作用的东西——真正让它读起来像玻璃的是
    那圈内高光与投影，模糊只在正文从它后面滑过时才显出来。 */
 .ohnews-insight {
   margin: 0 0 30px;
-  padding: 16px 20px 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* 240 是整个盒子的上限，含内边距——不加 box-sizing 的话它落在内容盒上，
+     实际会比这个数高出内边距那一截。 */
+  max-height: 240px;
+  overflow: hidden;
+  /* 左右留白交给内部两层自己带：这一层不滚，留在这里的话
+     内容滚到底会贴着下边缘。 */
+  padding: 16px 0 0;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.62);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -363,7 +374,16 @@ details[open] > .comment-head::before { content: "▾"; }
   display: flex;
   align-items: baseline;
   gap: 10px;
+  padding: 0 20px;
   margin-bottom: 12px;
+}
+
+/* 只有这一层滚。眉标与「重新生成」在它上面，钉着不动。 */
+.ohnews-insight-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px 18px;
 }
 
 .ohnews-insight-eyebrow {

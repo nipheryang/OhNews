@@ -9,7 +9,10 @@ import Foundation
 /// 会让改动互相误伤——改解读的措辞不该让所有摘要缓存一起作废。
 public enum InsightPromptVersion {
     /// 改动 `InsightPromptBuilder` 的输出格式或字段含义时递增。
-    public static let current = "i1"
+    ///
+    /// i2：要求明显更短（总结一句话、要点最多 3 条）。不递增的话，
+    /// 已经生成过的解读会一直用缓存里的旧文本，用户改了期待也看不到变化。
+    public static let current = "i2"
 }
 
 /// 一篇文章的正文解读。
