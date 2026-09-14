@@ -35,9 +35,12 @@ public struct SavedArticle: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// 收藏的一段正文。
+/// 正文里被标记高亮的一段。
 ///
 /// 只存选中的那段文字（用户的选择），外加段落序号用于跳回原文。
+///
+/// 名字保留了早期的「段落收藏」：`passages` 是 `library.json` 里的键，
+/// 改掉它会读不出用户已有的数据。界面上一律叫「高亮」。
 public struct SavedPassage: Codable, Hashable, Identifiable, Sendable {
     public let id: String
     public let itemID: String
@@ -75,7 +78,7 @@ public actor LibraryStore {
         case readLater
     }
 
-    /// 段落收藏的文字上限。一次划选整篇没有意义，也容易把文件撑大。
+    /// 高亮的文字上限。一次划选整篇没有意义，也容易把文件撑大。
     public static let maxPassageLength = 2000
 
     private struct Snapshot: Codable {

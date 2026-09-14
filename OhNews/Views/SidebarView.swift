@@ -243,6 +243,7 @@ struct SidebarView: View {
     private func count(for entry: LibraryEntry) -> Int {
         switch entry {
         case .collection: state.collectionItems.count
+        case .highlight: state.passageItems.count
         case .savedPages: state.savedPages.count
         case .readLater: state.readLaterItems.count
         }

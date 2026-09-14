@@ -283,36 +283,24 @@ struct StoryListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// 星标与稍后读的列表。
+    /// 星标、高亮与稍后读的列表。
+    ///
+    /// 高亮占一个入口后，星标里只剩文章、高亮里只剩文段，不再需要分节标题。
     @ViewBuilder
     private func articleContent(for entry: LibraryEntry) -> some View {
         let articles = state.activeLibraryItems
-        let passages = entry == .collection ? state.passageItems : []
+        let passages = entry == .highlight ? state.passageItems : []
 
         if articles.isEmpty && passages.isEmpty {
             libraryEmptyState(entry)
         } else {
             List(selection: selection) {
                 if articles.isEmpty == false {
-                    if entry == .collection {
-                        Section {
-                            articleRows(articles)
-                        } header: {
-                            sectionHeader("文章")
-                        }
-                    } else {
-                        Section {
-                            articleRows(articles)
-                        }
-                    }
+                    articleRows(articles)
                 }
 
                 if passages.isEmpty == false {
-                    Section {
-                        passageRows(passages)
-                    } header: {
-                        sectionHeader("段落")
-                    }
+                    passageRows(passages)
                 }
             }
             .listStyle(.inset)
@@ -362,7 +350,7 @@ struct StoryListView: View {
             )
             .tag(passage.id)
             .contextMenu {
-                Button("删除这条星标", role: .destructive) {
+                Button("删除这条高亮", role: .destructive) {
                     Task { await state.removePassage(id: passage.id) }
                 }
             }

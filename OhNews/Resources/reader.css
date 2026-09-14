@@ -325,3 +325,25 @@ details[open] > .comment-head::before { content: "▾"; }
   .comment-head { color: #d1d5db; }
   .comments { border-top-color: #4b5563; }
 }
+
+/* 高亮。底色用低饱和的琥珀，深浅两种模式下都当作纸质标注看待，
+   不去抢正文的黑色。左边一道细线让整段的范围一眼看得清。 */
+.ohnews-highlight {
+  background-color: rgba(234, 179, 8, 0.26);
+  box-shadow: -3px 0 0 rgba(234, 179, 8, 0.55);
+  border-radius: 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ohnews-highlight {
+    background-color: rgba(234, 179, 8, 0.16);
+    box-shadow: -3px 0 0 rgba(234, 179, 8, 0.42);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .ohnews-highlight {
+    background-color: rgba(234, 179, 8, 0.42);
+    box-shadow: -3px 0 0 rgba(180, 83, 9, 0.9);
+  }
+}

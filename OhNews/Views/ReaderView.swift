@@ -225,7 +225,7 @@ struct StoryDetailView: View {
 
     /// 正文渲染的唯一入口。
     ///
-    /// 四种正文形态（正常、自述帖、降级、译文）共用它，段落收藏与跳转才
+    /// 四种正文形态（正常、自述帖、降级、译文）共用它，高亮与跳转才
     /// 不会只在一部分场景里能用。
     private func readerWebView(html: String, baseURL: URL?, story: Story) -> some View {
         // 跳转目标只在它确实属于当前这篇时才生效。
@@ -241,6 +241,7 @@ struct StoryDetailView: View {
             discussionHTML: state.displayDiscussionHTML,
             scrollTarget: target,
             topInset: inset,
+            highlightedParagraphs: state.highlightedParagraphs(for: story),
             contextMenuItems: { readerContextMenu(for: story) }
         )
     }
@@ -251,7 +252,7 @@ struct StoryDetailView: View {
     /// 不需要动事件处理那一层。数组为空时正文里右键不会弹任何菜单。
     private func readerContextMenu(for story: Story) -> [ReaderContextMenuItem] {
         [
-            ReaderContextMenuItem(title: "收藏选中段落") { selection in
+            ReaderContextMenuItem(title: "高亮选中内容") { selection in
                 Task {
                     await state.savePassage(
                         text: selection.text,
@@ -561,6 +562,32 @@ enum ReaderScript {
     })()
     """
 
+    /// 给高亮的段落打上标记类，其余段落先清掉。
+    ///
+    /// 只加 class 不动节点结构：段落号 `p-<序号>` 是按 DOM 顺序生成的，
+    /// 包裹一层元素会让序号错位，之前的跳转就指到别处了。
+    static func markHighlights(_ indexes: [Int]) -> String {
+        let list = indexes.map(String.init).joined(separator: ",")
+        return """
+        (function () {
+          var marked = document.querySelectorAll('.ohnews-highlight');
+          for (var i = 0; i < marked.length; i++) {
+            marked[i].classList.remove('ohnews-highlight');
+          }
+          var wanted = [\(list)];
+          var count = 0;
+          for (var j = 0; j < wanted.length; j++) {
+            var block = document.getElementById('p-' + wanted[j]);
+            if (block) {
+              block.classList.add('ohnews-highlight');
+              count++;
+            }
+          }
+          return count;
+        })()
+        """
+    }
+
     /// 把某一段滚到视野中央，并用一条临时轮廓标出来。
     /// 轮廓自己会消失，不需要另一段脚本来清。
     static func scrollToParagraph(_ index: Int) -> String {
@@ -599,6 +626,8 @@ struct ArticleWebView: NSViewRepresentable {
     var scrollTarget: Int?
     /// 正文顶部预留的高度，让正文从顶部浮层下边缘开始。
     var topInset: CGFloat = 0
+    /// 需要标黄的段落编号（高亮）。
+    var highlightedParagraphs: [Int] = []
     /// 正文右键菜单里的项。返回空数组时，正文里右键什么也不发生。
     var contextMenuItems: () -> [ReaderContextMenuItem] = { [] }
 
@@ -630,12 +659,17 @@ struct ArticleWebView: NSViewRepresentable {
             topInset: topInset
         )
         guard context.coordinator.loadedDocument != document else {
+            // 文档没变。高亮是后加的标记，不需要重新加载整篇就能更新。
+            context.coordinator.applyHighlights(highlightedParagraphs, in: webView)
             context.coordinator.scrollIfNeeded(in: webView, target: scrollTarget)
             return
         }
         context.coordinator.loadedDocument = document
         // 新文档加载后，旧编号已失效，要让下一次跳转重新执行。
         context.coordinator.appliedScrollTarget = nil
+        // 标记随文档一起没了，清掉记录让 didFinish 重新打一遍。
+        context.coordinator.appliedHighlights = []
+        context.coordinator.highlightedParagraphs = highlightedParagraphs
         context.coordinator.pendingScrollTarget = scrollTarget
         webView.loadHTMLString(document, baseURL: baseURL)
     }
@@ -652,6 +686,10 @@ struct ArticleWebView: NSViewRepresentable {
         var pendingScrollTarget: Int?
         /// 已经跳过的位置，用来避免重复触发。
         var appliedScrollTarget: Int?
+        /// 当前要标黄的段落。文档重载后由 `didFinish` 重新打一遍。
+        var highlightedParagraphs: [Int] = []
+        /// 已经打上的高亮，用来避免重复跑脚本。
+        var appliedHighlights: [Int] = []
 
         private let contextMenu = ReaderContextMenuController()
 
@@ -670,13 +708,28 @@ struct ArticleWebView: NSViewRepresentable {
             contextMenu.uninstall()
         }
 
-        /// 文档加载完成：先给段落编号，再做挂起的跳转。
+        /// 文档加载完成：先给段落编号，标黄，再做挂起的跳转。
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             webView.evaluateJavaScript(ReaderScript.tagParagraphs) { _, _ in
+                // 编号出来了才找得到段落，标记必须排在后面。
+                self.applyHighlights(self.highlightedParagraphs, in: webView, force: true)
                 guard let target = self.pendingScrollTarget else { return }
                 self.pendingScrollTarget = nil
                 self.scrollIfNeeded(in: webView, target: target)
             }
+        }
+
+        /// 给高亮段落打标记。重复调用无副作用，脚本自己会先清旧的。
+        func applyHighlights(
+            _ indexes: [Int],
+            in webView: WKWebView,
+            force: Bool = false
+        ) {
+            let sorted = indexes.sorted()
+            highlightedParagraphs = sorted
+            guard force || sorted != appliedHighlights else { return }
+            appliedHighlights = sorted
+            webView.evaluateJavaScript(ReaderScript.markHighlights(sorted)) { _, _ in }
         }
 
         func scrollIfNeeded(in webView: WKWebView, target: Int?) {

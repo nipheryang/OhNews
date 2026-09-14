@@ -322,7 +322,12 @@ struct LibraryStoreTests {
 
     @Test("侧栏入口的顺序就是显示顺序")
     func entryOrderIsStable() {
-        // 星标在最前，收藏夹在稍后读之前。
-        #expect(LibraryEntry.allCases == [.collection, .savedPages, .readLater])
+        // 星标在最前，高亮紧随其后，收藏夹在稍后读之前。
+        #expect(LibraryEntry.allCases == [.collection, .highlight, .savedPages, .readLater])
+    }
+
+    @Test("高亮沿用旧的存储标识，以免旧数据读不出来")
+    func highlightKeepsLegacyIdentifier() {
+        #expect(LibraryEntry.highlight.rawValue == "library:passage")
     }
 }

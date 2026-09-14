@@ -894,7 +894,7 @@ final class AppState {
 
     private func loadArticle(for story: Story, ignoringArchive: Bool = false) async {
         // 归档过的内容直接读本地存档：不联网、不等待。这同时保证正文里的
-        // 段落编号（`p-<n>`）与收藏时一模一样，段落收藏的跳转不会错位。
+        // 段落编号（`p-<n>`）与标记高亮时一模一样，高亮的跳转与标黄不会错位。
         // 「重新抓取」显式跳过这一段。
         if ignoringArchive == false,
            let archive = await archives.archive(itemID: story.id) {
@@ -1264,7 +1264,7 @@ final class AppState {
     private(set) var collectionItems: [SavedArticle] = []
     /// 稍后读列表，按保存时间倒序。
     private(set) var readLaterItems: [SavedArticle] = []
-    /// 段落收藏，按保存时间倒序。
+    /// 高亮的文段，按标记时间倒序。
     private(set) var passageItems: [SavedPassage] = []
 
     /// 收藏夹里的单篇，按收藏时间倒序。
@@ -1280,13 +1280,13 @@ final class AppState {
         LibraryEntry.matching(selectedChannelID)
     }
 
-    /// 当前入口对应的文章列表；停在频道上或收藏夹时为空。
+    /// 当前入口对应的文章列表；停在频道上时不走这里。
     var activeLibraryItems: [SavedArticle] {
         switch activeLibraryEntry {
         case .collection: collectionItems
         case .readLater: readLaterItems
-        // 收藏夹的内容是 `SavedPage`，不走这里。
-        case .savedPages, .none: []
+        // 高亮与收藏夹的内容不是 `SavedArticle`，各有自己的取法。
+        case .highlight, .savedPages, .none: []
         }
     }
 
@@ -1399,7 +1399,7 @@ final class AppState {
             return nil
         }
         guard trimmed.count <= LibraryStore.maxPassageLength else {
-            showNotice("选中的内容超过 \(LibraryStore.maxPassageLength) 字，没有收藏")
+            showNotice("选中的内容超过 \(LibraryStore.maxPassageLength) 字，没有高亮")
             return nil
         }
 
@@ -1413,13 +1413,24 @@ final class AppState {
             )
         )
         guard let saved else {
-            showNotice("这一段已经在收藏里了")
+            showNotice("这一段已经高亮过了")
             return nil
         }
 
         await reloadLibrary()
-        showNotice("已收藏这一段")
+        showNotice("已高亮这一段")
         return saved
+    }
+
+    /// 当前文章里被高亮的段落编号，交给阅读器标黄。
+    ///
+    /// 编号按 DOM 顺序生成，只在一次渲染内有效；所以换了文章、或者重新渲染过
+    /// 正文之后，编号会重新算。只认得下段落的那些高亮（序号为 -1 的丢掉），
+    /// 宁可不高亮也不标到别的段上。
+    func highlightedParagraphs(for story: Story) -> [Int] {
+        passageItems
+            .filter { $0.itemID == story.id && $0.paragraphIndex >= 0 }
+            .map(\.paragraphIndex)
     }
 
     // MARK: - 轻提示
@@ -1477,7 +1488,7 @@ final class AppState {
         await refreshArchiveSize()
     }
 
-    /// 从段落收藏跳回原文的那一段。
+    /// 从高亮跳回原文的那一段。
     func openSavedPassage(_ passage: SavedPassage) async {
         let story = await cache.story(id: passage.itemID)
             ?? (collectionItems + readLaterItems).first { $0.id == passage.itemID }?.story
