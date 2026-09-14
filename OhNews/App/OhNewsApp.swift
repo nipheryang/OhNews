@@ -34,9 +34,8 @@ struct OhNewsApp: App {
         //
         // `.contentMinSize` 把根视图的最小尺寸交给窗口，用户从此拉不到那个状态。
         .windowResizability(.contentMinSize)
-        .commands {
-            SidebarCommands()
-        }
+        // 不再需要 `SidebarCommands()`：它驱动的是 `NavigationSplitView` 的侧栏显隐，
+        // 而侧栏现在由 `ThreePaneShell` 自己管，开关是工具栏上那个按钮。
 
         Settings {
             SettingsView()

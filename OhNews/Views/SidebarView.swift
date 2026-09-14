@@ -79,7 +79,6 @@ struct SidebarView: View {
         // 而且它不是滚动视图，滑不回来。与 2026-09-13 修过的中栏那一例同源，
         // 侧栏当时漏了。（此处的 List 就是整列的根视图；中栏那种"List 外面还套着
         // VStack"的情形不能这么加，会形成约束循环。）
-        .containerRelativeFrame(.vertical)
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(Palette.paper)

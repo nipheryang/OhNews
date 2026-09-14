@@ -34,7 +34,10 @@ struct PaneHeightProbe: ViewModifier {
         // 2026-09-14 实测：栏高恒比 contentLayoutRect 少约 17.5pt，且这个差值
         // 不随窗口变化。溢出的特征是"栏高 > 窗口"，而这里是反过来，所以那不是溢出。
         // 保留两个数字，等下一次真出问题时可以直接对照。
+        // 用 windows 里第一个可见窗口，而不是 keyWindow：
+        // 应用不在最前时 keyWindow 是 nil，取不到参照值（会全报 0）。
         let window = NSApplication.shared.keyWindow
+            ?? NSApplication.shared.windows.first { $0.isVisible }
         let layoutHeight = window?.contentLayoutRect.height ?? 0
         let contentHeight = window?.contentView?.frame.height ?? 0
         // 断言只针对"栏高不应当超过窗口"——那才是溢出的充要特征。
@@ -43,6 +46,10 @@ struct PaneHeightProbe: ViewModifier {
             "%@",
             "[三栏自检] \(name) 栏高=\(fmt(paneHeight)) 内容区=\(fmt(layoutHeight)) 内容视图=\(fmt(contentHeight)) \(verdict)"
         )
+        // 只让侧栏那一支负责 dump，否则三栏各打一份、无法对读。
+        if name == "侧栏" {
+            LayoutDump.log(name)
+        }
     }
 
     private func fmt(_ value: CGFloat) -> String {

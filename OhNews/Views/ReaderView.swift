@@ -47,7 +47,6 @@ struct StoryDetailView: View {
         // 内容）会把这个需求传给 `NavigationSplitView`，三列便都按那个高度布局，
         // 窗口装不下就溢出——侧栏被挤到可视区之上而空白，正文上方也被裁掉。
         // 正文自己会在 WebView 内部滚动，外层高度取容器即可。
-        .containerRelativeFrame(.vertical)
         // 正文状态切换用短交叉淡化，不位移：阅读时内容位置跳动比“没有动画”更难受。
         .animation(
             reduceMotion ? nil : Motion.standard,

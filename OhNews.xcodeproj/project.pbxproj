@@ -23,6 +23,7 @@
 		4574F832C0EFE272A9A21CE8 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34B48E54B95714D0A84EBC7 /* Theme.swift */; };
 		4E09595B8393C6149E9A3495 /* ArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */; };
 		54D199DC4A783A0BC631B283 /* OhNewsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 42FE398B922B1B7937CC4E33 /* OhNewsKit */; };
+		592C6F92310A6BBC7D16E009 /* LayoutDump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93ECF568E6DE690BABCED4A9 /* LayoutDump.swift */; };
 		5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664307FBDE3EB878CF62DCE /* InsightService.swift */; };
 		5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */; };
 		67DD7076F80CD108209B4462 /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117D07BD69AB225F729C0C8A /* UpdateService.swift */; };
@@ -34,6 +35,7 @@
 		A5CE2BC67631DB1331463C66 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D622AE7B84D3799C108448A /* TranslationService.swift */; };
 		AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */; };
 		ADF213A7273BCDAE579991A4 /* InsightPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66DE410FC72AE1D874BA29B1 /* InsightPanel.swift */; };
+		B41EF4E7E2F838295C5B1438 /* ThreePaneShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1951225FE623888A95A90AD /* ThreePaneShell.swift */; };
 		BF48989BBB5A7399D30172BC /* HNClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E13AC35833EEA13732D6CB1 /* HNClient.swift */; };
 		C1008DF3D541E92E27B471B2 /* ConfigPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51726957DA0EF3E0B543FB8 /* ConfigPersistence.swift */; };
 		C85FD4876D37AAF920B35AA0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A534019F6349291DE9DB5B /* SidebarView.swift */; };
@@ -67,6 +69,7 @@
 		78756EC08D238F27332945B7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		78A534019F6349291DE9DB5B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		87771BA3E8F2CF298D5BAD43 /* SummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryService.swift; sourceTree = "<group>"; };
+		93ECF568E6DE690BABCED4A9 /* LayoutDump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutDump.swift; sourceTree = "<group>"; };
 		9D622AE7B84D3799C108448A /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
 		9E8F18C00B024979631A7D55 /* StoryRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryRowView.swift; sourceTree = "<group>"; };
 		A206012A0B5B7A9EFEDF2260 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -84,6 +87,7 @@
 		E34B48E54B95714D0A84EBC7 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		E4257191DB1B7E5279DEAA26 /* ReaderInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderInteraction.swift; sourceTree = "<group>"; };
 		E8FF402A3E874BA8A3A87ECD /* ArticleExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleExtractor.swift; sourceTree = "<group>"; };
+		F1951225FE623888A95A90AD /* ThreePaneShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreePaneShell.swift; sourceTree = "<group>"; };
 		F3B44890862C4EAD57FCE612 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -105,6 +109,14 @@
 				5EE8418AB4705672131EE240 /* OhNewsKit */,
 			);
 			path = Packages;
+			sourceTree = "<group>";
+		};
+		2033F90E4403CEBAEDF14008 /* Layout */ = {
+			isa = PBXGroup;
+			children = (
+				F1951225FE623888A95A90AD /* ThreePaneShell.swift */,
+			);
+			path = Layout;
 			sourceTree = "<group>";
 		};
 		2BD8129784B7DAAC0375B69F /* Models */ = {
@@ -188,6 +200,7 @@
 		E9ECD13007640EBEBF1D874E /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				2033F90E4403CEBAEDF14008 /* Layout */,
 				525AFDE209F5ECEC5B42F2E0 /* AddSourceView.swift */,
 				AFFF3EBEB425A5D5A6B20EBF /* AddWebPageView.swift */,
 				106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */,
@@ -208,6 +221,7 @@
 			isa = PBXGroup;
 			children = (
 				78756EC08D238F27332945B7 /* Info.plist */,
+				93ECF568E6DE690BABCED4A9 /* LayoutDump.swift */,
 				76E2D3C2A11A71A11AB5C9F0 /* OhNews.entitlements */,
 				D278B494EE448707CAD47349 /* PaneHeightProbe.swift */,
 				C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */,
@@ -309,6 +323,7 @@
 				ADF213A7273BCDAE579991A4 /* InsightPanel.swift in Sources */,
 				5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */,
 				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
+				592C6F92310A6BBC7D16E009 /* LayoutDump.swift in Sources */,
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
 				3136032BD87C61096192B47D /* PaneHeightProbe.swift in Sources */,
 				912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */,
@@ -324,6 +339,7 @@
 				1C26B7C582981293F69AC37C /* SummaryCardView.swift in Sources */,
 				AC96ABF1DBA047F163A9C50D /* SummaryService.swift in Sources */,
 				4574F832C0EFE272A9A21CE8 /* Theme.swift in Sources */,
+				B41EF4E7E2F838295C5B1438 /* ThreePaneShell.swift in Sources */,
 				A5CE2BC67631DB1331463C66 /* TranslationService.swift in Sources */,
 				67DD7076F80CD108209B4462 /* UpdateService.swift in Sources */,
 			);
