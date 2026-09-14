@@ -72,13 +72,23 @@ enum Scrollbars {
     }
 
     private static func apply(to view: NSView) {
-        if let scroll = view as? NSScrollView,
-           scroll.hasVerticalScroller,
-           isInsideWebView(scroll) == false {
-            scroll.hasVerticalScroller = false
-            #if DEBUG
-            NSLog("%@", "[滚动条] 已关闭一个（宽度 \(Int(scroll.frame.width))）")
-            #endif
+        if let scroll = view as? NSScrollView, isInsideWebView(scroll) == false {
+            // 两件事一起做，缺一不可：
+            //
+            // 1. 样式设为 overlay —— **这一条才是"不闪"的关键**。SwiftUI 每次重排都会
+            //    把滚动条重新打开（`hasVerticalScroller` 变回 true），而它不受我们控制。
+            //    样式是 overlay 时，即使条"在"，**不滚动就不绘制**——于是最坏情况只是
+            //    "滚动时浮出一条细条"，不会出现那种闪一下。
+            // 2. 顺手把条关掉。能保持住就彻底没有；被 SwiftUI 打开时由第 1 条兜住。
+            if scroll.scrollerStyle != .overlay {
+                scroll.scrollerStyle = .overlay
+            }
+            if scroll.hasVerticalScroller {
+                scroll.hasVerticalScroller = false
+                #if DEBUG
+                NSLog("%@", "[滚动条] 已关闭一个（宽度 \(Int(scroll.frame.width))）")
+                #endif
+            }
         }
         for sub in view.subviews {
             apply(to: sub)
