@@ -1418,10 +1418,9 @@ final class AppState {
     @discardableResult
     func savePassage(text: String, paragraphIndex: Int, for story: Story) async -> SavedPassage? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false else {
-            showNotice("没有选中文字", in: .reader)
-            return nil
-        }
+        guard trimmed.isEmpty == false else { return nil }
+        // 唯一还需要说出来的一种失败：选得太多。其余情况气泡自己就给出了结果
+        // （标黄了就是成了），再弹一条提示只是噪声。
         guard trimmed.count <= LibraryStore.maxPassageLength else {
             showNotice("选中的内容超过 \(LibraryStore.maxPassageLength) 字，没有高亮", in: .reader)
             return nil
@@ -1436,13 +1435,9 @@ final class AppState {
                 savedAt: Date()
             )
         )
-        guard let saved else {
-            showNotice("这一段已经高亮过了", in: .reader)
-            return nil
-        }
+        guard let saved else { return nil }
 
         await reloadLibrary()
-        showNotice("已高亮这一段", in: .reader)
         return saved
     }
 
@@ -1450,15 +1445,38 @@ final class AppState {
     ///
     /// 按「文章 + 原文」找，而不是按内部 id：从正文里点那条高亮时，
     /// 页面只给得出文字和段落号，给不出 id。
-    func removeHighlight(text: String, for story: Story) async {
+    @discardableResult
+    func removeHighlight(text: String, for story: Story) async -> Bool {
         let removed = await library.removePassage(itemID: story.id, text: text)
-        guard removed > 0 else {
-            showNotice("这条高亮已经不在了", in: .reader)
-            return
-        }
+        guard removed > 0 else { return false }
         await reloadLibrary()
-        showNotice("已取消高亮", in: .reader)
+        return true
     }
+
+    /// 气泡菜单里点了某一项。正文里发起的操作都从这里出去。
+    func performBubbleAction(_ action: ReaderBubbleAction, for story: Story) async {
+        switch action.kind {
+        case .highlight:
+            await savePassage(
+                text: action.text,
+                paragraphIndex: action.paragraphIndex,
+                for: story
+            )
+
+        case .unhighlight:
+            await removeHighlight(text: action.text, for: story)
+        }
+
+        // 用过就把气泡和选区一起收掉。蓝色的选中块压在刚变黄的文字上，
+        // 看着像没生效；而下一轮标记会把气泡重画一遍，旧的留着会多出一颗圆点。
+        selectionClearTicket += 1
+    }
+
+    /// 阅读器请正文收一下选区和划选气泡。
+    ///
+    /// 用一个只增不减的票号，视图层比对票号就知道该不该动手：`AppState`
+    /// 不直接碰 WebView，也不需要谁给回执。
+    private(set) var selectionClearTicket = 0
 
     /// 当前文章里的高亮，交给阅读器标黄。
     ///
@@ -1519,7 +1537,11 @@ final class AppState {
     /// 值而误跳。
     struct PendingScroll: Equatable {
         let itemID: String
-        let paragraphIndex: Int
+        /// 要跳到哪一条高亮：段落号 + 原文。
+        ///
+        /// 光有段落号不够——同一段里可能有好几条互不相干的高亮，
+        /// 靠段落号只能整段一起闪，那是在替用户认错目标。
+        let highlight: ReaderHighlight
     }
 
     var pendingScroll: PendingScroll?
@@ -1555,7 +1577,10 @@ final class AppState {
         guard passage.paragraphIndex >= 0 else { return }
         pendingScroll = PendingScroll(
             itemID: passage.itemID,
-            paragraphIndex: passage.paragraphIndex
+            highlight: ReaderHighlight(
+                paragraphIndex: passage.paragraphIndex,
+                text: passage.text
+            )
         )
     }
 

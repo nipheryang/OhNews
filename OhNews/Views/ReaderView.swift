@@ -260,7 +260,7 @@ struct StoryDetailView: View {
     private func readerWebView(html: String, baseURL: URL?, story: Story) -> some View {
         // 跳转目标只在它确实属于当前这篇时才生效。
         let target = state.pendingScroll?.itemID == story.id
-            ? state.pendingScroll?.paragraphIndex
+            ? state.pendingScroll?.highlight
             : nil
         // 顶部浮层占掉多少，正文就让出多少。解读不可用时不留白。
         let inset = state.insightState == .unavailable ? 0 : InsightCardView.height
@@ -273,40 +273,11 @@ struct StoryDetailView: View {
             topInset: inset,
             highlights: state.highlights(for: story),
             fontScale: state.readerFontScale,
-            contextMenuItems: { readerContextMenu(for: story) },
-            highlightMenuItems: { hit in highlightMenu(for: story, hit: hit) }
+            performBubbleAction: { action in
+                Task { await state.performBubbleAction(action, for: story) }
+            },
+            selectionClearTicket: state.selectionClearTicket
         )
-    }
-
-    /// 正文右键菜单的内容。
-    ///
-    /// 这里就是以后加功能的地方：往数组里添一项，菜单里就多一条，
-    /// 不需要动事件处理那一层。数组为空时正文里右键不会弹任何菜单。
-    private func readerContextMenu(for story: Story) -> [ReaderContextMenuItem] {
-        [
-            ReaderContextMenuItem(title: "高亮选中内容") { target in
-                guard case .selection(let selection) = target else { return }
-                Task {
-                    await state.savePassage(
-                        text: selection.text,
-                        paragraphIndex: selection.paragraphIndex ?? -1,
-                        for: story
-                    )
-                }
-            }
-        ]
-    }
-
-    /// 点在高亮上的菜单内容。
-    ///
-    /// 高亮是可逆的：标错了要能撤掉。这里只放"取消高亮"，
-    /// 以后要加（复制、加笔记）就往数组里添。
-    private func highlightMenu(for story: Story, hit: ReaderHighlight) -> [ReaderContextMenuItem] {
-        [
-            ReaderContextMenuItem(title: "取消高亮") { _ in
-                Task { await state.removeHighlight(text: hit.text, for: story) }
-            }
-        ]
     }
 
     // MARK: - 翻译按钮
@@ -577,6 +548,17 @@ struct ReaderHighlight: Equatable, Sendable {
 }
 
 enum ReaderScript {
+    /// 把一段文字变成 JS 字符串字面量。
+    ///
+    /// 用 JSON 转义：引号、反斜杠、换行都由它处理，手写拼接容易漏。
+    private static func quoted(_ text: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: [text]),
+              let json = String(data: data, encoding: .utf8),
+              json.count >= 2
+        else { return "\"\"" }
+        return String(json.dropFirst().dropLast())
+    }
+
     /// 给正文的块级元素按 DOM 顺序挂上 `p-<序号>`。
     ///
     /// 每次加载后重新编号，序号只保证在一次渲染内稳定（与跳转目标一致）。
@@ -593,29 +575,43 @@ enum ReaderScript {
     })()
     """
 
-    /// 读选区，并给出它所在的段落编号。段落编号拿不到时为 -1。
-    /// 返回 JSON 字符串，因为在两个系统之间只能传基础类型。
-    static let readSelection = """
-    (function () {
-      var selection = window.getSelection();
-      var text = selection ? selection.toString() : '';
-      var index = -1;
-      if (selection && selection.rangeCount > 0 && text.trim().length > 0) {
-        var node = selection.getRangeAt(0).startContainer;
-        if (node && node.nodeType !== 1) { node = node.parentNode; }
-        while (node && node !== document.body) {
-          if (node.id && node.id.indexOf('p-') === 0) {
-            index = parseInt(node.id.substring(2), 10);
-            break;
-          }
-          node = node.parentNode;
+    /// 气泡的构造函数。标记高亮与划选后弹气泡两处都要用，
+    /// 所以拼成一段共用的脚本片段，各自放在自己的 IIFE 里。
+    private static let bubbleFactory = """
+      // 一条高亮在文末挂一颗气泡；菜单项要带上是哪条高亮由它操作。
+      // 气泡菜单一次只开一个：两个菜单同时挂着，用户分不清哪个属于哪句。
+      function closeBubbleMenus() {
+        var open = document.querySelectorAll('.ohnews-open');
+        for (var i = 0; i < open.length; i++) {
+          open[i].classList.remove('ohnews-open');
         }
       }
-      return JSON.stringify({ text: text, index: index });
-    })()
+
+      function buildBubble(text, action, label, index) {
+        var bubble = document.createElement('span');
+        bubble.className = 'ohnews-bubble';
+
+        var dot = document.createElement('span');
+        dot.className = 'ohnews-dot';
+        bubble.appendChild(dot);
+
+        var menu = document.createElement('span');
+        menu.className = 'ohnews-menu';
+
+        var item = document.createElement('span');
+        item.className = 'ohnews-menu-item';
+        item.setAttribute('data-ohnews-action', action);
+        item.setAttribute('data-ohnews-text', text);
+        item.setAttribute('data-ohnews-index', String(index));
+        item.textContent = label;
+        menu.appendChild(item);
+
+        bubble.appendChild(menu);
+        return bubble;
+      }
     """
 
-    /// 在段落里定位选中的那段文字，只把它包起来。
+    /// 在段落里定位选中的那段文字，只把它包起来，并在末尾挂上气泡。
     ///
     /// 先拆掉上一次的标记并合并文本节点——不还原就直接再标，
     /// 第二次会在被拆碎的节点里找不全原文。
@@ -632,7 +628,18 @@ enum ReaderScript {
         (function () {
           var wanted = \(json);
 
+          \(bubbleFactory)
+
           function unwrapAll() {
+            // 气泡要先摘掉。它挂在 mark 里面，而拆开 mark 只把子节点留在原地，
+            // 于是气泡会变成段落后代里的一块垃圾，越积越多。
+            var bubbles = document.querySelectorAll('.ohnews-bubble');
+            for (var b = 0; b < bubbles.length; b++) {
+              if (bubbles[b].parentNode) {
+                bubbles[b].parentNode.removeChild(bubbles[b]);
+              }
+            }
+
             var old = document.querySelectorAll('mark.ohnews-highlight, .ohnews-highlight');
             for (var i = 0; i < old.length; i++) {
               var el = old[i];
@@ -651,6 +658,7 @@ enum ReaderScript {
           }
 
           // 把 [from, to) 这一段文字包进 mark，可能跨多个文本节点。
+          // 返回包出来的那几个 mark，好把气泡挂到最后一个（也就是这条高亮的末尾）。
           function wrapRange(block, needle) {
             var texts = [];
             var walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null);
@@ -665,9 +673,10 @@ enum ReaderScript {
             }
 
             var at = full.indexOf(needle);
-            if (at < 0) { return false; }
+            if (at < 0) { return null; }
             var end = at + needle.length;
 
+            var made = [];
             // 从后往前切：splitText 会把后面的节点挪位，倒着处理才不会乱。
             for (var k = texts.length - 1; k >= 0; k--) {
               var from = starts[k];
@@ -684,84 +693,264 @@ enum ReaderScript {
               mark.setAttribute('data-ohnews-text', needle);
               piece.parentNode.insertBefore(mark, piece);
               mark.appendChild(piece);
+              made.unshift(mark);
             }
-            return true;
+            return made.length > 0 ? made : null;
           }
 
           unwrapAll();
 
-          var whole = 0;
           for (var j = 0; j < wanted.length; j++) {
             var item = wanted[j];
             var block = document.getElementById('p-' + item.index);
             if (!block) { continue; }
-            if (!wrapRange(block, item.text)) {
+
+            var marks = wrapRange(block, item.text);
+            if (marks) {
+              // 只给这条高亮的最后一段挂气泡，一颗就够。
+              marks[marks.length - 1].appendChild(
+                buildBubble(item.text, 'unhighlight', '取消高亮', item.index)
+              );
+            } else {
               block.classList.add('ohnews-highlight');
               block.setAttribute('data-ohnews-text', item.text);
-              whole++;
+              block.appendChild(buildBubble(item.text, 'unhighlight', '取消高亮', item.index));
             }
           }
-          return whole;
+
+          // 两条高亮互相重叠时，内层那个 mark 会嵌在外层里面：底色叠两层、
+          // 两颗圆点挤在一起。把内层拆掉，只留外层——重叠的那一段仍然是高亮的，
+          // 只是由外层代表它。
+          var nested = document.querySelectorAll('mark.ohnews-highlight mark.ohnews-highlight');
+          for (var n = 0; n < nested.length; n++) {
+            var inner = nested[n];
+            var host = inner.parentNode;
+            if (!host) { continue; }
+            while (inner.firstChild) { host.insertBefore(inner.firstChild, inner); }
+            host.removeChild(inner);
+            host.normalize();
+          }
+
+          return document.querySelectorAll('mark.ohnews-highlight').length;
         })()
         """
     }
 
-    /// 把某一段滚到视野中央，并让这一段里的高亮闪一下。
+    /// 划选结束后在选区末尾弹一颗气泡。
     ///
-    /// 以前这里给整段描一圈轮廓当落点提示，但它读起来像"选中了这一整段"——
-    /// 用户只是从高亮列表跳过来，并没有选任何东西。现在改成只闪高亮本身，
-    /// 与「悬停在高亮上」用的是同一套视觉语言。
-    static func scrollToParagraph(_ index: Int) -> String {
-        """
+    /// 选区自己不会上报"我选好了"，所以由应用侧在抬起鼠标时调这里。
+    /// 气泡按**文档坐标**安放（不是视口坐标），这样它跟着正文一起滚。
+    ///
+    /// `known` 是这篇文章已有的高亮（`[{"index": n, "text": "…"}]`）：
+    /// 选中的文字如果正是其中一条，气泡给的就不是"高亮"而是"取消高亮"——
+    /// 否则用户点下去会什么都发生不了（存储层会拒掉重复的那条）。
+    ///
+    /// 返回 JSON `{"text": …, "index": …}`，选不中东西时返回 null。
+    static func showSelectionBubble(x: Double, y: Double, known: [[String: Any]]) -> String {
+        let knownJSON = (try? JSONSerialization.data(withJSONObject: known))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            ?? "[]"
+
+        return """
         (function () {
-          var block = document.getElementById('p-\(index)');
-          if (!block) { return false; }
-          block.scrollIntoView({ block: 'center', behavior: 'auto' });
+          var known = \(knownJSON);
 
-          function flash(el) {
-            el.classList.remove('ohnews-highlight-flash');
-            // 读一次布局，强制重排：否则同一个元素连着闪两次不会重放动画。
-            void el.offsetWidth;
-            el.classList.add('ohnews-highlight-flash');
+          \(bubbleFactory)
+
+          function clearFloats() {
+            var old = document.querySelectorAll('.ohnews-float');
+            for (var i = 0; i < old.length; i++) {
+              if (old[i].parentNode) { old[i].parentNode.removeChild(old[i]); }
+            }
           }
 
-          // 优先闪这一段的那些高亮；整段上色的情形，块自己就是高亮。
-          var marks = block.querySelectorAll('mark.ohnews-highlight');
-          if (marks.length > 0) {
-            for (var i = 0; i < marks.length; i++) { flash(marks[i]); }
-          } else if (block.classList.contains('ohnews-highlight')) {
-            flash(block);
+          // 点在气泡自己身上时不弹新的：那颗圆点就压在文字上，
+          // 点它不该被当成"选中了一小段"。
+          var hit = document.elementFromPoint(\(x), \(y));
+          if (hit && hit.closest && hit.closest('.ohnews-bubble, .ohnews-float')) {
+            return null;
           }
-          return true;
+
+          clearFloats();
+          closeBubbleMenus();
+
+          var selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0) { return null; }
+
+          var text = selection.toString().trim();
+          if (text.length === 0) { return null; }
+
+          var range = selection.getRangeAt(0);
+
+          // 选区落在哪一段。拿不到就给 -1，气泡照样弹，只是跳不回去。
+          var index = -1;
+          var node = range.startContainer;
+          if (node && node.nodeType !== 1) { node = node.parentNode; }
+          while (node && node !== document.body) {
+            if (node.id && node.id.indexOf('p-') === 0) {
+              var parsed = parseInt(node.id.substring(2), 10);
+              if (!isNaN(parsed)) { index = parsed; }
+              break;
+            }
+            node = node.parentNode;
+          }
+
+          var already = false;
+          for (var k = 0; k < known.length; k++) {
+            if (known[k].text === text && known[k].index === index) { already = true; break; }
+          }
+
+          // 气泡落在选区最后一行末尾。用文档坐标，跟着正文滚。
+          var rects = range.getClientRects();
+          var last = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect();
+
+          var float = document.createElement('div');
+          float.className = 'ohnews-float ohnews-bubble-visible';
+          float.style.left = (last.right + window.scrollX) + 'px';
+          float.style.top = (last.bottom + window.scrollY) + 'px';
+          float.appendChild(already
+            ? buildBubble(text, 'unhighlight', '取消高亮', index)
+            : buildBubble(text, 'highlight', '高亮选中文段', index));
+          document.body.appendChild(float);
+
+          return JSON.stringify({ text: text, index: index });
         })()
         """
     }
 
-    /// 命中检测：屏幕坐标上是不是落在一条高亮里。
+    /// 收走正文里的选区。标完之后那块蓝色选中还压在刚变黄的文字上，
+    /// 看着像没生效。
+    static let clearSelection = """
+    (function () {
+      var selection = window.getSelection();
+      if (selection) { selection.removeAllRanges(); }
+      return true;
+    })()
+    """
+
+    /// 收走划选留下的那颗气泡。
+    static let clearSelectionBubble = """
+    (function () {
+      var old = document.querySelectorAll('.ohnews-float');
+      for (var i = 0; i < old.length; i++) {
+        if (old[i].parentNode) { old[i].parentNode.removeChild(old[i]); }
+      }
+      return old.length;
+    })()
+    """
+
+    /// 这一点上有没有气泡的零件。
     ///
-    /// 页面脚本是关着的，正文里点不到东西，所以点击只能由应用侧来判：
-    /// 把 AppKit 的坐标转成 CSS 视口坐标，交给 `elementFromPoint` 找。
-    /// 返回的 JSON 与 `readSelection` 同形，两处共用一套解码。
-    static func hitTestHighlight(x: Double, y: Double) -> String {
+    /// 页面脚本关着，气泡点不动，只能由应用侧读文档判断点了哪里。
+    /// 点在**圆点**上要展开菜单，点在**菜单项**上要执行动作，两件事分开。
+    /// 返回 JSON `{"target": …, "action": …, "text": …, "index": …}`。
+    static func hitTestBubble(x: Double, y: Double) -> String {
         """
         (function () {
           var el = document.elementFromPoint(\(x), \(y));
           if (!el || !el.closest) { return null; }
 
-          var mark = el.closest('mark.ohnews-highlight, .ohnews-highlight');
-          if (!mark) { return null; }
-
-          var block = mark.closest('[id^="p-"]');
-          var index = -1;
-          if (block && block.id) {
-            var parsed = parseInt(block.id.substring(2), 10);
-            if (!isNaN(parsed)) { index = parsed; }
+          function describe(bubble, target) {
+            var item = bubble ? bubble.querySelector('.ohnews-menu-item') : null;
+            if (!item) { return null; }
+            var index = parseInt(item.getAttribute('data-ohnews-index'), 10);
+            return JSON.stringify({
+              target: target,
+              action: item.getAttribute('data-ohnews-action') || '',
+              text: item.getAttribute('data-ohnews-text') || '',
+              index: isNaN(index) ? -1 : index
+            });
           }
 
-          // 优先用标记时写下的原文：整段上色的情形，元素里的文字是整段，
-          // 拿它去比对就找不到对应的那条高亮了。
-          var text = mark.getAttribute('data-ohnews-text') || mark.textContent || '';
-          return JSON.stringify({ text: text, index: index });
+          var item = el.closest('.ohnews-menu-item');
+          if (item) {
+            return describe(item.closest('.ohnews-bubble, .ohnews-float'), 'item');
+          }
+
+          var dot = el.closest('.ohnews-dot');
+          if (dot) {
+            return describe(dot.closest('.ohnews-bubble, .ohnews-float'), 'dot');
+          }
+
+          return null;
+        })()
+        """
+    }
+
+    /// 展开某一条高亮的气泡菜单，顺手把别的都收起来。
+    ///
+    /// 靠「原文 + 段落号」找回是哪一颗气泡：这两样在气泡上是唯一的。
+    static func openBubbleMenu(text: String, index: Int) -> String {
+        """
+        (function () {
+          \(bubbleFactory)
+
+          closeBubbleMenus();
+
+          var items = document.querySelectorAll('.ohnews-menu-item');
+          for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var itemIndex = parseInt(item.getAttribute('data-ohnews-index'), 10);
+            if (item.getAttribute('data-ohnews-text') !== \(quoted(text))) { continue; }
+            if ((isNaN(itemIndex) ? -1 : itemIndex) !== \(index)) { continue; }
+            var bubble = item.closest('.ohnews-bubble, .ohnews-float');
+            if (bubble) { bubble.classList.add('ohnews-open'); return true; }
+          }
+          return false;
+        })()
+        """
+    }
+
+    /// 收起所有气泡菜单。
+    static var closeBubbleMenus: String {
+        """
+        (function () {
+          \(bubbleFactory)
+
+          closeBubbleMenus();
+          return true;
+        })()
+        """
+    }
+
+    /// 把某一段滚到视野中央，并让**被点的那一条**高亮闪一下。
+    ///
+    /// 只闪文字对得上的那一个标记：同一段里可能有几条不相干的高亮，
+    /// 让它们一起闪等于在说"你点的是这些"。
+    ///
+    /// 以前这里给整段描一圈轮廓当落点提示，但它读起来像"选中了这一整段"——
+    /// 用户只是从高亮列表跳过来，并没有选任何东西。
+    static func scrollToParagraph(_ index: Int, text: String) -> String {
+        let needle = quoted(text)
+
+        return """
+        (function () {
+          var block = document.getElementById('p-\(index)');
+          if (!block) { return false; }
+          block.scrollIntoView({ block: 'center', behavior: 'auto' });
+
+          var needle = \(needle);
+          var target = null;
+
+          var marks = block.querySelectorAll('mark.ohnews-highlight');
+          for (var i = 0; i < marks.length; i++) {
+            if (marks[i].getAttribute('data-ohnews-text') === needle) {
+              target = marks[i];
+              break;
+            }
+          }
+          if (!target &&
+              block.classList.contains('ohnews-highlight') &&
+              block.getAttribute('data-ohnews-text') === needle) {
+            target = block;
+          }
+          if (!target) { return true; }
+
+          target.classList.remove('ohnews-highlight-flash');
+          // 读一次布局，强制重排：否则同一个元素连着闪两次不会重放动画。
+          void target.offsetWidth;
+          target.classList.add('ohnews-highlight-flash');
+          return true;
         })()
         """
     }
@@ -779,18 +968,18 @@ struct ArticleWebView: NSViewRepresentable {
     let baseURL: URL?
     /// 讨论区段落，为 nil 时不渲染。
     var discussionHTML: String?
-    /// 需要滚动到的段落编号。用后由 `AppState` 清掉，避免下次重新渲染又跳。
-    var scrollTarget: Int?
+    /// 需要滚动到的段落。用后由 `AppState` 清掉，避免下次重新渲染又跳。
+    var scrollTarget: ReaderHighlight?
     /// 正文顶部预留的高度，让正文从顶部浮层下边缘开始。
     var topInset: CGFloat = 0
     /// 要标黄的高亮（段落号 + 选中的原文）。
     var highlights: [ReaderHighlight] = []
     /// 正文字号倍数。
     var fontScale: Double = 1.0
-    /// 正文右键菜单里的项。返回空数组时，正文里右键什么也不发生。
-    var contextMenuItems: () -> [ReaderContextMenuItem] = { [] }
-    /// 点在高亮上时的菜单项。返回空数组时，点高亮什么也不发生。
-    var highlightMenuItems: (ReaderHighlight) -> [ReaderContextMenuItem] = { _ in [] }
+    /// 气泡菜单里点了某一项。高亮与取消高亮都从这里出去。
+    var performBubbleAction: (ReaderBubbleAction) -> Void = { _ in }
+    /// 票号变了就请在正文里收一下选区和划选气泡。
+    var selectionClearTicket: Int = 0
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -804,20 +993,14 @@ struct ArticleWebView: NSViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.underPageBackgroundColor = .clear
         webView.allowsMagnification = true
-        // 在事件分发前接管右键，WebKit 的系统菜单就不会再出来。
-        context.coordinator.installContextMenu(
-            in: webView,
-            items: contextMenuItems,
-            highlightItems: highlightMenuItems
-        )
+        context.coordinator.installInteraction(in: webView)
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.updateContextMenu(
-            items: contextMenuItems,
-            highlightItems: highlightMenuItems
-        )
+        context.coordinator.performBubbleAction = performBubbleAction
+        context.coordinator.highlights = highlights
+        context.coordinator.clearSelectionIfTicked(selectionClearTicket, in: webView)
 
         let document = ReaderDocumentBuilder.build(
             html: html,
@@ -838,47 +1021,50 @@ struct ArticleWebView: NSViewRepresentable {
         context.coordinator.appliedScrollTarget = nil
         // 标记随文档一起没了，清掉记录让 didFinish 重新打一遍。
         context.coordinator.appliedHighlights = []
-        context.coordinator.highlights = highlights
         context.coordinator.pendingScrollTarget = scrollTarget
         webView.loadHTMLString(document, baseURL: baseURL)
     }
 
     /// 视图销毁时卸掉事件监听，否则每换一篇文章都会留下一个。
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
-        coordinator.uninstallContextMenu()
+        coordinator.uninstallInteraction()
     }
 
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate {
         var loadedDocument: String?
         /// 文档还没加载完时记下要跳的位置。
-        var pendingScrollTarget: Int?
+        var pendingScrollTarget: ReaderHighlight?
         /// 已经跳过的位置，用来避免重复触发。
-        var appliedScrollTarget: Int?
+        var appliedScrollTarget: ReaderHighlight?
         /// 当前要高亮的文段。文档重载后由 `didFinish` 重新打一遍。
         var highlights: [ReaderHighlight] = []
         /// 已经打上的高亮，用来避免重复跑脚本。
         var appliedHighlights: [ReaderHighlight] = []
+        /// 气泡菜单被点中时执行什么。
+        var performBubbleAction: (ReaderBubbleAction) -> Void = { _ in }
+        /// 已经处理到哪一张票。
+        private var handledSelectionClearTicket = 0
 
-        private let contextMenu = ReaderContextMenuController()
+        private let interaction = ReaderInteractionController()
 
-        func installContextMenu(
-            in webView: WKWebView,
-            items: @escaping () -> [ReaderContextMenuItem],
-            highlightItems: @escaping (ReaderHighlight) -> [ReaderContextMenuItem]
-        ) {
-            contextMenu.install(in: webView, items: items, highlightItems: highlightItems)
+        func installInteraction(in webView: WKWebView) {
+            interaction.install(
+                in: webView,
+                highlights: { [weak self] in self?.highlights ?? [] },
+                perform: { [weak self] action in self?.performBubbleAction(action) }
+            )
         }
 
-        func updateContextMenu(
-            items: @escaping () -> [ReaderContextMenuItem],
-            highlightItems: @escaping (ReaderHighlight) -> [ReaderContextMenuItem]
-        ) {
-            contextMenu.update(items: items, highlightItems: highlightItems)
+        func uninstallInteraction() {
+            interaction.uninstall()
         }
 
-        func uninstallContextMenu() {
-            contextMenu.uninstall()
+        /// 票号前进过就收一次选区和气泡。
+        func clearSelectionIfTicked(_ ticket: Int, in webView: WKWebView) {
+            guard ticket != handledSelectionClearTicket else { return }
+            handledSelectionClearTicket = ticket
+            interaction.clearSelectionBubble(in: webView)
         }
 
         /// 文档加载完成：先给段落编号，标黄，再做挂起的跳转。
@@ -909,9 +1095,13 @@ struct ArticleWebView: NSViewRepresentable {
         ///
         /// 只有脚本确认找到了那一段，才记下"跳过了"：正文还在加载时这一段并不存在，
         /// 那时就记账的话，等正文真的到了也不会再跳——用户点了高亮却停在文章开头。
-        func scrollIfNeeded(in webView: WKWebView, target: Int?) {
+        ///
+        /// 目标带上原文，是因为闪动只该落在被点的那一条上：同一段里可能有几条
+        /// 互不相干的高亮。
+        func scrollIfNeeded(in webView: WKWebView, target: ReaderHighlight?) {
             guard let target, target != appliedScrollTarget else { return }
-            webView.evaluateJavaScript(ReaderScript.scrollToParagraph(target)) { result, _ in
+            let script = ReaderScript.scrollToParagraph(target.paragraphIndex, text: target.text)
+            webView.evaluateJavaScript(script) { result, _ in
                 guard (result as? Bool) == true else { return }
                 self.appliedScrollTarget = target
             }
@@ -931,5 +1121,3 @@ struct ArticleWebView: NSViewRepresentable {
         }
     }
 }
-
-

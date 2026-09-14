@@ -326,32 +326,131 @@ details[open] > .comment-head::before { content: "▾"; }
   .comments { border-top-color: #4b5563; }
 }
 
-/* 高亮。底色用低饱和的琥珀，深浅两种模式下都当作纸质标注看待，
-   不去抢正文的黑色。
+/* ---------- 高亮 ---------- */
 
-   标的是划选的那几个字，所以不加边线也不加圆角：范围由底色自己说明。
-   底色比整段上色时略浓一点，几个字才看得见。 */
+/* 底色用低饱和的琥珀，深浅两种模式下都当作纸质标注看待，不去抢正文的黑色。
+
+   标的是划选的那几个字，所以不加边线。圆角是刻意的：方角在正文里像被框住的
+   表格单元，圆角才像一句被划出来的话。左右各 1px 的内边距让圆角看得见，
+   再用等量负外边距抵消，总宽度不变，所以不会改变换行。
+
+   悬停只把底色加浓一档——可点的证据交给那颗圆点，光标也不必变成手型，
+   正文就是正文。 */
 mark.ohnews-highlight,
 .ohnews-highlight {
   background-color: rgba(234, 179, 8, 0.34);
   color: inherit;
-  padding: 0;
+  padding: 0 1px;
+  margin: 0 -1px;
+  border-radius: 3px;
 }
 
-/* 悬停：高亮是可以再点开操作的，所以要看得出来。
-   靠加浓底色和一圈柔和外光做出"浮起来"的感觉——不用 transform，
-   行内元素带它需要改成 inline-block，那会改变换行位置、让正文重排。 */
 mark.ohnews-highlight:hover,
 .ohnews-highlight:hover {
-  background-color: rgba(234, 179, 8, 0.62);
-  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2), 0 1px 3px rgba(0, 0, 0, 0.16);
+  background-color: rgba(234, 179, 8, 0.52);
+}
+
+/* ---------- 高亮上的气泡 ---------- */
+
+/* 气泡挂在被高亮文字的末尾。它是一个零尺寸的锚点：宽高都是 0，
+   既不占宽度也不占行高，所以不会改变换行，也不会把行撑开。
+   圆点的左边缘与高亮文字的右边缘恰好相接（实测间距为 0）。 */
+.ohnews-bubble {
+  position: relative;
+  display: inline-block;
+  width: 0;
+  height: 0;
+  vertical-align: baseline;
+}
+
+/* 划选之后浮在选区末尾的那一颗。
+
+   它不挂在文字上（新选的文字还没有标记可挂），所以自己在正文里定位，
+   坐标由脚本按文档坐标算好写进 style。少了这条规则，元素会退回普通块级
+   排版、被放到文档末尾——脚本照样成功返回，圆点却落在可视区之外。 */
+.ohnews-float {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 4;
+}
+
+/* 静止态：一颗小圆点。悬停在整句高亮上时才露出来。
+
+   点它才展开菜单——不是悬停展开。悬停展开看起来更省事，但指针一落到圆点上
+   菜单就已经铺开在指针底下，那一下点击立刻落在菜单项上：用户只是想看看，
+   却已经取消了高亮。展开必须是另一步。 */
+.ohnews-dot {
+  position: absolute;
+  left: 0;
+  bottom: 1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgba(234, 179, 8, 0.95);
+  box-shadow: 0 0 0 2px #ffffff, 0 1px 4px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: scale(0.5);
+  transform-origin: 0 100%;
+  transition: opacity 110ms ease, transform 110ms ease;
   cursor: pointer;
 }
 
-/* 从高亮列表跳回正文时的落点反馈：让这句话亮一下，然后退回常态。
+mark.ohnews-highlight:hover .ohnews-dot,
+.ohnews-highlight:hover .ohnews-dot,
+.ohnews-bubble-visible .ohnews-dot {
+  opacity: 1;
+  transform: scale(1);
+}
 
-   以前这里给整段加一圈 outline，读起来像"选中了这一整段"，
-   而用户只是从清单跳过来，并没有选任何东西。改成只让高亮本身闪。 */
+/* 展开态：圆角竖向菜单。
+
+   往左上方长：正文右边就是阅读区边界，往右探出去会被裁掉，所以右边缘
+   只比高亮末尾多出 2px。底边停在 1.25em（约 21px）处，正好在文字上方，
+   不压住用户刚指过的那句话。以后菜单项变多，这里只是把竖向排下去。 */
+.ohnews-menu {
+  position: absolute;
+  right: -2px;
+  bottom: 1.25em;
+  z-index: 3;
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 4px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #e5e7eb, 0 8px 22px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+}
+
+.ohnews-open .ohnews-menu {
+  display: flex;
+}
+
+.ohnews-open .ohnews-dot {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.ohnews-menu-item {
+  display: block;
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #111827;
+  cursor: pointer;
+}
+
+.ohnews-menu-item:hover {
+  background: rgba(17, 24, 39, 0.07);
+}
+
+/* 从高亮列表跳回正文时的落点反馈：让被点的那一句亮一下，然后退回常态。
+
+   以前这里给整段描一圈 outline，读起来像"选中了这一整段"，
+   而用户只是从清单跳过来，并没有选任何东西。 */
 @keyframes ohnews-highlight-flash {
   0% {
     background-color: rgba(234, 179, 8, 0.95);
@@ -376,7 +475,24 @@ mark.ohnews-highlight.ohnews-highlight-flash,
 
   mark.ohnews-highlight:hover,
   .ohnews-highlight:hover {
-    background-color: rgba(234, 179, 8, 0.5);
+    background-color: rgba(234, 179, 8, 0.42);
+  }
+
+  .ohnews-dot {
+    box-shadow: 0 0 0 2px #030712, 0 1px 4px rgba(0, 0, 0, 0.55);
+  }
+
+  .ohnews-menu {
+    background: #111827;
+    box-shadow: 0 0 0 1px #1f2937, 0 8px 22px rgba(0, 0, 0, 0.55);
+  }
+
+  .ohnews-menu-item {
+    color: #f3f4f6;
+  }
+
+  .ohnews-menu-item:hover {
+    background: rgba(243, 244, 246, 0.09);
   }
 }
 
@@ -389,5 +505,16 @@ mark.ohnews-highlight.ohnews-highlight-flash,
   mark.ohnews-highlight:hover,
   .ohnews-highlight:hover {
     background-color: rgba(234, 179, 8, 0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ohnews-dot {
+    transition: none;
+  }
+
+  mark.ohnews-highlight.ohnews-highlight-flash,
+  .ohnews-highlight.ohnews-highlight-flash {
+    animation: none;
   }
 }
