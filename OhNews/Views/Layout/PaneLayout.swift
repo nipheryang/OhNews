@@ -141,23 +141,34 @@ final class PaneLayout {
 
     /// `visible == false`：宽度弹簧收到 0，收完把那一栏移出视图树。
     /// `visible == true`：先让它以 0 宽进树（否则宽度长出来也看不见），再动画长回设定值。
+    ///
+    /// **进出视图树与翻可见性都放在"无动画事务"里**。这一点是必须的：这两件事本身
+    /// 不该有动画（否则会与宽度动画叠加，表现为展开时"咔"地一下直接到位——用户报的
+    /// "恢复时没有过渡"就是这个），只有宽度的弹簧是动画。
     private func set(_ target: Target, visible: Bool) {
-        switch target {
-        case .sidebar:
-            if visible { showsSidebar = true; liveSidebarWidth = 0 }
-        case .list:
-            if visible { showsList = true; liveListWidth = 0 }
+        var instant = Transaction()
+        instant.disablesAnimations = true
+
+        withTransaction(instant) {
+            switch target {
+            case .sidebar:
+                if visible { showsSidebar = true; liveSidebarWidth = 0 }
+            case .list:
+                if visible { showsList = true; liveListWidth = 0 }
+            }
         }
 
         let finish: () -> Void = { [weak self] in
             guard let self else { return }
-            switch target {
-            case .sidebar:
-                self.liveSidebarWidth = nil
-                self.showsSidebar = visible
-            case .list:
-                self.liveListWidth = nil
-                self.showsList = visible
+            withTransaction(instant) {
+                switch target {
+                case .sidebar:
+                    self.liveSidebarWidth = nil
+                    self.showsSidebar = visible
+                case .list:
+                    self.liveListWidth = nil
+                    self.showsList = visible
+                }
             }
         }
 

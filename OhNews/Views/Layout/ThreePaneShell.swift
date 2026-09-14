@@ -70,6 +70,9 @@ struct ThreePaneShell<SidebarPane: View, ListPane: View, DetailPane: View>: View
         }
         // 外壳铺到窗口最顶端：分隔线要贯穿标题栏那一条。
         .ignoresSafeArea(.container, edges: .top)
+        // 工具栏自己的背景与描边要关掉：内容已经铺到标题栏之下了，切换栏位时
+        // 它重新合成会闪一下原来的轮廓（深色下尤其明显）。
+        .toolbarBackground(.hidden, for: .windowToolbar)
         .toolbar {
             // 侧栏开关。原先由 `NavigationSplitView` 自动提供，自绘外壳后要自己给。
             ToolbarItem(placement: .navigation) {
