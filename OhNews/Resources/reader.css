@@ -352,9 +352,13 @@ details[open] > .comment-head::before { content: "▾"; }
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  /* 240 是整个盒子的上限，含内边距——不加 box-sizing 的话它落在内容盒上，
-     实际会比这个数高出内边距那一截。 */
-  max-height: 240px;
+  /* 300 是整个盒子的上限，含内边距——不加 box-sizing 的话它落在内容盒上，
+     实际会比这个数高出内边距那一截。
+
+     为什么是 300：240 时大部分解读正好多出两行，逼用户为了两行滑一下，
+     收益很小。正文行高约 28px，两行约 56px，240 + 56 ≈ 300——
+     大多数解读因此不用再滑，字数特别多的仍然在框内滚。 */
+  max-height: 300px;
   overflow: hidden;
   /* 左右留白交给内部两层自己带：这一层不滚，留在这里的话
      内容滚到底会贴着下边缘。 */
