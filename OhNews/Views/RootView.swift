@@ -11,16 +11,15 @@ import SwiftUI
 /// 高度一致。这里只负责装配状态、外观与加载时机。
 struct RootView: View {
     @Environment(AppState.self) private var state
-    @State private var showsSidebar = true
-    @State private var showsList = true
+    /// 三栏的宽度、可见性与两种拖动（拖分隔线、触控板横扫）共用这一份状态。
+    @State private var layout = PaneLayout()
     @State private var swipeMonitor = PaneSwipeMonitor()
     /// 标题栏 + 工具栏的高度，由窗口读回后传给外壳。
     @State private var windowTopInset: CGFloat = 0
 
     var body: some View {
         ThreePaneShell(
-            showsSidebar: $showsSidebar,
-            showsList: $showsList,
+            layout: layout,
             topInset: windowTopInset
         ) {
             SidebarView()
@@ -50,6 +49,9 @@ struct RootView: View {
         .tint(Palette.accent)
         .preferredColorScheme(preferredScheme)
         // 先载入源与上次选中的频道；频道确定后由下面这个 task 负责加载内容。
+        // 手势监听单独装一次，且排在启动任务之前：启动链路里任何一步卡住
+        // （例如钥匙串授权弹窗阻塞主线程）都不该让它装不上——之前就栽在这里。
+        .task { installSwipeGesture() }
         .task {
             await state.prepare()
             // 滚动条：滑动才出现、停下就隐藏。系统偏好若为"始终"，只有落到
@@ -74,21 +76,14 @@ struct RootView: View {
     ///
     /// 用本地监听器而不是给某个视图加手势，所以**鼠标在哪个位置都能触发**，
     /// 且不会被正文里的 `WKWebView` 抢走（它默认会拿这个手势做前进／后退）。
+    ///
+    /// 这里只做转发：位移与速度全部交给 `PaneLayout`，它按帧写宽度（跟手），
+    /// 松手时用速度投影决定落点（惯性）。
     private func installSwipeGesture() {
-        swipeMonitor.install { goingLeft in
-            if goingLeft {
-                if showsSidebar {
-                    showsSidebar = false
-                } else if showsList {
-                    showsList = false
-                }
-            } else {
-                if showsList == false {
-                    showsList = true
-                } else if showsSidebar == false {
-                    showsSidebar = true
-                }
-            }
+        swipeMonitor.install { translation, _ in
+            layout.dragSwipe(translation: translation)
+        } onEnded: { translation, velocity in
+            layout.endSwipe(translation: translation, velocity: velocity)
         }
     }
 

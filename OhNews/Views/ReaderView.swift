@@ -1073,7 +1073,10 @@ struct ArticleWebView: NSViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.underPageBackgroundColor = .clear
-        webView.allowsMagnification = true
+        // 正文是"一页纸"，不是可缩放的网页：捏合缩放关掉。
+        // 触控板的横向滑动也要留给应用自己用（收边栏），不让它做前进/后退。
+        webView.allowsMagnification = false
+        webView.allowsBackForwardNavigationGestures = false
         context.coordinator.installInteraction(in: webView)
         return webView
     }

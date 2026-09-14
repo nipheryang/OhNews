@@ -119,8 +119,12 @@ enum Typography {
 /// 动效。缓动曲线直接沿用博客的 `cubic-bezier(0.22, 1, 0.36, 1)`，时长 0.18s。
 enum Motion {
     static let standard = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.18)
+
     /// 局部浮现（博客的 reveal 是 0.7s，桌面端反应要快得多）。
     static let insert = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.3)
+    /// 栏位收放：手势松手后的收尾。用弹簧而不是曲线，因为要接住松手那一刻的
+    /// 位置与速度——"干脆地滑一下能顺势收完"全靠它读起来像惯性。
+    static let pane = Animation.spring(response: 0.3, dampingFraction: 0.82)
 }
 
 private extension NSColor {
