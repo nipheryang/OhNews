@@ -56,34 +56,26 @@ struct SettingsView: View {
         }
     }
 
+    @State private var page: SettingsPage?
+
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(SettingsPage.allCases) { page in
-                    NavigationLink(value: page) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(page.title)
-                            Text(page.summary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("设置")
-            .navigationDestination(for: SettingsPage.self) { page in
-                Form {
-                    switch page {
-                    case .ai: aiSections
-                    case .reading: readingSections
-                    case .data: dataSections
-                    case .about: aboutSections
-                    }
-                }
-                .formStyle(.grouped)
-                .navigationTitle(page.title)
+        VStack(spacing: 0) {
+            if let page {
+                pageView(for: page)
+                    .transition(.opacity)
+            } else {
+                rootList
+                    .transition(.opacity)
             }
         }
+        // 用交叉淡入而不是"从右侧滑入"：两级的内容尺寸不同，`move` 过渡会把
+        // 新页面停在偏移位置上（实测会露出一半、另一半在窗口外）。淡入淡出没有
+        // 这个状态，简单且永远落位。
+        .animation(Motion.pane, value: page)
+        // 两级用同一个底色：此前一级是 List、二级是 Form，浅色下两级颜色不同，
+        // 点进去会有一瞬间的跳脱感。
+        .background(Palette.paper)
+        .navigationTitle(page?.title ?? "设置")
         .frame(width: 540)
         .frame(minHeight: 560)
         .preferredColorScheme(preferredScheme)
@@ -143,6 +135,92 @@ struct SettingsView: View {
     }
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
+    }
+
+    /// 一级：四个分组的入口。做成卡片 + 右侧箭头，与列表里那套外观同一套语言
+    /// （圆角、极淡的底、一圈描边），箭头则明示"可以点进去"。
+    private var rootList: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                ForEach(SettingsPage.allCases) { item in
+                    Button {
+                        page = item
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.title)
+                                    .font(Typography.ui)
+                                    .foregroundStyle(Palette.ink)
+                                Text(item.summary)
+                                    .font(.caption)
+                                    .foregroundStyle(Palette.inkFaint)
+                            }
+
+                            Spacer(minLength: 8)
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Palette.inkFaint)
+                        }
+                        .articleCard()
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, Metrics.gutter)
+            .padding(.vertical, 16)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    /// 二级：返回按钮 + 这一页的设置项。
+    private func pageView(for page: SettingsPage) -> some View {
+        VStack(spacing: 0) {
+            backButton
+
+            Form {
+                switch page {
+                case .ai: aiSections
+                case .reading: readingSections
+                case .data: dataSections
+                case .about: aboutSections
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Palette.paper)
+        }
+    }
+
+    /// 返回按钮：放在**页面内容里、左对齐**，而且做成一枚有底的按钮——
+    /// 原来那个是 `NavigationStack` 给的原生箭头，又小又没底、还在顶部中间。
+    private var backButton: some View {
+        HStack {
+            Button {
+                page = nil
+            } label: {
+                Label("返回", systemImage: "chevron.left")
+                    .font(Typography.uiSmall)
+                    .foregroundStyle(Palette.ink)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(Palette.ink.opacity(0.06))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .strokeBorder(Palette.line, lineWidth: 1)
+                            }
+                    }
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
     }
 
     // MARK: - 四个分组的内容
