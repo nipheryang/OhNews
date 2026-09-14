@@ -1023,6 +1023,11 @@ final class AppState {
         if let archive = await archives.archive(itemID: story.id) {
             guard selectedStoryID == story.id, Task.isCancelled == false else { return }
             applyArchivedDiscussion(archive)
+            // 走存档这条路时也要看看能不能生成解读。
+            //
+            // 收藏夹的单篇永远带着正文存档，于是每次都从这里返回——解读的触发
+            // 被整段跳过，只有手动「重新抓取正文」绕开存档才会出现。
+            await generateInsightIfReady(for: story)
             return
         }
 
