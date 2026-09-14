@@ -61,17 +61,17 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let page {
+                // 推入：新页面从右侧进来，一级往左让出去；返回时反向。
                 pageView(for: page)
-                    .transition(.opacity)
+                    .transition(.move(edge: .trailing))
             } else {
                 rootList
-                    .transition(.opacity)
+                    .transition(.move(edge: .leading))
             }
         }
-        // 用交叉淡入而不是"从右侧滑入"：两级的内容尺寸不同，`move` 过渡会把
-        // 新页面停在偏移位置上（实测会露出一半、另一半在窗口外）。淡入淡出没有
-        // 这个状态，简单且永远落位。
-        .animation(Motion.pane, value: page)
+        // 动画由动作一侧显式驱动（`withAnimation`），不靠 `.animation(value:)`。
+        // 上一版用后者时，新页面会停在偏移位置上（一半在窗口外）——过渡没有被真正
+        // 驱动起来，只是停在了它的起始状态。
         // 两级用同一个底色：此前一级是 List、二级是 Form，浅色下两级颜色不同，
         // 点进去会有一瞬间的跳脱感。
         .background(Palette.paper)
@@ -144,7 +144,7 @@ struct SettingsView: View {
             VStack(spacing: 10) {
                 ForEach(SettingsPage.allCases) { item in
                     Button {
-                        page = item
+                        withAnimation(Motion.pane) { page = item }
                     } label: {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 3) {
@@ -198,7 +198,7 @@ struct SettingsView: View {
     private var backButton: some View {
         HStack {
             Button {
-                page = nil
+                withAnimation(Motion.pane) { page = nil }
             } label: {
                 Label("返回", systemImage: "chevron.left")
                     .font(Typography.uiSmall)
@@ -292,13 +292,23 @@ struct SettingsView: View {
                 }
 
                 if let status {
-                    // 只给图标：成功一个绿勾、失败一个红叉，一眼就懂，不占版面。
-                    // 具体信息（连接成功时模型返回了什么、失败原因）留在悬停提示里。
-                    Image(systemName: status.icon)
-                        .font(.system(size: 15))
-                        .foregroundStyle(status.color)
-                        .help(status.text)
-                        .accessibilityLabel(status.text)
+                    // 成功：一个绿勾就够了，不解释。
+                    // 失败：红叉后面跟一句简短原因——只说"失败了"用户不知道下一步该改什么。
+                    // 更长的细节（例如连接成功时模型返回的摘要）留在悬停提示里。
+                    HStack(spacing: 6) {
+                        Image(systemName: status.icon)
+                            .font(.system(size: 15))
+                            .foregroundStyle(status.color)
+
+                        if case .failure = status {
+                            Text(status.text)
+                                .font(.caption)
+                                .foregroundStyle(status.color)
+                                .lineLimit(2)
+                        }
+                    }
+                    .help(status.text)
+                    .accessibilityLabel(status.text)
                 }
             } footer: {
                 Text("「测试连接」会用一条固定的极短内容真实调用一次接口，用来验证地址、密钥、模型名与输出格式。")
