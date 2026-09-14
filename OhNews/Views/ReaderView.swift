@@ -120,11 +120,11 @@ struct StoryDetailView: View {
                 // 操作只留图标：阅读区的主路径是「读」，按钮越多越吵。
                 // 但图标要够大、间距要够松，否则几个按钮挤成一团反而更难用。
                 HStack(spacing: 4) {
-                    // 收藏与稍后读用填充态表示已保存，与工具栏的同名入口一致。
-                    ReaderActionButton(title: isCollected ? "取消收藏" : "收藏") {
+                    // 星标与稍后读用填充态表示已保存，与工具栏的同名入口一致。
+                    ReaderActionButton(title: isCollected ? "取消星标" : "星标") {
                         Task { await state.toggleCollection(story) }
                     } label: {
-                        Image(systemName: isCollected ? "bookmark.fill" : "bookmark")
+                        Image(systemName: isCollected ? "star.fill" : "star")
                     }
 
                     ReaderActionButton(title: isInReadLater ? "从稍后读移除" : "加入稍后读") {

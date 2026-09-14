@@ -15,14 +15,14 @@ public enum LibraryEntry: String, CaseIterable, Identifiable, Sendable {
 
     public var title: String {
         switch self {
-        case .collection: "收藏"
+        case .collection: "星标"
         case .readLater: "稍后读"
         }
     }
 
     public var systemImage: String {
         switch self {
-        case .collection: "bookmark"
+        case .collection: "star"
         case .readLater: "clock"
         }
     }
@@ -30,7 +30,7 @@ public enum LibraryEntry: String, CaseIterable, Identifiable, Sendable {
     /// 列表为空时的提示。
     public var emptyHint: String {
         switch self {
-        case .collection: "在列表里右键条目，或在正文右上角点收藏。"
+        case .collection: "在列表里右键条目，或在正文右上角点星标。"
         case .readLater: "在列表里右键条目，或在正文右上角加入稍后读。"
         }
     }

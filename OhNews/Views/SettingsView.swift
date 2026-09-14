@@ -195,7 +195,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Section("收藏存档") {
+            Section("离线存档") {
                 LabeledContent("占用") {
                     Text(state.archiveSizeText)
                         .foregroundStyle(.secondary)
@@ -207,7 +207,7 @@ struct SettingsView: View {
                 }
                 .disabled(state.archiveSizeBytes == 0)
 
-                Text("收藏与稍后读的内容会连正文、译文、讨论区一起存到本地，以后打开不再联网。删除后收藏还在，但下次打开需要重新获取。")
+                Text("星标、稍后读与收藏夹的内容会连正文、译文、讨论区一起存到本地，以后打开不再联网。删除后条目仍在，但下次打开需要重新获取。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -299,7 +299,7 @@ struct SettingsView: View {
             }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("收藏与稍后读会保留，但它们的正文、译文与讨论区副本会被清空，下次打开需要重新获取（译文可能已失效）。")
+            Text("星标、稍后读与收藏夹会保留，但它们的正文、译文与讨论区副本会被清空，下次打开需要重新获取（译文可能已失效）。")
         }
         .confirmationDialog(
             "删除全部缓存？",

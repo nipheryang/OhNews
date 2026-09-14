@@ -21,7 +21,7 @@ struct SidebarView: View {
         @Bindable var state = state
 
         List(selection: $state.selectedChannelID) {
-            // 收藏与稍后读是一级功能，直接可点：它们不放进可折叠的分组里。
+            // 一级功能入口，不放进可折叠的分组里。
             ForEach(LibraryEntry.allCases) { entry in
                 sidebarRow(
                     title: entry.title,
@@ -34,8 +34,15 @@ struct SidebarView: View {
                 .listRowBackground(Palette.paper)
             }
 
+            // 订阅源是一级分组，下辖各个源（二级），源自己的频道列在源之内。
+            sidebarGroupHeader(
+                "订阅源",
+                action: { isAddingSource = true },
+                help: "添加 RSS / Atom 订阅"
+            )
+
             ForEach(state.channelGroups) { group in
-                sidebarGroupHeader(group.source.name)
+                sidebarSubHeader(group.source.name)
 
                 ForEach(group.channels) { channel in
                     sidebarRow(
@@ -55,7 +62,7 @@ struct SidebarView: View {
                             }
                         }
                     }
-                    .listRowInsets(rowInsets)
+                    .listRowInsets(indentedRowInsets)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Palette.paper)
                 }
@@ -65,16 +72,6 @@ struct SidebarView: View {
         .scrollContentBackground(.hidden)
         .background(Palette.paper)
         .navigationSplitViewColumnWidth(min: 188, ideal: 208, max: 260)
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    isAddingSource = true
-                } label: {
-                    Label("添加订阅源", systemImage: "plus")
-                }
-                .help("添加 RSS / Atom 订阅")
-            }
-        }
         .sheet(isPresented: $isAddingSource) {
             AddSourceView()
         }
@@ -125,6 +122,59 @@ struct SidebarView: View {
             .listRowBackground(Palette.paper)
     }
 
+    /// 一级分组标题。右侧可以带一个添加按钮。
+    ///
+    /// 做成普通行而不是 `Section` header：`.sidebar` 样式下系统会把 header 当成
+    /// 选中单元的一部分，选中组内频道时会画上一道系统色描边。不设 `tag`，
+    /// 所以它自己也永远不会被选中。
+    private func sidebarGroupHeader(
+        _ title: String,
+        action: (() -> Void)? = nil,
+        help: String? = nil
+    ) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(Typography.eyebrow)
+                .tracking(Metrics.eyebrowTracking)
+                .textCase(.uppercase)
+                .foregroundStyle(Palette.inkFaint)
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
+            if let action {
+                Button(action: action) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Palette.inkFaint)
+                }
+                .buttonStyle(.plain)
+                .help(help ?? "")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 15)
+        .padding(.bottom, 3)
+        .listRowInsets(EdgeInsets(top: 0, leading: 15, bottom: 0, trailing: 10))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Palette.paper)
+    }
+
+    /// 二级标题：订阅源自己的名字。它下面缩进的就是这个源的频道。
+    private func sidebarSubHeader(_ title: String) -> some View {
+        Text(title)
+            .font(Typography.uiSmall)
+            .foregroundStyle(Palette.inkFaint)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 10)
+            .padding(.bottom, 2)
+            .listRowInsets(EdgeInsets(top: 0, leading: 15, bottom: 0, trailing: 10))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Palette.paper)
+    }
+
     /// 侧栏的一行。
     ///
     /// 选中态自己画：系统在 `.sidebar` 样式下不但颜色很重（深色近白、浅色近黑），
@@ -159,6 +209,11 @@ struct SidebarView: View {
     /// 行内边距。横向留出一点，让选中块的圆角不贴住侧栏边缘。
     private var rowInsets: EdgeInsets {
         EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8)
+    }
+
+    /// 频道行的内边距：比一级入口再缩进一档，体现它属于上面那个源。
+    private var indentedRowInsets: EdgeInsets {
+        EdgeInsets(top: 1, leading: 20, bottom: 1, trailing: 8)
     }
 
     /// 入口后面的条数。为空时也显示 0，而不是留白。

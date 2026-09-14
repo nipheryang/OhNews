@@ -295,7 +295,7 @@ struct StoryListView: View {
             )
             .tag(passage.id)
             .contextMenu {
-                Button("删除这条收藏", role: .destructive) {
+                Button("删除这条星标", role: .destructive) {
                     Task { await state.removePassage(id: passage.id) }
                 }
             }
@@ -341,7 +341,7 @@ struct StoryListView: View {
 
         Divider()
 
-        Button(state.isCollected(story) ? "取消收藏" : "收藏") {
+        Button(state.isCollected(story) ? "取消星标" : "星标") {
             Task { await state.toggleCollection(story) }
         }
 
@@ -385,9 +385,9 @@ struct StoryListView: View {
             Button {
                 state.selectedChannelID = LibraryEntry.collection.rawValue
             } label: {
-                Label("收藏", systemImage: LibraryEntry.collection.systemImage)
+                Label("星标", systemImage: LibraryEntry.collection.systemImage)
             }
-            .help("查看收藏")
+            .help("查看星标")
         }
 
         ToolbarItem(placement: .primaryAction) {
