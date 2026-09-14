@@ -44,15 +44,10 @@ struct StoryRowView: View {
 
             metaLine
         }
-        .padding(.horizontal, Metrics.rowHorizontalPadding)
-        .padding(.vertical, Metrics.rowVerticalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(background)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Palette.line)
-                .frame(height: Metrics.hairline)
-        }
+        // 一篇一张卡片。样式统一在 `ArticleCard` 里：近乎透明的底 + 一圈轮廓线，
+        // 留白比内容大一圈。卡片之间靠 `listRowInsets` 的间隙分开，不用发丝线。
+        .articleCard(isSelected: isSelected, isHovering: isHovering)
         .contentShape(Rectangle())
         .onHover { hovering in
             // 只改颜色，不改尺寸，也不会把相邻条目推开。
@@ -178,15 +173,8 @@ struct SavedPassageRowView: View {
                 .foregroundStyle(Palette.inkFaint)
                 .padding(.top, 10)
         }
-        .padding(.horizontal, Metrics.rowHorizontalPadding)
-        .padding(.vertical, Metrics.rowVerticalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(background)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Palette.line)
-                .frame(height: Metrics.hairline)
-        }
+        .articleCard(isSelected: isSelected)
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(Motion.standard) { isHovering = hovering }
@@ -230,15 +218,8 @@ struct TrashedRowView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 8)
         }
-        .padding(.horizontal, Metrics.rowHorizontalPadding)
-        .padding(.vertical, Metrics.rowVerticalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(background)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Palette.line)
-                .frame(height: Metrics.hairline)
-        }
+        .articleCard(isSelected: isSelected)
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(Motion.standard) { isHovering = hovering }

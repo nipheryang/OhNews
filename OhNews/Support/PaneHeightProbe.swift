@@ -41,6 +41,8 @@ struct PaneHeightProbe: ViewModifier {
         let layoutHeight = window?.contentLayoutRect.height ?? 0
         let contentHeight = window?.contentView?.frame.height ?? 0
         // 断言只针对"栏高不应当超过窗口"——那才是溢出的充要特征。
+        // 参照是**整个窗口内容视图**的高度：内容延伸到标题栏之下以后，
+        // contentLayoutRect 会小掉工具栏那一段，拿它当参照会误判成溢出。
         let verdict = paneHeight <= contentHeight + 1 ? "未溢出" : "溢出 ←←←"
         NSLog(
             "%@",

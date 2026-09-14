@@ -12,6 +12,13 @@ struct StoryListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // 列标题：跟着**这一栏**走，居中。
+            //
+            // 原先是 `.navigationTitle`，交给窗口标题栏去画。但内容延伸到标题栏
+            // 之下以后，那行字落在**侧栏的顶面**上——位置对应错了：它描述的是
+            // 中间这一栏的频道，却显示在最左边。所以改成在栏内自己画。
+            columnTitle
+
             banner
 
             // 提示落在哪一栏，取决于操作发生在哪一栏：正文里高亮，
@@ -41,8 +48,23 @@ struct StoryListView: View {
         // 后会把整列撑成列表全长，窗口装不下就溢出——侧栏因此空白，正文上方
         // 也看不到。放在根视图上（而不是列表上）可以避免与提示条叠加出循环。
         .animation(reduceMotion ? nil : Motion.standard, value: state.transientNotice)
-        .navigationTitle(navigationTitle)
+        // 窗口标题留空：频道名由上面的 `columnTitle` 在栏内呈现，
+        // 不再让标题栏在最左边显示一个描述中间栏的名字。
+        .navigationTitle("")
+        // 中间这一栏不要上下滑的滚动条（用户明确要求）。
+        .scrollIndicators(.hidden)
         .toolbar { toolbarContent }
+    }
+
+    /// 居中显示的列标题。
+    private var columnTitle: some View {
+        Text(navigationTitle)
+            // 原来是 uiSmall（11.5pt），做列标题太小了；换成标题档的衬线字。
+            .font(Typography.summaryTitle)
+            .foregroundStyle(Palette.ink)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
     }
 
     /// 有新版本时的提示条。可关闭；关掉后同一版本不再出现。
@@ -170,16 +192,16 @@ struct StoryListView: View {
                 .contextMenu {
                     rowMenu(for: story)
                 }
+                // 上下各留 6pt：卡片之间要能看出是两张，而不是连成一片。
                 .listRowInsets(EdgeInsets(
-                    top: 0,
+                    top: 6,
                     leading: Metrics.gutter,
-                    bottom: 0,
+                    bottom: 6,
                     trailing: Metrics.gutter
                 ))
                 .listRowSeparator(.hidden)
-                // 用不透明的纸底色作行背景：既遮住 `List` 自带的选中高亮
-                // （一块通栏直角方块，与这套发丝线语言格格不入），
-                // 也让条目之间只靠自己的 1px 线条分隔，不产生卡片感。
+                // 行背景仍是纸色（不透明），用来遮住 `List` 自带的选中高亮——
+                // 那是通栏直角方块，会从卡片四周露出来。卡片本身画在行内容上。
                 .listRowBackground(Palette.paper)
             }
         }
@@ -240,9 +262,9 @@ struct StoryListView: View {
                             }
                         }
                         .listRowInsets(EdgeInsets(
-                            top: 0,
+                            top: 6,
                             leading: Metrics.gutter,
-                            bottom: 0,
+                            bottom: 6,
                             trailing: Metrics.gutter
                         ))
                         .listRowSeparator(.hidden)
@@ -292,9 +314,9 @@ struct StoryListView: View {
                         }
                     }
                     .listRowInsets(EdgeInsets(
-                        top: 0,
+                        top: 6,
                         leading: Metrics.gutter,
-                        bottom: 0,
+                        bottom: 6,
                         trailing: Metrics.gutter
                     ))
                     .listRowSeparator(.hidden)
@@ -377,9 +399,9 @@ struct StoryListView: View {
                 rowMenu(for: article.story)
             }
             .listRowInsets(EdgeInsets(
-                top: 0,
+                top: 6,
                 leading: Metrics.gutter,
-                bottom: 0,
+                bottom: 6,
                 trailing: Metrics.gutter
             ))
             .listRowSeparator(.hidden)
@@ -401,9 +423,9 @@ struct StoryListView: View {
                 }
             }
             .listRowInsets(EdgeInsets(
-                top: 0,
+                top: 6,
                 leading: Metrics.gutter,
-                bottom: 0,
+                bottom: 6,
                 trailing: Metrics.gutter
             ))
             .listRowSeparator(.hidden)

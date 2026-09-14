@@ -421,29 +421,10 @@ details[open] > .comment-head::before { content: "▾"; }
   overscroll-behavior: contain;
 }
 
-/* 滚动条收成一根细条。面板是玻璃盒子，系统那条不管粗细都压在玻璃边缘上，显脏；
-   杂志风里该出现的"线"只有发丝线一种。
+/* 滚动条交给系统：原生 overlay 样式**滑动时才出现、停下就隐藏**。
 
-   代价要写下来：一旦设了 ::-webkit-scrollbar，WebKit 就放弃 overlay 行为，
-   这条会一直占住 5px 宽度（系统默认那种是滚动时才浮出来、不占位）。
-   面板内边距留了 20px，占这 5px 不影响阅读，换来的是它不再跟系统外观跑。 */
-.ohnews-insight-body::-webkit-scrollbar {
-  width: 5px;
-}
-
-.ohnews-insight-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.ohnews-insight-body::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background-color: rgba(17, 24, 39, 0.16);
-}
-
-.ohnews-insight-body::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(17, 24, 39, 0.32);
-}
-
+   这里一度自定义过一根 5px 细条，但设了 ::-webkit-scrollbar 就等于放弃 overlay
+   行为，那条会一直占着 5px 宽、一直看得见——与"滑动才显示"正好相反。 */
 .ohnews-insight-eyebrow {
   font-size: 12px;
   letter-spacing: 1.6px;
@@ -767,13 +748,7 @@ mark.ohnews-highlight.ohnews-highlight-flash,
     color: #6b7280;
   }
 
-  .ohnews-insight-body::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.16);
-  }
 
-  .ohnews-insight-body::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-  }
 
   .ohnews-insight-skeleton span {
     background-color: rgba(255, 255, 255, 0.08);
