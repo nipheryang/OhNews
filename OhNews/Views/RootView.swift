@@ -56,6 +56,12 @@ struct RootView: View {
         // 手势监听单独装一次，且排在启动任务之前：启动链路里任何一步卡住
         // （例如钥匙串授权弹窗阻塞主线程）都不该让它装不上——之前就栽在这里。
         .task { installSwipeGesture() }
+        // 键盘上下选择每按一次都会重排，而重排就会把滚动条装回来——这是用户说的
+        // "用键盘闪得最厉害"的来源。挂到选中项变化上，把等待从"下一次轮询"降到
+        // 几十毫秒以内。
+        .onChange(of: state.selectedStoryID) { _, _ in
+            Scrollbars.reapplySoon()
+        }
         .onChange(of: state.selectedChannelID) { _, _ in
             // 列表会重建，新滚动视图出现后立刻补扫几次——这一条就是切分组时
             // 那条"闪一下"的来源（等轮询要等一秒）。
