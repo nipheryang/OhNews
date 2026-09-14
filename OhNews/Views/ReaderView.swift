@@ -585,6 +585,14 @@ enum ReaderScript {
       // 纵向坐在它上方 8px——两处都是量出来的，所以长句子、跨行的句子
       // 都不会跑偏。量之前必须先入文档，脱开的元素量出来全是 0。
       function attachHoverToolbar(host, text, index) {
+        // 工具条必须挂在 .ohnews-bubble 这个零尺寸锚点里。
+        // 样式表就是这么写的：锚点提供定位上下文，悬停显隐也靠
+        // `mark:hover .ohnews-bubble .ohnews-toolbar` 这一条。
+        // 直接挂到 mark 上，两条规则都不成立——工具条既不会隐藏，
+        // 偏移的参照物也不对，最后飘在看不见的地方。
+        var anchorEl = document.createElement('span');
+        anchorEl.className = 'ohnews-bubble';
+
         var bar = document.createElement('div');
         bar.className = 'ohnews-toolbar';
 
@@ -597,12 +605,12 @@ enum ReaderScript {
         button.setAttribute('title', '取消高亮');
         button.innerHTML = \(quoted(markerIcon));
         bar.appendChild(button);
-
-        host.appendChild(bar);
+        anchorEl.appendChild(bar);
+        host.appendChild(anchorEl);
 
         var hostBox = host.getBoundingClientRect();
         var barBox = bar.getBoundingClientRect();
-        var anchor = bar.offsetParent ? bar.offsetParent.getBoundingClientRect() : hostBox;
+        var anchor = anchorEl.getBoundingClientRect();
 
         // 横向：对着这一条高亮居中，再夹在正文左右边界里。
         var page = document.body.getBoundingClientRect();
