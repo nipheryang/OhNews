@@ -28,7 +28,41 @@ struct KeychainStore: Sendable {
         self.service = service
     }
 
+    /// 读取结果缓存：**一次启动最多读一次钥匙串**。
+    ///
+    /// 为什么必须有它：读到密钥要经过系统授权，而应用重新签名（`DEVELOPMENT_TEAM`
+    /// 为空时的 ad-hoc 构建、每次重建都会变）会让已有条目的授权失效，于是每次读取
+    /// 都弹一次密码框。偏偏解读与摘要服务是**每篇文章**都要一次密钥——两者相乘就是
+    /// 用户说的"切一篇文章弹一次"，根本没法用。
+    ///
+    /// 缓存的是**结果**，把"被拒绝"也一起缓存：用户点过一次拒绝之后，本次启动
+    /// 就不再打扰他，而不是每换一篇文章再问一遍。
+    private final class ReadCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var outcomes: [String: KeychainReadOutcome] = [:]
+
+        func outcome(for account: String) -> KeychainReadOutcome? {
+            lock.lock(); defer { lock.unlock() }
+            return outcomes[account]
+        }
+
+        func store(_ outcome: KeychainReadOutcome, for account: String) {
+            lock.lock(); defer { lock.unlock() }
+            outcomes[account] = outcome
+        }
+
+        func clear() {
+            lock.lock(); defer { lock.unlock() }
+            outcomes.removeAll()
+        }
+    }
+
+    private static let cache = ReadCache()
+
     func save(_ value: String, account: String) throws {
+        // 存了新密钥，之前缓存的「读不到／被拒绝」必须作废，否则用户存完仍然用不上。
+        Self.cache.clear()
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -66,6 +100,26 @@ struct KeychainStore: Sendable {
     /// 为空时的 ad-hoc 构建）会让已有条目的授权失效，这时把「读不到」当成
     /// 「没存过」会让用户反复重存密钥而找不到真正的原因。
     func readOutcome(account: String) -> KeychainReadOutcome {
+        if let cached = Self.cache.outcome(for: account) {
+            #if DEBUG
+            NSLog("%@", "[钥匙串] 命中缓存（不再询问系统）account=\(account)")
+            #endif
+            return cached
+        }
+
+        let outcome = readFromSystem(account: account)
+        // 只有"没存过"不缓存：它不弹框、代价为零，而用户可能随后就去存一个。
+        // 其余（读到／被拒绝／失败）一律缓存，避免反复打扰。
+        if case .missing = outcome {} else {
+            Self.cache.store(outcome, for: account)
+        }
+        #if DEBUG
+        NSLog("%@", "[钥匙串] 读取系统 account=\(account) 结果=\(outcome)")
+        #endif
+        return outcome
+    }
+
+    private func readFromSystem(account: String) -> KeychainReadOutcome {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -95,6 +149,8 @@ struct KeychainStore: Sendable {
     }
 
     func delete(account: String) throws {
+        Self.cache.clear()
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
