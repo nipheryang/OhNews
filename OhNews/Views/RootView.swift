@@ -80,10 +80,9 @@ struct RootView: View {
     /// 这里只做转发：位移与速度全部交给 `PaneLayout`，它按帧写宽度（跟手），
     /// 松手时用速度投影决定落点（惯性）。
     private func installSwipeGesture() {
-        swipeMonitor.install { translation, _ in
-            layout.dragSwipe(translation: translation)
-        } onEnded: { translation, velocity in
-            layout.endSwipe(translation: translation, velocity: velocity)
+        // 手势只发一次指令；收起的连续过程由 `PaneLayout` 的弹簧动画完成。
+        swipeMonitor.install { collapsing in
+            layout.swipe(collapsing: collapsing)
         }
     }
 
