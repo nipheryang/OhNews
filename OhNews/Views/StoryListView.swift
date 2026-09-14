@@ -8,7 +8,6 @@ import SwiftUI
 struct StoryListView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -483,6 +482,11 @@ struct StoryListView: View {
     }
 
     @ToolbarContentBuilder
+    /// 列表栏自己的工具栏：只有「重新获取榜单」。
+    ///
+    /// 其余按钮（星标／稍后读／外观／设置）搬去了 `LibraryToolbar`，由正文栏挂载
+    /// ——在正文栏收起列表栏之后，读文章时仍然需要它们。
+    /// 这一颗与列表内容绑定，列表收起时跟着消失，符合直觉。
     private var toolbarContent: some ToolbarContent {
         if state.isLoading {
             ToolbarItem(placement: .primaryAction) {
@@ -503,53 +507,5 @@ struct StoryListView: View {
             .disabled(state.isLoading)
             .help("重新获取榜单")
         }
-
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                state.selectedChannelID = LibraryEntry.collection.rawValue
-            } label: {
-                Label("星标", systemImage: LibraryEntry.collection.systemImage)
-            }
-            .help("查看星标")
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                state.selectedChannelID = LibraryEntry.readLater.rawValue
-            } label: {
-                Label("稍后读", systemImage: LibraryEntry.readLater.systemImage)
-            }
-            .help("查看稍后读")
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                state.setAppearance(isCurrentlyDark ? .light : .dark)
-            } label: {
-                Label(appearanceActionLabel, systemImage: isCurrentlyDark ? "sun.max" : "moon")
-            }
-            .help(appearanceActionLabel)
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            SettingsLink {
-                Label("设置", systemImage: "gearshape")
-            }
-            .help("配置 AI 摘要")
-        }
-    }
-
-    /// 当前实际是不是深色。用户显式选过就按用户的选择，不再依赖环境值；
-    /// 只有在「跟随系统」时才读环境外观。
-    private var isCurrentlyDark: Bool {
-        switch state.appearance {
-        case .dark: true
-        case .light: false
-        case .system: colorScheme == .dark
-        }
-    }
-
-    private var appearanceActionLabel: String {
-        isCurrentlyDark ? "切换到浅色外观" : "切换到深色外观"
     }
 }

@@ -27,6 +27,20 @@ struct StoryDetailView: View {
 
     /// 降级场景的提示，转成与讨论区同一份文档里的 HTML。
 
+    /// 系统外观。命名避开 `colorScheme`：那正是 SwiftUI 修饰器的名字，
+    /// 在本类型里没有同名环境值时会被解析成方法，编译不过。
+    @Environment(\.colorScheme) private var systemColorScheme
+
+    /// 当前实际是不是深色。用户显式选过就按用户的选择，只有在「跟随系统」时
+    /// 才读系统外观——与 `StoryListView` 同一套规则。
+    private var isCurrentlyDark: Bool {
+        switch state.appearance {
+        case .dark: true
+        case .light: false
+        case .system: systemColorScheme == .dark
+        }
+    }
+
     var body: some View {
         Group {
             if let story = state.selectedStory {
@@ -43,6 +57,9 @@ struct StoryDetailView: View {
             }
         }
         .background(Palette.paper)
+        // 常驻工具栏按钮挂在**这一栏**上：收起列表栏之后，读文章时仍然需要
+        // 收藏、稍后读与设置（见 LibraryToolbar）。
+        .toolbar { LibraryToolbar(state: state, isDark: isCurrentlyDark) }
         // 与中栏同一个道理：`WKWebView` 会按正文内容高度索取空间，长文章（几千点的
         // 内容）会把这个需求传给 `NavigationSplitView`，三列便都按那个高度布局，
         // 窗口装不下就溢出——侧栏被挤到可视区之上而空白，正文上方也被裁掉。

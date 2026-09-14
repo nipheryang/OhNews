@@ -29,6 +29,7 @@
 		592C6F92310A6BBC7D16E009 /* LayoutDump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93ECF568E6DE690BABCED4A9 /* LayoutDump.swift */; };
 		5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664307FBDE3EB878CF62DCE /* InsightService.swift */; };
 		5F629B681CFE60590341FC45 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */; };
+		65A663955659755397B068EE /* LibraryToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E1E1263EA57F12C3FA5D40 /* LibraryToolbar.swift */; };
 		67DD7076F80CD108209B4462 /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117D07BD69AB225F729C0C8A /* UpdateService.swift */; };
 		81AC68B09B01B7CEA3B17A8D /* AddWebPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFFF3EBEB425A5D5A6B20EBF /* AddWebPageView.swift */; };
 		9091E9919D0B63F0C2B60298 /* AIProviderPreset+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */; };
@@ -87,6 +88,7 @@
 		B9DA94E96DA9119DC5E2C498 /* RSSSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSSSourceProvider.swift; sourceTree = "<group>"; };
 		C265F1F222BA357A8450DCCC /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		C2CE5A077D92405AA3C14F7A /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
+		C2E1E1263EA57F12C3FA5D40 /* LibraryToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryToolbar.swift; sourceTree = "<group>"; };
 		C4B03317112A6733873F1C3D /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		C770821155A5A9BA690913C0 /* HNSourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNSourceProvider.swift; sourceTree = "<group>"; };
 		CD1C04E764F33890BE990371 /* PaneLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneLayout.swift; sourceTree = "<group>"; };
@@ -217,6 +219,7 @@
 				AFFF3EBEB425A5D5A6B20EBF /* AddWebPageView.swift */,
 				106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */,
 				66DE410FC72AE1D874BA29B1 /* InsightPanel.swift */,
+				C2E1E1263EA57F12C3FA5D40 /* LibraryToolbar.swift */,
 				E4257191DB1B7E5279DEAA26 /* ReaderInteraction.swift */,
 				68CA6670660742AAC2DAD3E9 /* ReaderView.swift */,
 				A206012A0B5B7A9EFEDF2260 /* RootView.swift */,
@@ -340,6 +343,7 @@
 				5ECDDB144D11C9E64C997649 /* InsightService.swift in Sources */,
 				17D8D58F66DB4694B68BAA04 /* KeychainStore.swift in Sources */,
 				592C6F92310A6BBC7D16E009 /* LayoutDump.swift in Sources */,
+				65A663955659755397B068EE /* LibraryToolbar.swift in Sources */,
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
 				3136032BD87C61096192B47D /* PaneHeightProbe.swift in Sources */,
 				BA26DED7C632D96DF213A50A /* PaneLayout.swift in Sources */,
