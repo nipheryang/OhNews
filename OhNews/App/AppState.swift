@@ -267,9 +267,6 @@ final class AppState {
         appearance = AppearancePreferences().appearance
         await refreshCacheSize()
         await refreshArchiveSize()
-        // 启动时就要算出真实的 AI 状态。之前这里是空的，`aiConfiguration`
-        // 停在初始值，于是密钥配置正确也会先报一条「未启用」。
-        await refreshAIStatus()
         await reloadLibrary()
 
         if let restored = selectionPersistence.load() {
@@ -277,6 +274,13 @@ final class AppState {
         }
         await ensureSelectedChannelExists()
         restartAutoRefreshTimer()
+
+        // 读密钥排在最后，因为这一步可能弹出系统授权对话框——重新构建后签名变化
+        // 就会这样。对话框没人应答时它会一直挂起，排在前面的话，收藏、高亮、
+        // 收藏夹和频道恢复都得等它，界面看起来就像一篇空白，其实数据都在。
+        // 启动时仍要算出真实的 AI 状态：不读的话 `aiConfiguration` 停在初始值，
+        // 密钥配置正确也会先报一条「未启用」。
+        await refreshAIStatus()
     }
 
     /// 重新生成源与频道列表。
