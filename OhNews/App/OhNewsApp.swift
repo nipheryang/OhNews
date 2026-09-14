@@ -7,6 +7,19 @@ import SwiftUI
 struct OhNewsApp: App {
     @State private var state = AppState()
 
+    init() {
+        // 让本应用的滚动条走 **overlay** 样式：**不滚动就不绘制**，因此不存在常驻滚动条。
+        //
+        // 这是"侧栏与文章列表栏没有滚动条、且不闪"的解法，而且它必须是**应用级**的：
+        // 写进本应用自己的偏好域，**不动系统的「显示滚动条」**。
+        //
+        // 为什么非要它：SwiftUI 每次重排都会把滚动条重新打开（`hasVerticalScroller`
+        // 变回 true），这一点不受我们控制。legacy 样式下"条存在"就等于"画出来"——
+        // 用户看到的"闪一下"就是这么来的，靠事后补扫只能把时长压短，压不到零。
+        // overlay 样式下条不滚动就不画，于是即使被重新打开也看不见。
+        UserDefaults.standard.set("WhenScrolling", forKey: "AppleShowScrollBars")
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
