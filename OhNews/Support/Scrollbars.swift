@@ -17,7 +17,7 @@ import WebKit
 ///
 /// 正因为 SwiftUI 会在布局时把它打开，这里不能只做一次。挂在
 /// **窗口尺寸变化**与**内容装载完成**这两个时机上，另加一个轻量轮询兜底——
-/// 每 1 秒扫一遍，发现谁又被打开了就关掉。属性赋值本身很廉价，
+/// 每 0.4 秒扫一遍，发现谁又被打开了就关掉。属性赋值本身很廉价，
 /// 而且只在"确实被打开"时才写。
 ///
 /// ## 为什么跳过网页视图
@@ -45,12 +45,24 @@ enum Scrollbars {
         }
 
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
             Task { @MainActor in applyToAllWindows() }
         }
     }
 
     private static var resizeObserver: NSObjectProtocol?
+
+    /// 内容刚换过（切频道／切分组）时立刻补几次。
+    ///
+    /// 列表重建与滚动条被重新装上之间有几十毫秒的间隙，这几次快速补扫就是压掉
+    /// 那段"闪一下"——用户看到的一秒其实是等下一次轮询，不是必然。
+    static func reapplySoon() {
+        for delay in [0.05, 0.15, 0.35, 0.7] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                applyToAllWindows()
+            }
+        }
+    }
 
     private static func applyToAllWindows() {
         for window in NSApp.windows {

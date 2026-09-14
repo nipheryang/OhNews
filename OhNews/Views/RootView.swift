@@ -56,6 +56,11 @@ struct RootView: View {
         // 手势监听单独装一次，且排在启动任务之前：启动链路里任何一步卡住
         // （例如钥匙串授权弹窗阻塞主线程）都不该让它装不上——之前就栽在这里。
         .task { installSwipeGesture() }
+        .onChange(of: state.selectedChannelID) { _, _ in
+            // 列表会重建，新滚动视图出现后立刻补扫几次——这一条就是切分组时
+            // 那条"闪一下"的来源（等轮询要等一秒）。
+            Scrollbars.reapplySoon()
+        }
         .task {
             await state.prepare()
             await applyWindowChrome()
