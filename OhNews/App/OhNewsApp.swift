@@ -20,7 +20,9 @@ struct OhNewsApp: App {
                 // 这里的值只是"再矮就不像话了"的下限，不是布局撑不住的下限：
                 // 它通过 `.windowResizability(.contentMinSize)` 成为窗口的最小值，
                 // 低于它就拉不动了，于是永远到不了溢出那一步。
-                .frame(minWidth: 1000, minHeight: 360)
+                // 约束不放在这里：根上的 .frame 会吃掉窗口安全区的一条
+                // （安全区 = 工具栏占掉的那段），三栏于是画到工具栏底下。
+                // 改由 RootView 内部约束——见其中注释。
         }
         .defaultSize(width: 1240, height: 780)
         // 让窗口真的照根视图的最小尺寸来。
