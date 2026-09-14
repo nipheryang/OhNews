@@ -51,7 +51,6 @@
 		F70AFFC76B3B3E60F9077011 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68CA6670660742AAC2DAD3E9 /* ReaderView.swift */; };
 		F9C4813577FE396A334AEEB1 /* StoryRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8F18C00B024979631A7D55 /* StoryRowView.swift */; };
 		FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B1FAEBCC9A70143AA84890 /* OhNewsApp.swift */; };
-		FFE09554F2437CE42448919F /* PaneScroll.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148EF78F07B086B5F49BD5B0 /* PaneScroll.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,7 +58,6 @@
 		07B14F2A2C50B56A3995B035 /* AIProviderPreset+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIProviderPreset+Display.swift"; sourceTree = "<group>"; };
 		106C32978C9FF8DB79143DD7 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		117D07BD69AB225F729C0C8A /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
-		148EF78F07B086B5F49BD5B0 /* PaneScroll.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneScroll.swift; sourceTree = "<group>"; };
 		2EBFE2C04F2F39882026718E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3664307FBDE3EB878CF62DCE /* InsightService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightService.swift; sourceTree = "<group>"; };
 		37C886291A0E1E5B6794617C /* SummaryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardView.swift; sourceTree = "<group>"; };
@@ -130,7 +128,6 @@
 			children = (
 				E74C5EC20B45959BC2D7E7D9 /* ArticleCard.swift */,
 				CD1C04E764F33890BE990371 /* PaneLayout.swift */,
-				148EF78F07B086B5F49BD5B0 /* PaneScroll.swift */,
 				F1951225FE623888A95A90AD /* ThreePaneShell.swift */,
 			);
 			path = Layout;
@@ -350,7 +347,6 @@
 				FE9C13712078C4C50AE63F1E /* OhNewsApp.swift in Sources */,
 				3136032BD87C61096192B47D /* PaneHeightProbe.swift in Sources */,
 				BA26DED7C632D96DF213A50A /* PaneLayout.swift in Sources */,
-				FFE09554F2437CE42448919F /* PaneScroll.swift in Sources */,
 				F53774C439815AE928840C9B /* PaneSwipeMonitor.swift in Sources */,
 				912E0171373D99B95F385CB9 /* RSSSourceProvider.swift in Sources */,
 				EF8253813B32F6B580BC0336 /* ReaderInteraction.swift in Sources */,

@@ -21,10 +21,7 @@ struct SidebarView: View {
     var body: some View {
         @Bindable var state = state
 
-        // 换成不带滚动条的容器（原因见 PaneScroll）。
-        // 选中态本来就自己画，所以视觉不变；`List` 白送的键盘上下选择要自己实现，
-        // 见下面 `moveSelection`。
-        PaneScroll {
+        List(selection: $state.selectedChannelID) {
             // 一级功能入口，不放进可折叠的分组里。
             ForEach(LibraryEntry.allCases) { entry in
                 sidebarRow(
@@ -34,9 +31,10 @@ struct SidebarView: View {
                     action: entry.addActionTitle == nil ? nil : { isAddingPage = true },
                     help: entry.addActionTitle
                 )
-                .padding(rowInsets)
-                .contentShape(Rectangle())
-                .onTapGesture { state.selectedChannelID = entry.rawValue }
+                .tag(entry.rawValue)
+                .listRowInsets(rowInsets)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Palette.paper)
             }
 
             // 订阅源是一级分组，下辖各个源（二级），源自己的频道列在源之内。
@@ -55,9 +53,7 @@ struct SidebarView: View {
                         count: nil,
                         isSelected: state.selectedChannelID == channel.id
                     )
-                    .padding(indentedRowInsets)
-                    .contentShape(Rectangle())
-                    .onTapGesture { state.selectedChannelID = channel.id }
+                    .tag(channel.id)
                     .contextMenu {
                         if group.source.kind == .rss {
                             Button("重命名…") {
@@ -69,7 +65,9 @@ struct SidebarView: View {
                             }
                         }
                     }
-
+                    .listRowInsets(indentedRowInsets)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Palette.paper)
                 }
             }
         }
@@ -80,11 +78,12 @@ struct SidebarView: View {
         // 而且它不是滚动视图，滑不回来。与 2026-09-13 修过的中栏那一例同源，
         // 侧栏当时漏了。（此处的 List 就是整列的根视图；中栏那种"List 外面还套着
         // VStack"的情形不能这么加，会形成约束循环。）
+        // 隐藏滚动条必须加在 List 自己身上：加在外层容器上时环境值传不进来，
+        // SwiftUI 每次布局又会按默认偏好把它装回来（中栏就是这么反复复发的）。
+        .scrollIndicators(.hidden)
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
         .background(Palette.paper)
-        // 键盘上下选择：`List` 以前白送，换成自绘容器后必须自己给，
-        // 否则方向键失效——那是功能回退，不是样式差异。
-        .focusable()
-        .onMoveCommand(perform: moveSelection)
         .navigationSplitViewColumnWidth(min: 188, ideal: 208, max: 260)
         .sheet(isPresented: $isAddingSource) {
             AddSourceView()
@@ -238,28 +237,6 @@ struct SidebarView: View {
                 .fill(isSelected ? Palette.sidebarSelection : Color.clear)
         }
         .contentShape(Rectangle())
-    }
-
-    /// 键盘上下移动选择。顺序就是侧栏里看得见的顺序：一级入口在前，其后是各源
-    /// 下面的频道（源名本身不可选，只是分组标题）。
-    private func moveSelection(_ direction: MoveCommandDirection) {
-        let ids = selectableChannelIDs
-        guard ids.isEmpty == false else { return }
-
-        guard let current = state.selectedChannelID,
-              let index = ids.firstIndex(of: current) else {
-            state.selectedChannelID = ids.first
-            return
-        }
-
-        let next = direction == .down ? index + 1 : index - 1
-        guard ids.indices.contains(next) else { return }
-        state.selectedChannelID = ids[next]
-    }
-
-    private var selectableChannelIDs: [String] {
-        LibraryEntry.allCases.map(\.rawValue)
-            + state.channelGroups.flatMap { $0.channels.map(\.id) }
     }
 
     /// 行内边距。横向留出一点，让选中块的圆角不贴住侧栏边缘。
