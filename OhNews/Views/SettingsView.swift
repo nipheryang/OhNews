@@ -42,8 +42,8 @@ struct SettingsView: View {
         var icon: String {
             switch self {
             case .info: "info.circle"
-            case .success: "checkmark.circle"
-            case .failure: "exclamationmark.triangle"
+            case .success: "checkmark.circle.fill"
+            case .failure: "xmark.circle.fill"
             }
         }
 
@@ -51,7 +51,7 @@ struct SettingsView: View {
             switch self {
             case .info: .secondary
             case .success: .green
-            case .failure: .orange
+            case .failure: .red
             }
         }
     }
@@ -60,6 +60,8 @@ struct SettingsView: View {
         Form {
             Section {
                 Toggle("启用 AI 摘要", isOn: $config.isEnabled)
+            } header: {
+                Text("AI").font(.system(size: 13, weight: .semibold))
             } footer: {
                 Text("关闭后应用退回纯阅读器，不会发起任何 AI 请求。")
                     .font(.caption)
@@ -101,6 +103,40 @@ struct SettingsView: View {
                 }
             }
 
+            Section {
+                HStack(spacing: 10) {
+                    Button("测试连接") {
+                        Task { await runConnectionTest() }
+                    }
+                    .disabled(isTesting)
+
+                    if isTesting {
+                        ProgressView().controlSize(.small)
+                    }
+
+                    Spacer()
+
+                    Button("保存") {
+                        Task { await save() }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+
+                if let status {
+                    // 只给图标：成功一个绿勾、失败一个红叉，一眼就懂，不占版面。
+                    // 具体信息（连接成功时模型返回了什么、失败原因）留在悬停提示里。
+                    Image(systemName: status.icon)
+                        .font(.system(size: 15))
+                        .foregroundStyle(status.color)
+                        .help(status.text)
+                        .accessibilityLabel(status.text)
+                }
+            } footer: {
+                Text("「测试连接」会用一条固定的极短内容真实调用一次接口，用来验证地址、密钥、模型名与输出格式。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("模型") {
                 TextField("摘要模型", text: $config.summaryModel)
                 Text("用于列表摘要，建议用便宜快速的模型。")
@@ -108,7 +144,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
 
                 TextField("深度分析模型", text: $config.analysisModel)
-                Text("V0 尚未使用，后续做详情级解读时启用。")
+                Text("用于正文解读等更重的任务。留空则与摘要模型相同。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -140,22 +176,6 @@ struct SettingsView: View {
                     }
 
                 Text("在正文顶部生成一份解读：正文讲了什么，以及评论区的核心观点与趋势。\n它需要连同正文一起送给模型，因此每打开一篇会调一次 AI（按内容缓存，同一篇不会重复调）。关掉后不再自动生成，但正文里仍可手动重新生成。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Section("外观") {
-                Picker("主题", selection: $appearance) {
-                    ForEach(AppAppearance.allCases, id: \.self) { option in
-                        Text(option.displayName).tag(option)
-                    }
-                }
-                .onChange(of: appearance) { _, newValue in
-                    state.setAppearance(newValue)
-                }
-
-                Text("主窗口工具栏上也有一个按钮，可以一键在深色与浅色之间切换。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -207,6 +227,40 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("外观") {
+                Picker("主题", selection: $appearance) {
+                    ForEach(AppAppearance.allCases, id: \.self) { option in
+                        Text(option.displayName).tag(option)
+                    }
+                }
+                .onChange(of: appearance) { _, newValue in
+                    state.setAppearance(newValue)
+                }
+
+                Text("主窗口工具栏上也有一个按钮，可以一键在深色与浅色之间切换。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("离线存档") {
+                LabeledContent("占用") {
+                    Text(state.archiveSizeText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Button("删除全部存档", role: .destructive) {
+                    isConfirmingClearArchives = true
+                }
+                .disabled(state.archiveSizeBytes == 0)
+
+                Text("星标、稍后读与收藏夹的内容会连正文、译文、讨论区一起存到本地，以后打开不再联网。删除后条目仍在，但下次打开需要重新获取。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("缓存") {
                 HStack {
                     Text("当前占用")
@@ -256,24 +310,6 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Section("离线存档") {
-                LabeledContent("占用") {
-                    Text(state.archiveSizeText)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-
-                Button("删除全部存档", role: .destructive) {
-                    isConfirmingClearArchives = true
-                }
-                .disabled(state.archiveSizeBytes == 0)
-
-                Text("星标、稍后读与收藏夹的内容会连正文、译文、讨论区一起存到本地，以后打开不再联网。删除后条目仍在，但下次打开需要重新获取。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
             Section("关于") {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("OhNews")
@@ -311,36 +347,6 @@ struct SettingsView: View {
                 }
             }
 
-            Section {
-                HStack(spacing: 10) {
-                    Button("测试连接") {
-                        Task { await runConnectionTest() }
-                    }
-                    .disabled(isTesting)
-
-                    if isTesting {
-                        ProgressView().controlSize(.small)
-                    }
-
-                    Spacer()
-
-                    Button("保存") {
-                        Task { await save() }
-                    }
-                    .keyboardShortcut(.defaultAction)
-                }
-
-                if let status {
-                    Label(status.text, systemImage: status.icon)
-                        .font(.caption)
-                        .foregroundStyle(status.color)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            } footer: {
-                Text("「测试连接」会用一条固定的极短内容真实调用一次接口，用来验证地址、密钥、模型名与输出格式。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
         .formStyle(.grouped)
         .frame(width: 540)
