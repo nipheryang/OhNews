@@ -13,6 +13,11 @@
 
 :root {
   color-scheme: light dark;
+
+  /* 高亮的颜色只在这里定义一次。正文底色、工具条按钮的按下态、
+     图标里那道划痕，全都从这里取；以后要多几种高亮颜色，
+     改的是这一处（按高亮逐条写进 inline style 即可），别处不必跟着改。 */
+  --ohnews-highlight-rgb: 234, 179, 8;
 }
 
 html {
@@ -343,7 +348,7 @@ details[open] > .comment-head::before { content: "▾"; }
    正文就是正文。 */
 mark.ohnews-highlight,
 .ohnews-highlight {
-  background-color: rgba(234, 179, 8, 0.34);
+  background-color: rgba(var(--ohnews-highlight-rgb), 0.34);
   color: inherit;
   padding: 0 1px;
   margin: 0 -1px;
@@ -352,7 +357,7 @@ mark.ohnews-highlight,
 
 mark.ohnews-highlight:hover,
 .ohnews-highlight:hover {
-  background-color: rgba(234, 179, 8, 0.52);
+  background-color: rgba(var(--ohnews-highlight-rgb), 0.52);
 }
 
 /* ---------- 高亮上的气泡 ---------- */
@@ -371,6 +376,40 @@ mark.ohnews-highlight:hover,
   width: 0;
   height: 0;
   vertical-align: baseline;
+}
+
+/* ---------- 悬停在高亮上时的工具条 ---------- */
+
+/* 和划选用的是同一个组件，差别只在按钮：这里的文字本来就有高亮，
+   所以按钮直接是按下态，再点一下就是取消。
+
+   位置由脚本按"这一条高亮的矩形"算出来，写进 style 的 right / bottom；
+   这里只管显隐。用 visibility 而不是 display，是因为脚本要量它的宽度：
+   display: none 量出来是 0，就摆不对位置。 */
+.ohnews-bubble .ohnews-toolbar {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease, visibility 0s linear 120ms;
+}
+
+mark.ohnews-highlight:hover .ohnews-bubble .ohnews-toolbar,
+.ohnews-highlight:hover .ohnews-bubble .ohnews-toolbar {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 120ms ease;
+}
+
+/* 工具条下沿与句子之间那道缝，用一块透明的"桥"接上：鼠标从句子移向
+   工具条的途中不能离开悬停范围，否则工具条会一闪一闪。
+   它盖住的是行间空白，那里本来也没有可点的东西。
+   （划选工具条不需要它——那条是常显的。） */
+.ohnews-bubble .ohnews-toolbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -12px;
+  height: 12px;
 }
 
 /* ---------- 划选工具条 ---------- */
@@ -425,12 +464,17 @@ mark.ohnews-highlight:hover,
 /* 选中的文字本来就已经高亮：按钮显示按下态，再点一下是取消。
    （存储层会拒掉重复的那条，同一个按钮不做成切换就只会"点了没反应"。） */
 .ohnews-toolbar-button[data-ohnews-active="1"] {
-  background: rgba(234, 179, 8, 0.32);
+  background: rgba(var(--ohnews-highlight-rgb), 0.32);
   color: #6b3f00;
 }
 
 .ohnews-toolbar-button[data-ohnews-active="1"]:hover {
-  background: rgba(234, 179, 8, 0.45);
+  background: rgba(var(--ohnews-highlight-rgb), 0.45);
+}
+
+/* 图标里那道划痕：与正文的高亮同色。 */
+.ohnews-marker-swipe {
+  stroke: rgba(var(--ohnews-highlight-rgb), 0.95);
 }
 
 .ohnews-toolbar-sep {
@@ -440,102 +484,18 @@ mark.ohnews-highlight:hover,
   background: rgba(17, 24, 39, 0.14);
 }
 
-/* 圆点和菜单是**同一个元素**：收着是圆点，鼠标落上去就长成圆角菜单。
-
-   宽、高、圆角、内边距、底色一起过渡，形状是一路插值过去的，所以看起来
-   是圆点化成了菜单，而不是"一块小的放大成大的"。形状走 linear：要的就是
-   一路均匀地化开，中途忽然加速会让"变形"读成"弹出"。
-
-   锚点钉在圆点那里：右边缘固定在文字右侧 11px、上边缘固定在基线上方 12px
-   （正好是圆点占的那一格），盒子只向左、向下长——菜单从圆点那里冒出来。
-   向左长是因为正文右边紧挨着阅读区边界，往右会被裁掉；向下长是因为
-   悬停必须一直落在盒子上，盒子一旦离开指针，菜单就会自己合上。
-   代价是菜单压住下一行的开头，这个方向比压住用户正指着的那句话好。
-
-   展开后的尺寸由脚本量出字条再写进 --ohnews-pop-w / -h：菜单宽度跟着
-   文字走，以后添功能不必回来改这里。 */
-.ohnews-pop {
-  position: absolute;
-  right: -11px;
-  top: -12px;
-  z-index: 3;
-  box-sizing: border-box;
-  width: 11px;
-  height: 11px;
-  /* 展开后这圈内边距是给指针留的落脚处：鼠标停在圆点上时，
-     它落在内边距里，而不是落在某一条字条上——否则"移过去"就等于选好了，
-     一按就执行。14px 让指针离字条还有 8px 以上的余量。 */
-  padding: 0;
-  overflow: hidden;
-  border-radius: 50%;
-  background: rgba(234, 179, 8, 0.95);
-  box-shadow: 0 0 0 2px #ffffff, 0 1px 4px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  transition:
-    width 300ms linear,
-    height 300ms linear,
-    padding 300ms linear,
-    border-radius 300ms linear,
-    background-color 200ms ease,
-    box-shadow 200ms ease,
-    opacity 140ms ease;
-}
-
-/* 悬停在整句高亮上时露出圆点。 */
-mark.ohnews-highlight:hover .ohnews-pop,
-.ohnews-highlight:hover .ohnews-pop {
-  opacity: 1;
-}
-
-/* 鼠标落到圆点上就展开。
-
-   展开态自己也算「悬停」，所以指针停在菜单里不会收回去；
-   指针要离开整个元素才会合上。 */
-.ohnews-pop:hover {
-  width: var(--ohnews-pop-w, 96px);
-  height: var(--ohnews-pop-h, 58px);
-  padding: 14px;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 0 0 1px #e5e7eb, 0 8px 22px rgba(0, 0, 0, 0.18);
-}
-
-/* 字条等形状基本稳定后才淡入：变形还在进行时文字就浮出来的话，
-   看着像被挤出来，而不是菜单长开了。 */
-.ohnews-pop-item {
-  display: block;
-  padding: 5px 10px;
-  border-radius: 7px;
-  font-size: 13px;
-  line-height: 1.5;
-  letter-spacing: 0;
-  color: #111827;
-  white-space: nowrap;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 140ms ease 200ms;
-}
-
-.ohnews-pop:hover .ohnews-pop-item {
-  opacity: 1;
-}
-
-.ohnews-pop-item:hover {
-  background: rgba(17, 24, 39, 0.07);
-}
-
 /* 从高亮列表跳回正文时的落点反馈：让被点的那一句亮一下，然后退回常态。
 
    以前这里给整段描一圈 outline，读起来像"选中了这一整段"，
    而用户只是从清单跳过来，并没有选任何东西。 */
 @keyframes ohnews-highlight-flash {
   0% {
-    background-color: rgba(234, 179, 8, 0.95);
-    box-shadow: 0 0 0 5px rgba(234, 179, 8, 0.32);
+    background-color: rgba(var(--ohnews-highlight-rgb), 0.95);
+    box-shadow: 0 0 0 5px rgba(var(--ohnews-highlight-rgb), 0.32);
   }
   100% {
-    background-color: rgba(234, 179, 8, 0.34);
-    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+    background-color: rgba(var(--ohnews-highlight-rgb), 0.34);
+    box-shadow: 0 0 0 0 rgba(var(--ohnews-highlight-rgb), 0);
   }
 }
 
@@ -547,12 +507,12 @@ mark.ohnews-highlight.ohnews-highlight-flash,
 @media (prefers-color-scheme: dark) {
   mark.ohnews-highlight,
   .ohnews-highlight {
-    background-color: rgba(234, 179, 8, 0.24);
+    background-color: rgba(var(--ohnews-highlight-rgb), 0.24);
   }
 
   mark.ohnews-highlight:hover,
   .ohnews-highlight:hover {
-    background-color: rgba(234, 179, 8, 0.42);
+    background-color: rgba(var(--ohnews-highlight-rgb), 0.42);
   }
 
   .ohnews-toolbar {
@@ -573,51 +533,37 @@ mark.ohnews-highlight.ohnews-highlight-flash,
   }
 
   .ohnews-toolbar-button[data-ohnews-active="1"] {
-    background: rgba(234, 179, 8, 0.3);
+    background: rgba(var(--ohnews-highlight-rgb), 0.3);
     color: #fde68a;
   }
 
   .ohnews-toolbar-button[data-ohnews-active="1"]:hover {
-    background: rgba(234, 179, 8, 0.45);
+    background: rgba(var(--ohnews-highlight-rgb), 0.45);
   }
 
   .ohnews-toolbar-sep {
     background: rgba(243, 244, 246, 0.18);
   }
 
-  .ohnews-pop {
-    box-shadow: 0 0 0 2px #030712, 0 1px 4px rgba(0, 0, 0, 0.55);
-  }
-
-  .ohnews-pop:hover {
-    background: #111827;
-    box-shadow: 0 0 0 1px #1f2937, 0 8px 22px rgba(0, 0, 0, 0.55);
-  }
-
-  .ohnews-pop-item {
-    color: #f3f4f6;
-  }
-
-  .ohnews-pop-item:hover {
-    background: rgba(243, 244, 246, 0.09);
-  }
+  /* 深色下那颗悬停圆点与它的菜单已经没有对应元素了：
+     悬停改为浮出工具条，样式在上面的 .ohnews-toolbar 里。 */
 }
 
 @media (prefers-contrast: more) {
   mark.ohnews-highlight,
   .ohnews-highlight {
-    background-color: rgba(234, 179, 8, 0.5);
+    background-color: rgba(var(--ohnews-highlight-rgb), 0.5);
   }
 
   mark.ohnews-highlight:hover,
   .ohnews-highlight:hover {
-    background-color: rgba(234, 179, 8, 0.75);
+    background-color: rgba(var(--ohnews-highlight-rgb), 0.75);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ohnews-pop,
-  .ohnews-pop-item {
+  .ohnews-toolbar,
+  .ohnews-toolbar-button {
     transition: none;
   }
 

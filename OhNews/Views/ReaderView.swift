@@ -578,55 +578,49 @@ enum ReaderScript {
     /// 气泡的构造函数。标记高亮与划选后弹气泡两处都要用，
     /// 所以拼成一段共用的脚本片段，各自放在自己的 IIFE 里。
     private static let bubbleFactory = """
-      // 展开后的尺寸要按字条量出来：菜单宽度跟着文字走，以后添功能不必
-      // 回来改样式表。量的时候盒子还收着（11x11、overflow: hidden），
-      // 但字条设了 nowrap，用 Range 量到的仍是它自己那一行的宽高。
-      function sizePop(pop) {
-        var items = pop.querySelectorAll('.ohnews-pop-item');
-        var range = document.createRange();
-        var widest = 0;
-        var total = 0;
-        for (var i = 0; i < items.length; i++) {
-          // 宽度只能用 Range 量：字条被收起的盒子限宽，offsetWidth 会跟着变小。
-          range.selectNodeContents(items[i]);
-          widest = Math.max(widest, range.getBoundingClientRect().width);
-          // 高度相反：字条不换行，offsetHeight 就是它真实的高度。
-          total += items[i].offsetHeight || 0;
-        }
-        // 宽度：Range 量到的是文字，两边还要各加字条的 10 与气泡的 14。
-        // 高度：offsetHeight 已经把字条自己的内边距算进去了，只补气泡的上下各 14。
-        pop.style.setProperty('--ohnews-pop-w', Math.ceil(widest) + 48 + 'px');
-        pop.style.setProperty('--ohnews-pop-h', Math.ceil(total) + 28 + 'px');
-      }
-
-      // 挂气泡，然后量展开尺寸。
+      // 悬停在高亮上时浮出来的工具条。
       //
-      // 量尺寸必须排在**插进文档之后**：还没入文档的元素量出来全是 0，
-      // 菜单会长成"一圈边框"那么小，字条也永远不出现。
-      function attachBubble(host, bubble) {
-        host.appendChild(bubble);
-        sizePop(bubble.querySelector('.ohnews-pop'));
-      }
+      // 和划选那条是同一个组件，只是按钮一上来就是按下态（这段文字本来
+      // 就有高亮），点它是取消。位置按这一条高亮的矩形算：横向对着它居中，
+      // 纵向坐在它上方 8px——两处都是量出来的，所以长句子、跨行的句子
+      // 都不会跑偏。量之前必须先入文档，脱开的元素量出来全是 0。
+      function attachHoverToolbar(host, text, index) {
+        var bar = document.createElement('div');
+        bar.className = 'ohnews-toolbar';
 
-      // 圆点与菜单是同一个元素：收着是圆点，悬停时长成圆角菜单。
-      // 一条字条对应一个动作，以后加功能就是往里多塞几个。
-      function buildBubble(text, action, label, index) {
-        var bubble = document.createElement('span');
-        bubble.className = 'ohnews-bubble';
+        var button = document.createElement('span');
+        button.className = 'ohnews-toolbar-button';
+        button.setAttribute('data-ohnews-action', 'unhighlight');
+        button.setAttribute('data-ohnews-text', text);
+        button.setAttribute('data-ohnews-index', String(index));
+        button.setAttribute('data-ohnews-active', '1');
+        button.setAttribute('title', '取消高亮');
+        button.innerHTML = \(quoted(markerIcon));
+        bar.appendChild(button);
 
-        var pop = document.createElement('span');
-        pop.className = 'ohnews-pop';
+        host.appendChild(bar);
 
-        var item = document.createElement('span');
-        item.className = 'ohnews-pop-item';
-        item.setAttribute('data-ohnews-action', action);
-        item.setAttribute('data-ohnews-text', text);
-        item.setAttribute('data-ohnews-index', String(index));
-        item.textContent = label;
-        pop.appendChild(item);
+        var hostBox = host.getBoundingClientRect();
+        var barBox = bar.getBoundingClientRect();
+        var anchor = bar.offsetParent ? bar.offsetParent.getBoundingClientRect() : hostBox;
 
-        bubble.appendChild(pop);
-        return bubble;
+        // 横向：对着这一条高亮居中，再夹在正文左右边界里。
+        var page = document.body.getBoundingClientRect();
+        var margin = 8;
+        var left = hostBox.left + hostBox.width / 2 - barBox.width / 2;
+        left = Math.max(page.left + margin, Math.min(left, page.right - margin - barBox.width));
+
+        // 纵向：下沿停在高亮上方 8px。
+        // 注意 bottom 到的是"元素下沿"，所以这里给的是下沿的目标位置，
+        // 不能再减一次工具条高度——减了它会整整高出 40px。
+        var gap = 8;
+        var barBottom = hostBox.top - gap;
+
+        // 换算成相对锚点（.ohnews-bubble，它在高亮末尾、零尺寸）的偏移。
+        bar.style.right = (anchor.right - (left + barBox.width)) + 'px';
+        bar.style.bottom = (anchor.bottom - barBottom) + 'px';
+
+        return bar;
       }
     """
 
@@ -692,7 +686,19 @@ enum ReaderScript {
             }
 
             var at = full.indexOf(needle);
-            if (at < 0) { return null; }
+            if (at < 0) {
+              // 整段找不到时的退路：逐级缩短，找它还在的最长前缀。
+              // 找不到就整段上色太重了——用户点了一句话，不该有整段被标黄。
+              var shares = [0.75, 0.5, 0.25];
+              for (var t = 0; t < shares.length; t++) {
+                var cut = Math.max(8, Math.floor(needle.length * shares[t]));
+                if (cut >= needle.length) { continue; }
+                at = full.indexOf(needle.substring(0, cut));
+                if (at >= 0) { needle = needle.substring(0, cut); break; }
+              }
+              at = full.indexOf(needle);
+              if (at < 0) { return null; }
+            }
             var end = at + needle.length;
 
             var made = [];
@@ -719,6 +725,13 @@ enum ReaderScript {
 
           unwrapAll();
 
+          // 第一遍：只做标记，**不往段落里插任何东西**。
+          //
+          // 工具条里带着"取消高亮"这几个字。一边标记一边把它挂进段落，
+          // 段落文字就不再连续——后一条与它重叠的高亮会因此搜不到自己的原文，
+          // 退化成"整段上色"。这正是重复高亮把整段标黄的原因。
+          // 所以标记与挂工具条分成两遍。
+          var placed = [];
           for (var j = 0; j < wanted.length; j++) {
             var item = wanted[j];
             var block = document.getElementById('p-' + item.index);
@@ -726,21 +739,17 @@ enum ReaderScript {
 
             var marks = wrapRange(block, item.text);
             if (marks) {
-              // 只给这条高亮的最后一段挂气泡，一颗就够。
-              attachBubble(
-                marks[marks.length - 1],
-                buildBubble(item.text, 'unhighlight', '取消高亮', item.index)
-              );
+              placed.push({ block: block, text: item.text, index: item.index });
             } else {
               block.classList.add('ohnews-highlight');
               block.setAttribute('data-ohnews-text', item.text);
-              attachBubble(block, buildBubble(item.text, 'unhighlight', '取消高亮', item.index));
+              placed.push({ block: block, text: item.text, index: item.index });
             }
           }
 
           // 两条高亮互相重叠时，内层那个 mark 会嵌在外层里面：底色叠两层、
-          // 两颗圆点挤在一起。把内层拆掉，只留外层——重叠的那一段仍然是高亮的，
-          // 只是由外层代表它。
+          // 两颗工具条挤在一起。把内层拆掉，只留外层——重叠的那一段仍然是
+          // 高亮的，只是由外层代表它。
           var nested = document.querySelectorAll('mark.ohnews-highlight mark.ohnews-highlight');
           for (var n = 0; n < nested.length; n++) {
             var inner = nested[n];
@@ -749,6 +758,26 @@ enum ReaderScript {
             while (inner.firstChild) { host.insertBefore(inner.firstChild, inner); }
             host.removeChild(inner);
             host.normalize();
+          }
+
+          // 第二遍：标记都落定了才挂工具条。按原文重新找一次宿主，
+          // 因为上一步可能把某条高亮的 mark 拆掉了（那一条在正文里由外层代表）。
+          for (var k = 0; k < placed.length; k++) {
+            var want = placed[k];
+            var target = null;
+
+            var found = want.block.querySelectorAll('mark.ohnews-highlight');
+            for (var m = 0; m < found.length; m++) {
+              if (found[m].getAttribute('data-ohnews-text') === want.text) { target = found[m]; }
+            }
+            if (!target &&
+                want.block.classList.contains('ohnews-highlight') &&
+                want.block.getAttribute('data-ohnews-text') === want.text) {
+              target = want.block;
+            }
+            if (!target) { continue; }
+
+            attachHoverToolbar(target, want.text, want.index);
           }
 
           return document.querySelectorAll('mark.ohnews-highlight').length;
@@ -766,7 +795,7 @@ enum ReaderScript {
         <rect x="5.9" y="2.3" width="4.2" height="6.9" rx="1.2" fill="currentColor"></rect>
         <path d="M6.6 9.4 H9.4 L8.7 12.4 H7.3 Z" fill="currentColor" opacity="0.45"></path>
       </g>
-      <path d="M2.6 14.3 H13.4" stroke="rgba(234, 179, 8, 0.95)" stroke-width="1.7"
+      <path class="ohnews-marker-swipe" d="M2.6 14.3 H13.4" stroke-width="1.7"
             stroke-linecap="round" fill="none"></path>
     </svg>
     """
