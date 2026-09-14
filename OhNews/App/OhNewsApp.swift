@@ -11,7 +11,16 @@ struct OhNewsApp: App {
         WindowGroup {
             RootView()
                 .environment(state)
-                .frame(minWidth: 1000, minHeight: 640)
+                // 最小高度定得很低，因为窗口变矮时该牺牲的是**下半部分**，
+                // 不是上半部分：侧栏的功能入口、列表最前面几条，要一直留在
+                // 窗口顶部不动。真正决定这件事的是三列各自的
+                // `.containerRelativeFrame(.vertical)`——列高跟着窗口走，
+                // 列表在列内自己滚，所以顶部永远稳。
+                //
+                // 这里的值只是"再矮就不像话了"的下限，不是布局撑不住的下限：
+                // 它通过 `.windowResizability(.contentMinSize)` 成为窗口的最小值，
+                // 低于它就拉不动了，于是永远到不了溢出那一步。
+                .frame(minWidth: 1000, minHeight: 360)
         }
         .defaultSize(width: 1240, height: 780)
         // 让窗口真的照根视图的最小尺寸来。
