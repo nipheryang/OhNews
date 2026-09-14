@@ -246,10 +246,14 @@ final class AppState {
     var selectedStory: Story? {
         guard let selectedStoryID else { return nil }
         if let story = stories.first(where: { $0.id == selectedStoryID }) { return story }
-        // 从中栏的收藏／稍后读列表打开的条目不在 `stories` 里，此时从中栏
-        // 列表拿不到，回退到保存记录里那份快照。
+        // 从中栏的星标／稍后读／高亮／收藏夹打开的条目不在 `stories` 里，
+        // 回退到它们的清单。中栏每多一类条目，这里就要多查一处，
+        // 否则选中后右栏拿不到 `Story`，详情页会停在空状态。
         let saved = collectionItems + readLaterItems
-        return saved.first { $0.id == selectedStoryID }?.story
+        if let article = saved.first(where: { $0.id == selectedStoryID }) {
+            return article.story
+        }
+        return savedPages.first { $0.id == selectedStoryID }?.story
     }
 
     /// 启动准备：载入源列表、用户偏好，并恢复上次选中的频道。
@@ -1506,8 +1510,12 @@ final class AppState {
 
     /// 从高亮跳回原文的那一段。
     func openSavedPassage(_ passage: SavedPassage) async {
+        // 三个来源都要查：信息流缓存、星标／稍后读的快照、收藏夹的单篇。
+        // 高亮可能标在任何一类文章上。
+        let saved = (collectionItems + readLaterItems).first { $0.id == passage.itemID }
         let story = await cache.story(id: passage.itemID)
-            ?? (collectionItems + readLaterItems).first { $0.id == passage.itemID }?.story
+            ?? saved?.story
+            ?? savedPages.first { $0.id == passage.itemID }?.story
         guard let story else { return }
         // 先选中（选中会清掉上一次的跳转），再设新的目标。
         await select(story)
