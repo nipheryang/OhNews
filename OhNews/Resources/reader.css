@@ -360,14 +360,39 @@ details[open] > .comment-head::before { content: "▾"; }
      内容滚到底会贴着下边缘。 */
   padding: 16px 0 0;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.62);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
+
+  /* 面板的"玻璃"几乎全是自己画出来的，原因得写在这儿：
+
+     `backdrop-filter` 模糊的是背后画着的东西。而面板在正文文档流里，
+     没有任何内容从它背后经过——背后永远是纸色（而且面板不透明时连这层纸
+     都看不见）。模糊一片纯白与不模糊没有区别，这就是亮色模式下
+     "看不出玻璃"的物理原因：不是参数没调好，是没有东西可以折射。
+
+     所以玻璃感只能由四样东西撑起来，下面按重要性排列：
+       ① 一圈分界——亮色下必须是**暗**发丝线，白底上的白色描边等于不存在；
+       ② 顶边一道亮线 + 一层从上压下来的柔光（光源在上方）；
+       ③ 与纸色**略有差别**的底色（带一点冷调），让它看着是"一层东西"；
+       ④ 投影——低、软、宽。材质感的一半来自影子。 */
+  background:
+    /* ② 光泽：光源在左上方时的柔光。压在底色之上、文字之下，
+          写在 background 层里而不是用 ::after 盖——盖上去会把眉标冲淡。 */
+    radial-gradient(130% 80% at 10% -12%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 58%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 46%),
+    /* ③ 玻璃底色：比纸色略冷、略灰一点，边界才看得出来 */
+    rgba(243, 246, 250, 0.66);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(190%);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 1px 3px rgba(0, 0, 0, 0.07),
-    0 12px 30px rgba(0, 0, 0, 0.11);
+    /* ② 顶边的亮线。底下有 ③ 那层冷灰垫着，这条白线才读得出来 */
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    /* ① 一圈暗发丝线：白底上的分界。这是亮色模式玻璃感的命脉 */
+    inset 0 0 0 1px rgba(15, 23, 42, 0.055),
+    /* 底边极淡的暗，做出一点点厚度 */
+    inset 0 -1px 0 rgba(15, 23, 42, 0.03),
+    /* ④ 投影：一道贴地的硬边 + 两层散开的软影，比单层大阴影更像实物 */
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 10px 24px -6px rgba(15, 23, 42, 0.1),
+    0 24px 48px -12px rgba(15, 23, 42, 0.08);
 }
 
 .ohnews-insight-head {
@@ -698,13 +723,22 @@ mark.ohnews-highlight.ohnews-highlight-flash,
     background-color: rgba(var(--ohnews-highlight-rgb), 0.42);
   }
 
+  /* 深色下玻璃读得出来，是因为亮边在暗底上对比明显——所以这里反过来做：
+     描边用亮线，光泽压得更亮，底色比纸色略浅一点（像被提亮了一层）。 */
   .ohnews-insight {
-    background: rgba(22, 26, 34, 0.55);
+    background:
+      radial-gradient(130% 80% at 10% -12%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%),
+      linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 46%),
+      rgba(28, 33, 42, 0.62);
+    -webkit-backdrop-filter: blur(26px) saturate(170%) brightness(1.06);
+    backdrop-filter: blur(26px) saturate(170%) brightness(1.06);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.13),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
-      0 1px 3px rgba(0, 0, 0, 0.35),
-      0 12px 30px rgba(0, 0, 0, 0.4);
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 14px 32px -8px rgba(0, 0, 0, 0.5),
+      0 28px 56px -16px rgba(0, 0, 0, 0.4);
   }
 
   .ohnews-insight-eyebrow,
