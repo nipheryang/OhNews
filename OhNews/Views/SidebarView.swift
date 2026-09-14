@@ -246,6 +246,7 @@ struct SidebarView: View {
         case .highlight: state.passageItems.count
         case .savedPages: state.savedPages.count
         case .readLater: state.readLaterItems.count
+        case .trash: state.trashItems.count
         }
     }
 

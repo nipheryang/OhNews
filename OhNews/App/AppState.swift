@@ -199,6 +199,7 @@ final class AppState {
     private let selectionPersistence = SelectionPersistence()
     private let listPreferences = ListPreferences()
     private let summaryPreferences = SummaryPreferences()
+    private let trashPreferences = TrashPreferences()
     private let insightPreferences = InsightPreferences()
     /// 可写：检查时间与「不再提示」的版本都要落盘。
     @ObservationIgnored private var updatePreferences = UpdatePreferences()
@@ -206,6 +207,9 @@ final class AppState {
     private let library = LibraryStore()
     /// 收藏夹（主动收藏的单篇）。单独一个文件，同样不受清缓存影响。
     private let savedPagesStore = SavedPagesStore()
+    /// 回收站。删掉的东西先落这儿：「订阅源的内容是流动的」这件事，
+    /// 让"删了就没了"变得不可接受。
+    private let trashStore = TrashStore()
     /// 收藏内容的离线存档。
     private let archives = ArchiveStore()
     /// 冷启动后的第一次加载会联网刷新一次；之后切换频道只用缓存。
@@ -253,7 +257,13 @@ final class AppState {
         if let article = saved.first(where: { $0.id == selectedStoryID }) {
             return article.story
         }
-        return savedPages.first { $0.id == selectedStoryID }?.story
+        if let page = savedPages.first(where: { $0.id == selectedStoryID }) {
+            return page.story
+        }
+        // 回收站里的条目也允许打开：离线存档还在，用户可以看一眼再决定放不放回。
+        // 中栏给的是回收站自己的编号，两条清单里的条目 ID 也不妨一起认。
+        let trashed = trashItems.first { $0.id == selectedStoryID || $0.itemID == selectedStoryID }
+        return trashed?.story
     }
 
     /// 启动准备：载入源列表、用户偏好，并恢复上次选中的频道。
@@ -268,6 +278,8 @@ final class AppState {
         await refreshCacheSize()
         await refreshArchiveSize()
         await reloadLibrary()
+        // 过期清理放在库加载之后：它要读条目，也要更新列表。
+        await applyTrashRetention()
 
         if let restored = selectionPersistence.load() {
             selectedChannelID = restored
@@ -1125,9 +1137,103 @@ final class AppState {
 
     /// 从收藏夹移除，连它的正文副本一起删。
     func removeSavedPage(id: String) async {
+        guard let page = await savedPagesStore.all().first(where: { $0.id == id }) else { return }
         await savedPagesStore.remove(id: id)
-        await archives.remove(itemID: id)
+        // 离线副本先留着：放回原处时要靠它还原，彻底删除时才清。
+        await putInTrash(page, origin: .savedPage)
         await reloadLibrary()
+    }
+
+    // MARK: - 回收站
+
+    /// 移入回收站。
+    private func putInTrash(_ article: SavedArticle, origin: TrashedItem.Origin) async {
+        await trashStore.put(
+            TrashedItem(itemID: article.id, origin: origin, article: article)
+        )
+    }
+
+    private func putInTrash(_ page: SavedPage, origin: TrashedItem.Origin) async {
+        await trashStore.put(
+            TrashedItem(itemID: page.id, origin: origin, page: page)
+        )
+    }
+
+    /// 把一条从回收站放回原处。
+    ///
+    /// 存进去的是删除那一刻的完整快照，所以这里是原样写回，不需要重新联网，
+    /// 也不要求原来那条还在订阅源里。
+    func restoreFromTrash(_ item: TrashedItem) async {
+        guard let payload = await trashStore.take(id: item.id) else { return }
+
+        switch payload.origin {
+        case .collection:
+            if let article = payload.article {
+                await library.addArticle(article, kind: .collection)
+            }
+        case .readLater:
+            if let article = payload.article {
+                await library.addArticle(article, kind: .readLater)
+            }
+        case .savedPage:
+            if let page = payload.page {
+                await savedPagesStore.add(page)
+            }
+        }
+
+        await reloadLibrary()
+        showNotice("已放回原处（\(payload.origin.title)）", in: .list)
+    }
+
+    /// 从回收站里彻底删掉一条。
+    func deleteFromTrash(_ item: TrashedItem) async {
+        guard let payload = await trashStore.take(id: item.id) else { return }
+        await purgeArchiveIfUnused(itemID: payload.itemID)
+        await reloadLibrary()
+        showNotice("已彻底删除", in: .list)
+    }
+
+    /// 清空回收站。
+    func emptyTrash() async {
+        let items = await trashStore.all()
+        guard items.isEmpty == false else { return }
+
+        await trashStore.removeAll()
+        for item in items {
+            await purgeArchiveIfUnused(itemID: item.itemID)
+        }
+        await reloadLibrary()
+        showNotice("回收站已清空", in: .list)
+    }
+
+    /// 按设置清掉过期的条目。启动时、以及改了设置之后各跑一次。
+    func applyTrashRetention() async {
+        guard let cutoff = trashPreferences.cutoff() else { return }
+        let expired = await trashStore.all().filter { $0.deletedAt < cutoff }
+        guard expired.isEmpty == false else { return }
+
+        for item in expired {
+            await purgeArchiveIfUnused(itemID: item.itemID)
+        }
+        await trashStore.removeItems(deletedBefore: cutoff)
+        await reloadLibrary()
+    }
+
+    /// 用户在设置里换了保留档位。
+    func applyTrashRetentionChange() async {
+        await applyTrashRetention()
+    }
+
+    /// 彻底删掉时才连离线存档一起清。
+    ///
+    /// 先确认它确实不在任何清单里：同一篇文章可能既是星标又是收藏夹的单篇，
+    /// 从回收站删掉一边，不该把另一边还要用的副本也弄没。
+    private func purgeArchiveIfUnused(itemID: String) async {
+        let inCollection = await library.containsArticle(itemID: itemID, kind: .collection)
+        let inReadLater = await library.containsArticle(itemID: itemID, kind: .readLater)
+        let inPages = await savedPagesStore.contains(id: itemID)
+        guard inCollection == false, inReadLater == false, inPages == false else { return }
+        await archives.remove(itemID: itemID)
     }
 
     // MARK: - 版本检查
@@ -1299,9 +1405,17 @@ final class AppState {
     /// 收藏夹里的单篇，按收藏时间倒序。
     private(set) var savedPages: [SavedPage] = []
 
+    /// 回收站里的条目，按删除时间倒序。
+    private(set) var trashItems: [TrashedItem] = []
+
     /// 当前入口对应的单篇列表；停在别的入口或频道上时为空。
     var activeSavedPages: [SavedPage] {
         activeLibraryEntry == .savedPages ? savedPages : []
+    }
+
+    /// 当前入口对应的回收站条目；停在别处时为空。
+    var activeTrashItems: [TrashedItem] {
+        activeLibraryEntry == .trash ? trashItems : []
     }
 
     /// 侧栏当前是不是停在收藏／稍后读入口上。
@@ -1314,8 +1428,8 @@ final class AppState {
         switch activeLibraryEntry {
         case .collection: collectionItems
         case .readLater: readLaterItems
-        // 高亮与收藏夹的内容不是 `SavedArticle`，各有自己的取法。
-        case .highlight, .savedPages, .none: []
+        // 高亮、收藏夹与回收站的内容不是 `SavedArticle`，各有自己的取法。
+        case .highlight, .savedPages, .trash, .none: []
         }
     }
 
@@ -1337,6 +1451,7 @@ final class AppState {
         readLaterItems = await library.articles(.readLater)
         passageItems = await library.allPassages()
         savedPages = await savedPagesStore.all()
+        trashItems = await trashStore.all()
         await backfillMetadataIfNeeded()
     }
 
@@ -1369,27 +1484,32 @@ final class AppState {
     /// 切换收藏，返回切换后是否已收藏。
     @discardableResult
     func toggleCollection(_ story: Story) async -> Bool {
+        // 取消时要把它收进回收站，所以先把快照取下来。
+        let existing = await library.articles(.collection).first { $0.id == story.id }
         let saved = await library.toggleArticle(savedArticle(for: story), kind: .collection)
-        await reloadLibrary()
-        // 收藏就存一份离线副本；取消收藏连副本一起删。
         if saved {
             await archiveForSave(story)
-        } else {
-            await archives.remove(itemID: story.id)
+        } else if let existing {
+            // 不再直接删掉。星标标记的是订阅源里的文章，而订阅源的内容是流动的：
+            // 取消之后原文未必还在原来的位置，先进回收站，后悔了可以放回原处。
+            await putInTrash(existing, origin: .collection)
         }
+        await reloadLibrary()
         return saved
     }
 
     /// 切换稍后读，返回切换后是否已加入。
     @discardableResult
     func toggleReadLater(_ story: Story) async -> Bool {
+        let existing = await library.articles(.readLater).first { $0.id == story.id }
         let saved = await library.toggleArticle(savedArticle(for: story), kind: .readLater)
-        await reloadLibrary()
         if saved {
             await archiveForSave(story)
-        } else {
-            await archives.remove(itemID: story.id)
+        } else if let existing {
+            // 同星标：先入回收站，不直接删。
+            await putInTrash(existing, origin: .readLater)
         }
+        await reloadLibrary()
         return saved
     }
 
@@ -1765,6 +1885,11 @@ final class AppState {
         }
         if let passage = passageItems.first(where: { $0.id == id }) {
             await openSavedPassage(passage)
+            return
+        }
+        let trashed = trashItems.first { $0.id == id || $0.itemID == id }
+        if let story = trashed?.story {
+            await select(story)
         }
     }
 

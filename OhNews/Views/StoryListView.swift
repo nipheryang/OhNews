@@ -208,10 +208,55 @@ struct StoryListView: View {
     /// 稍后读只收整篇，段落收在里面没有意义。
     @ViewBuilder
     private func libraryContent(for entry: LibraryEntry) -> some View {
-        if entry == .savedPages {
-            savedPagesContent(for: entry)
+        switch entry {
+        case .savedPages: savedPagesContent(for: entry)
+        case .trash: trashContent(for: entry)
+        default: articleContent(for: entry)
+        }
+    }
+
+    /// 回收站：删掉的东西先放这儿，可以放回原处，也可以彻底删掉。
+    @ViewBuilder
+    private func trashContent(for entry: LibraryEntry) -> some View {
+        let items = state.activeTrashItems
+
+        if items.isEmpty {
+            libraryEmptyState(entry)
         } else {
-            articleContent(for: entry)
+            List(selection: selection) {
+                ForEach(items) { item in
+                    // 标签用回收站自己的编号：同一篇文章的「星标 + 收藏夹」
+                    // 会同时躺在回收站里，用条目 ID 两个行会选到一起。
+                    TrashedRowView(item: item, isSelected: state.selectedStoryID == item.id)
+                        .tag(item.id)
+                        .contextMenu {
+                            Button("放回原处（\(item.origin.title)）") {
+                                Task { await state.restoreFromTrash(item) }
+                            }
+
+                            Divider()
+
+                            Button("彻底删除", role: .destructive) {
+                                Task { await state.deleteFromTrash(item) }
+                            }
+                        }
+                        .listRowInsets(EdgeInsets(
+                            top: 0,
+                            leading: Metrics.gutter,
+                            bottom: 0,
+                            trailing: Metrics.gutter
+                        ))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Palette.paper)
+                }
+            }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Palette.paper)
+            .onChange(of: state.selectedStoryID) { _, newValue in
+                guard let newValue else { return }
+                Task { await state.selectByID(newValue) }
+            }
         }
     }
 

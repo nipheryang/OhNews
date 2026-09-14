@@ -201,3 +201,55 @@ struct SavedPassageRowView: View {
         return .clear
     }
 }
+
+/// 回收站里的一行。
+///
+/// 比别的行多一行信息：它**原来在哪儿**。放回是"回到原处"，
+/// 用户需要先看见原处是哪儿，才敢按那个按钮。
+struct TrashedRowView: View {
+    let item: TrashedItem
+    let isSelected: Bool
+
+    @State private var isHovering = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("\(item.origin.title) · \(RelativeTime.text(for: item.deletedAt))")
+                .font(Typography.eyebrow)
+                .tracking(Metrics.eyebrowTracking)
+                .textCase(.uppercase)
+                .foregroundStyle(Palette.inkFaint)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Text(item.title)
+                .font(Typography.summaryTitle)
+                .foregroundStyle(isHovering ? Palette.inkSoft : Palette.ink)
+                .lineSpacing(Typography.rowTitleLineSpacing)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+        }
+        .padding(.horizontal, Metrics.rowHorizontalPadding)
+        .padding(.vertical, Metrics.rowVerticalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(background)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Palette.line)
+                .frame(height: Metrics.hairline)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(Motion.standard) { isHovering = hovering }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("回收站里来自\(item.origin.title)的《\(item.title)》")
+    }
+
+    private var background: Color {
+        if isSelected { return Palette.selectedWash }
+        if isHovering { return Palette.hoverWash }
+        return .clear
+    }
+}

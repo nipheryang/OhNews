@@ -20,8 +20,10 @@ struct SettingsView: View {
     @State private var insightEnabled = true
     @State private var appearance = AppAppearance.system
     @State private var readerFontScale = ReaderPreferences.defaultScale
+    @State private var trashRetention = TrashRetention.fallback
     @State private var isConfirmingClearCache = false
     @State private var isConfirmingClearArchives = false
+    @State private var isConfirmingEmptyTrash = false
     @State private var status: StatusMessage?
     @State private var isTesting = false
     @State private var isLoaded = false
@@ -225,6 +227,35 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            Section("回收站") {
+                Picker("自动清空", selection: $trashRetention) {
+                    ForEach(TrashRetention.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .onChange(of: trashRetention) { _, newValue in
+                    var preferences = TrashPreferences()
+                    preferences.retention = newValue
+                    Task { await state.applyTrashRetentionChange() }
+                }
+
+                LabeledContent("在站") {
+                    Text("\(state.trashItems.count) 篇")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Button("立即清空", role: .destructive) {
+                    isConfirmingEmptyTrash = true
+                }
+                .disabled(state.trashItems.isEmpty)
+
+                Text("删除收藏夹的单篇、取消星标或从稍后读移除时，文章先进回收站，可以放回原处。到期后连同离线存档一起清掉。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("离线存档") {
                 LabeledContent("占用") {
                     Text(state.archiveSizeText)
@@ -321,6 +352,20 @@ struct SettingsView: View {
             await state.refreshArchiveSize()
         }
         .confirmationDialog(
+            "清空回收站？",
+            isPresented: $isConfirmingEmptyTrash,
+            actions: {
+                Button("清空", role: .destructive) {
+                    Task { await state.emptyTrash() }
+                }
+                Button("取消", role: .cancel) {}
+            },
+            message: {
+                Text("回收站里的条目会连同离线存档一起删除，之后无法找回。")
+            }
+        )
+
+        .confirmationDialog(
             "删除全部存档？",
             isPresented: $isConfirmingClearArchives
         ) {
@@ -395,6 +440,7 @@ struct SettingsView: View {
         insightEnabled = InsightPreferences().isEnabled
         appearance = state.appearance
         readerFontScale = state.readerFontScale
+        trashRetention = TrashPreferences().retention
         loadStoredKey()
         isLoaded = true
     }
